@@ -12,10 +12,74 @@ from typing import Iterable
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WIKI_ROOT = REPO_ROOT / "wiki"
-RUNTIME_ROOT = Path(os.environ.get("WIKI_RUNTIME", REPO_ROOT / ".wiki-runtime")).resolve()
+RUNTIME_ROOT = (REPO_ROOT / ".wiki-runtime").resolve()
+
+SECRET_KEY_RE = re.compile(r"(token|password|secret|api[_-]?key|authorization|bearer)", re.IGNORECASE)
+SECRET_VALUE_RE = re.compile(
+    r"(sk-[A-Za-z0-9_-]{8,}|ghp_[A-Za-z0-9_]{8,}|github_pat_[A-Za-z0-9_]{8,}|hf_[A-Za-z0-9_]{8,})"
+)
+
+
+def ensure_private_dir(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    try:
+        path.chmod(0o700)
+    except OSError:
+        pass
+
+
+def ensure_private_file(path: Path) -> None:
+    try:
+        path.chmod(0o600)
+    except FileNotFoundError:
+        pass
+    except OSError:
+        pass
+
+
+def write_private_text(path: Path, text: str) -> None:
+    ensure_private_dir(path.parent)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(text)
+    ensure_private_file(path)
+
+
+def append_private_text(path: Path, text: str) -> None:
+    ensure_private_dir(path.parent)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    with os.fdopen(fd, "a", encoding="utf-8") as handle:
+        handle.write(text)
+    ensure_private_file(path)
+
+
+def redact_arg(arg: str) -> str:
+    if "=" in arg:
+        key, _ = arg.split("=", 1)
+        if SECRET_KEY_RE.search(key):
+            return f"{key}=<redacted>"
+    if SECRET_VALUE_RE.search(arg):
+        return SECRET_VALUE_RE.sub("<redacted>", arg)
+    return arg
+
+
+def redact_args(argv: Iterable[str]) -> list[str]:
+    redacted: list[str] = []
+    redact_next = False
+    for arg in argv:
+        if redact_next:
+            redacted.append("<redacted>")
+            redact_next = False
+            continue
+        redacted_arg = redact_arg(arg)
+        redacted.append(redacted_arg)
+        if SECRET_KEY_RE.search(arg.lstrip("-")) and "=" not in arg:
+            redact_next = True
+    return redacted
 
 
 def ensure_runtime_dirs() -> None:
+    ensure_private_dir(RUNTIME_ROOT)
     for rel in (
         "cache/wiki_lint",
         "indexes/ctags",
@@ -24,16 +88,15 @@ def ensure_runtime_dirs() -> None:
         "logs",
         "tmp",
     ):
-        (RUNTIME_ROOT / rel).mkdir(parents=True, exist_ok=True)
+        ensure_private_dir(RUNTIME_ROOT / rel)
 
 
 def append_tool_log(tool: str, argv: Iterable[str]) -> None:
     ensure_runtime_dirs()
     log_path = RUNTIME_ROOT / "logs" / f"{tool}.log"
     timestamp = datetime.now().isoformat(timespec="seconds")
-    rendered_args = " ".join(argv)
-    with log_path.open("a", encoding="utf-8") as handle:
-        handle.write(f"{timestamp} {tool} {rendered_args}\n")
+    rendered_args = " ".join(redact_args(argv))
+    append_private_text(log_path, f"{timestamp} {tool} {rendered_args}\n")
 
 
 def die(message: str, code: int = 2) -> None:
