@@ -1,0 +1,166 @@
+# Wiki Log
+
+Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
+
+Use this prefix shape:
+
+```md
+## [YYYY-MM-DD] <kind> v<NN> | <subject>
+```
+
+For version-agnostic work, omit the version segment:
+
+```md
+## [YYYY-MM-DD] <kind> | <subject>
+```
+
+## [2026-04-30] scaffold | initialized Phase 1 wiki structure
+
+- Created version-agnostic wiki entry points.
+- Created page templates.
+- Created `AGENTS.md`.
+- Created project-local runtime directory layout under `.wiki-runtime/`.
+- Added `.gitignore` entries for project-local runtime state and local PostgreSQL source checkouts.
+
+## [2026-04-30] add-version v18 | bootstrapped primary source checkout
+
+- Added PostgreSQL 18 as the primary wiki version.
+- Cloned official PostgreSQL source into `raw/postgres-18/`.
+- Pinned `REL_18_STABLE` to `6cb307251c5c6261286c1566496920976640108e`.
+- Created `wiki/v18/index.md`.
+- Created empty version-local directories for subsystems, concepts, code paths, files, and questions.
+- Updated `wiki/versions.md`, `wiki/index.md`, and `wiki/overview.md`.
+
+## [2026-04-30] ingest v18 | parser subsystem
+
+- Created `wiki/v18/subsystems/parser.md`.
+- Verified entry points against `raw/postgres-18/src/backend/tcop/postgres.c:pg_parse_query`, `raw/postgres-18/src/backend/parser/parser.c:raw_parser`, and `raw/postgres-18/src/include/parser/parser.h`.
+
+## [2026-04-30] ingest v18 | analyzer subsystem
+
+- Created `wiki/v18/subsystems/analyzer.md`.
+- Verified entry points against `raw/postgres-18/src/backend/tcop/postgres.c:pg_analyze_and_rewrite_fixedparams`, `raw/postgres-18/src/backend/parser/analyze.c:parse_analyze_fixedparams`, and `raw/postgres-18/src/include/parser/analyze.h`.
+
+## [2026-04-30] ingest v18 | rewriter subsystem
+
+- Created `wiki/v18/subsystems/rewriter.md`.
+- Verified entry points against `raw/postgres-18/src/backend/tcop/postgres.c:pg_rewrite_query`, `raw/postgres-18/src/backend/rewrite/rewriteHandler.c:QueryRewrite`, and `raw/postgres-18/src/include/rewrite/rewriteHandler.h`.
+
+## [2026-04-30] ingest v18 | planner subsystem
+
+- Created `wiki/v18/subsystems/planner.md`.
+- Verified entry points against `raw/postgres-18/src/backend/tcop/postgres.c:pg_plan_query`, `raw/postgres-18/src/backend/optimizer/plan/planner.c:planner`, and `raw/postgres-18/src/backend/optimizer/README`.
+
+## [2026-04-30] ingest v18 | executor subsystem
+
+- Created `wiki/v18/subsystems/executor.md`.
+- Verified entry points against `raw/postgres-18/src/backend/executor/execMain.c`, `raw/postgres-18/src/backend/executor/execProcnode.c:ExecInitNode`, `raw/postgres-18/src/include/executor/executor.h:ExecProcNode`, and `raw/postgres-18/src/backend/executor/README`.
+
+## [2026-04-30] trace v18 | simple-select-query
+
+- Created `wiki/v18/code-paths/simple-select-query.md`.
+- Traced simple Query protocol through `exec_simple_query`, `pg_parse_query`, `pg_analyze_and_rewrite_fixedparams`, `pg_plan_queries`, `PortalStart`, `PortalRunSelect`, `ExecutorRun`, and `ExecutePlan`.
+- Linked the path from parser, analyzer, rewriter, planner, and executor subsystem pages.
+
+## [2026-04-30] trace v18 | insert-path
+
+- Created `wiki/v18/code-paths/insert-path.md`.
+- Traced simple `INSERT ... VALUES` through `transformInsertStmt`, `preprocess_targetlist`, `create_modifytable_path`, `create_modifytable_plan`, `PortalRunMulti`, `ProcessQuery`, `ExecModifyTable`, and `ExecInsert`.
+- Linked the path from parser, analyzer, rewriter, planner, and executor subsystem pages.
+
+## [2026-04-30] trace v18 | update-path
+
+- Created `wiki/v18/code-paths/update-path.md`.
+- Traced simple `UPDATE` through `transformUpdateStmt`, `transformUpdateTargetList`, row-identity target-list preprocessing, `ModifyTable` planning, `ExecModifyTable`, and `ExecUpdate`.
+- Linked the path from parser, analyzer, rewriter, planner, and executor subsystem pages.
+
+## [2026-04-30] trace v18 | delete-path
+
+- Created `wiki/v18/code-paths/delete-path.md`.
+- Traced simple `DELETE` through `transformDeleteStmt`, row-identity target-list preprocessing, `ModifyTable` planning, `ExecModifyTable`, and `ExecDelete`.
+- Linked the path from parser, analyzer, rewriter, planner, and executor subsystem pages.
+
+## [2026-04-30] concept v18 | query-tree
+
+- Created `wiki/shared/concepts/query-tree.md`.
+- Verified against `raw/postgres-18/src/include/nodes/parsenodes.h:Query`, `raw/postgres-18/src/backend/parser/analyze.c:parse_analyze_fixedparams`, and planner/rewrite handoff functions in `raw/postgres-18/src/backend/tcop/postgres.c`.
+
+## [2026-04-30] concept v18 | planned-statement
+
+- Created `wiki/shared/concepts/planned-statement.md`.
+- Verified against `raw/postgres-18/src/include/nodes/plannodes.h:PlannedStmt`, planner entry points, portal storage, and executor descriptors.
+
+## [2026-04-30] concept v18 | plan-and-planstate
+
+- Created `wiki/shared/concepts/plan-and-planstate.md`.
+- Verified against `raw/postgres-18/src/include/nodes/plannodes.h:Plan`, `raw/postgres-18/src/include/nodes/execnodes.h:PlanState`, `raw/postgres-18/src/backend/executor/execProcnode.c:ExecInitNode`, and `raw/postgres-18/src/backend/executor/README`.
+
+## [2026-04-30] concept v18 | path-and-reloptinfo
+
+- Created `wiki/shared/concepts/path-and-reloptinfo.md`.
+- Verified against `raw/postgres-18/src/include/nodes/pathnodes.h:RelOptInfo`, `raw/postgres-18/src/include/nodes/pathnodes.h:Path`, and `raw/postgres-18/src/include/nodes/pathnodes.h:ModifyTablePath`.
+
+## [2026-04-30] concept v18 | executor-state
+
+- Created `wiki/shared/concepts/executor-state.md`.
+- Verified against `raw/postgres-18/src/include/nodes/execnodes.h:EState` and executor lifecycle functions in `raw/postgres-18/src/backend/executor/execMain.c`.
+
+## [2026-04-30] concept v18 | tuple-table-slot
+
+- Created `wiki/shared/concepts/tuple-table-slot.md`.
+- Verified against `raw/postgres-18/src/include/executor/tuptable.h:TupleTableSlot`, `raw/postgres-18/src/include/executor/executor.h:ExecProcNode`, and tuple executor code.
+
+## [2026-04-30] concept v18 | modifytable
+
+- Created `wiki/shared/concepts/modifytable.md`.
+- Verified against `raw/postgres-18/src/include/nodes/pathnodes.h:ModifyTablePath`, `raw/postgres-18/src/include/nodes/plannodes.h:ModifyTable`, `raw/postgres-18/src/include/nodes/execnodes.h:ModifyTableState`, and `raw/postgres-18/src/backend/executor/nodeModifyTable.c`.
+
+## [2026-04-30] concept v18 | portal
+
+- Created `wiki/shared/concepts/portal.md`.
+- Verified against `raw/postgres-18/src/include/utils/portal.h:PortalData` and portal execution functions in `raw/postgres-18/src/backend/tcop/pquery.c`.
+
+## [2026-04-30] concept v18 | querydesc
+
+- Created `wiki/shared/concepts/querydesc.md`.
+- Verified against `raw/postgres-18/src/include/executor/execdesc.h:QueryDesc`, `raw/postgres-18/src/backend/tcop/pquery.c`, and executor lifecycle functions in `raw/postgres-18/src/backend/executor/execMain.c`.
+
+## [2026-04-30] tooling | maintenance scripts
+
+- Added `scripts/recent_log` for recent activity summaries from `wiki/log.md`.
+- Added `scripts/wiki_lint` for broken Obsidian links, orphan pages, missing front matter, stale version pins, and missing source references.
+- Added `scripts/source_lookup` for project-local PostgreSQL source search, file display, and git history lookup.
+- Added `scripts/version_diff` for comparing one source path across two project-local PostgreSQL checkouts.
+- Added shared script helpers in `scripts/wiki_tooling.py`.
+- Updated `AGENTS.md` to reference the project-local tooling workflow.
+
+## [2026-04-30] lint | maintenance tooling smoke check
+
+- Ran `scripts/wiki_lint --warnings-as-errors`; result was 0 errors and 0 warnings after replacing a stale illustrative `v17/index` wiki link with plain text.
+- Verified `scripts/recent_log`, `scripts/source_lookup`, and `scripts/version_diff` against the current PostgreSQL 18 checkout.
+
+## [2026-04-30] tooling | agent lifecycle wrapper
+
+- Added `scripts/wiki_agent` to start, stop, inspect, and tail logs for the wiki maintainer process.
+- Added `wiki/operations/agent.md` as the start/stop runbook.
+- Updated `AGENTS.md`, `wiki/index.md`, and `wiki/overview.md` with the agent lifecycle workflow.
+
+## [2026-04-30] lint | agent lifecycle smoke check
+
+- Verified `scripts/wiki_agent start`, `status`, `logs`, and `stop` with a temporary Python sleep process.
+- Ran `scripts/wiki_lint --warnings-as-errors`; result was 0 errors and 0 warnings.
+
+## [2026-04-30] decision | Hermes-managed LLM lifecycle
+
+- Recorded the lifecycle choice that `scripts/wiki_agent` starts Hermes, and Hermes starts or connects to the local LLM backend.
+- Added `templates/wiki-agent-hermes.env.example` as the durable template for `.wiki-runtime/hermes/wiki-agent.env`.
+- Updated `wiki/operations/agent.md` and `AGENTS.md` with the Hermes-managed LLM startup model.
+
+## [2026-04-30] tooling | wiki_agent hardening
+
+- `scripts/wiki_agent` now refuses to read `.wiki-runtime/hermes/wiki-agent.env` when it is group- or world-writable, and only honors an allowlist of variables (`WIKI_AGENT_COMMAND` plus runtime/cache/model vars). Other keys are logged and ignored.
+- The pid file records pid plus the kernel-recorded process start time; `stop` and `status` verify the live start time before signaling, so a tampered or stale pid file cannot redirect signals to an unrelated process.
+- `wiki-agent.stdout.log` and `wiki-agent.stderr.log` rotate to `.log.1` once they exceed 50 MiB.
+- Fixed the dotenv quote stripping in `scripts/wiki_agent` so values with embedded quotes survive parsing.
+- Added a Threat Model section to `wiki/operations/agent.md` and updated `templates/wiki-agent-hermes.env.example` with chmod, allowlist, and absolute-path guidance.
+- Verified end to end with a smoke test: start, status, stop, env-permission rejection, env-allowlist filtering, pid tampering rejection, and 50 MiB log rotation.

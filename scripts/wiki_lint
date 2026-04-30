@@ -1,0 +1,194 @@
+#!/usr/bin/env python3
+"""Lint the PostgreSQL engine wiki for link, metadata, and source-reference drift."""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+sys.dont_write_bytecode = True
+
+from wiki_tooling import (
+    REPO_ROOT,
+    WIKI_ROOT,
+    append_tool_log,
+    extract_obsidian_links,
+    load_versions,
+    parse_front_matter,
+    section_text,
+    wiki_markdown_files,
+    wiki_slug,
+)
+
+
+MANAGED_VERSION_DIRS = ("subsystems", "concepts", "code-paths", "files", "questions")
+SOURCE_REQUIRED_TYPES = {"subsystem", "concept", "code-path", "file", "question"}
+ROOT_EXEMPT_SLUGS = {"index", "overview", "versions", "log"}
+
+
+@dataclass
+class Issue:
+    severity: str
+    path: str
+    message: str
+
+
+def rel(path: Path) -> str:
+    return path.relative_to(REPO_ROOT).as_posix()
+
+
+def is_version_local(slug: str) -> tuple[str | None, str | None]:
+    parts = slug.split("/")
+    if len(parts) >= 3 and re.fullmatch(r"v\d+", parts[0]) and parts[1] in MANAGED_VERSION_DIRS:
+        return parts[0][1:], parts[1]
+    return None, None
+
+
+def requires_front_matter(slug: str) -> bool:
+    if slug.startswith("shared/concepts/"):
+        return True
+    version, _ = is_version_local(slug)
+    return version is not None
+
+
+def has_source_references(text: str) -> bool:
+    refs = section_text(text, "Source References")
+    return bool(re.search(r"(raw/postgres-\d+/|src/)", refs))
+
+
+def resolve_link(target: str, current_slug: str, slugs: set[str]) -> str | None:
+    target = target.strip("/")
+    if target in slugs:
+        return target
+
+    current_parts = current_slug.split("/")[:-1]
+    if current_parts:
+        relative = "/".join([*current_parts, target])
+        if relative in slugs:
+            return relative
+
+    if not target.endswith("/index"):
+        index_target = f"{target}/index"
+        if index_target in slugs:
+            return index_target
+    return None
+
+
+def lint() -> tuple[list[Issue], list[Issue]]:
+    errors: list[Issue] = []
+    warnings: list[Issue] = []
+    versions = load_versions()
+    files = wiki_markdown_files()
+    slugs = {wiki_slug(path) for path in files}
+    inbound = {slug: 0 for slug in slugs}
+    page_text = {path: path.read_text(encoding="utf-8") for path in files}
+    front_matter: dict[Path, dict[str, object]] = {}
+
+    for path, text in page_text.items():
+        slug = wiki_slug(path)
+        fm, _, has_fm = parse_front_matter(text)
+        front_matter[path] = fm
+
+        if requires_front_matter(slug) and not has_fm:
+            errors.append(Issue("ERROR", rel(path), "missing required front matter"))
+
+        version, _ = is_version_local(slug)
+        if version:
+            expected = versions.get(version, {}).get("commit")
+            if str(fm.get("version", "")) != version:
+                errors.append(Issue("ERROR", rel(path), f"version-local page must declare version: {version}"))
+            if expected and fm.get("pinned_commit") != expected:
+                errors.append(Issue("ERROR", rel(path), f"pinned_commit does not match wiki/versions.md for v{version}"))
+
+            cited_versions = sorted(set(re.findall(r"raw/postgres-(\d+)/", text)))
+            wrong = [cited for cited in cited_versions if cited != version]
+            if wrong:
+                errors.append(Issue("ERROR", rel(path), f"cites source checkout(s) for wrong version: {', '.join(wrong)}"))
+
+        if slug.startswith("shared/concepts/"):
+            if fm.get("type") != "concept":
+                errors.append(Issue("ERROR", rel(path), "shared concept must declare type: concept"))
+            if fm.get("scope") != "shared":
+                errors.append(Issue("ERROR", rel(path), "shared concept must declare scope: shared"))
+            verified = fm.get("verified_against")
+            if not isinstance(verified, dict) or not verified:
+                errors.append(Issue("ERROR", rel(path), "shared concept must declare verified_against"))
+            else:
+                for cited_version, commit in verified.items():
+                    expected = versions.get(str(cited_version), {}).get("commit")
+                    if expected and commit != expected:
+                        errors.append(Issue("ERROR", rel(path), f"verified_against for v{cited_version} is stale"))
+
+            cited_versions = sorted(set(re.findall(r"raw/postgres-(\d+)/", text)))
+            if isinstance(verified, dict):
+                missing = [version for version in cited_versions if version not in verified]
+                if missing:
+                    errors.append(Issue("ERROR", rel(path), f"source citation version missing from verified_against: {', '.join(missing)}"))
+
+        page_type = str(fm.get("type", ""))
+        if page_type in SOURCE_REQUIRED_TYPES and not has_source_references(text):
+            errors.append(Issue("ERROR", rel(path), "missing ## Source References entries"))
+
+        for target in extract_obsidian_links(text):
+            resolved = resolve_link(target, slug, slugs)
+            if not resolved:
+                errors.append(Issue("ERROR", rel(path), f"broken wiki link [[{target}]]"))
+            else:
+                inbound[resolved] = inbound.get(resolved, 0) + 1
+
+    for slug, count in inbound.items():
+        if count > 0:
+            continue
+        if slug in ROOT_EXEMPT_SLUGS or slug.endswith("/index"):
+            continue
+        warnings.append(Issue("WARN", f"wiki/{slug}.md", "orphan page has no inbound wiki links"))
+
+    for version in versions:
+        landing = WIKI_ROOT / f"v{version}" / "index.md"
+        if not landing.exists():
+            errors.append(Issue("ERROR", rel(landing), "missing version landing page"))
+            continue
+        landing_text = landing.read_text(encoding="utf-8")
+        for path in files:
+            slug = wiki_slug(path)
+            page_version, _ = is_version_local(slug)
+            if page_version == version and f"[[{slug}" not in landing_text:
+                warnings.append(Issue("WARN", rel(landing), f"version landing page does not link [[{slug}]]"))
+
+    return errors, warnings
+
+
+def write_cache(errors: list[Issue], warnings: list[Issue]) -> None:
+    cache_dir = REPO_ROOT / ".wiki-runtime" / "cache" / "wiki_lint"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = cache_dir / "last-run.txt"
+    with cache_path.open("w", encoding="utf-8") as handle:
+        handle.write(f"errors: {len(errors)}\n")
+        handle.write(f"warnings: {len(warnings)}\n")
+        for issue in [*errors, *warnings]:
+            handle.write(f"{issue.severity} {issue.path}: {issue.message}\n")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--warnings-as-errors", action="store_true", help="return a failing status for warnings too")
+    args = parser.parse_args(argv)
+
+    append_tool_log("wiki_lint", sys.argv[1:])
+    errors, warnings = lint()
+    write_cache(errors, warnings)
+
+    print(f"wiki_lint: {len(errors)} error(s), {len(warnings)} warning(s)")
+    for issue in [*errors, *warnings]:
+        print(f"{issue.severity} {issue.path}: {issue.message}")
+
+    if errors or (args.warnings_as_errors and warnings):
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

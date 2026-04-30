@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+"""Show recent entries from wiki/log.md."""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from pathlib import Path
+
+sys.dont_write_bytecode = True
+
+from wiki_tooling import REPO_ROOT, append_tool_log
+
+
+ENTRY_RE = re.compile(r"^## \[(\d{4}-\d{2}-\d{2})\] (.+)$")
+
+
+def parse_entries(log_path: Path) -> list[str]:
+    entries: list[str] = []
+    current: list[str] = []
+
+    for line in log_path.read_text(encoding="utf-8").splitlines():
+        if ENTRY_RE.match(line):
+            if current:
+                entries.append("\n".join(current).strip())
+            current = [line]
+        elif current:
+            current.append(line)
+
+    if current:
+        entries.append("\n".join(current).strip())
+    return entries
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--limit", type=int, default=10, help="number of entries to show")
+    parser.add_argument("--kind", help="filter entries whose heading contains this kind")
+    parser.add_argument("--version", help="filter entries whose heading contains vNN")
+    parser.add_argument("--oldest-first", action="store_true", help="print matching entries oldest first")
+    args = parser.parse_args(argv)
+
+    append_tool_log("recent_log", sys.argv[1:])
+
+    log_path = REPO_ROOT / "wiki" / "log.md"
+    if not log_path.exists():
+        print("error: wiki/log.md does not exist", file=sys.stderr)
+        return 2
+
+    entries = parse_entries(log_path)
+    if args.kind:
+        entries = [entry for entry in entries if args.kind in entry.splitlines()[0]]
+    if args.version:
+        wanted = f"v{args.version.lstrip('v')}"
+        entries = [entry for entry in entries if wanted in entry.splitlines()[0]]
+
+    selected = entries[-max(args.limit, 0):]
+    if not args.oldest_first:
+        selected = list(reversed(selected))
+
+    if selected:
+        print("\n\n".join(selected))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

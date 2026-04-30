@@ -1,0 +1,8 @@
+# Project-local runtime state and generated artifacts.
+.wiki-runtime/
+
+# Local PostgreSQL source checkouts are kept in-project but should not be
+# committed as part of the wiki content.
+raw/postgres-*/
+raw/_archive/postgres-*/
+
