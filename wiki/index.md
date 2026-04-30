@@ -7,7 +7,7 @@ This is the global catalog for the PostgreSQL engine wiki.
 - [[versions]] - PostgreSQL version index and source pin manifest.
 - [[overview]] - Cross-version architecture overview.
 - [[log]] - Chronological activity log.
-- [[operations/agent]] - Start/stop runbook for the wiki maintainer agent.
+- [[operations/agent]] - Project-local Hermes install and start/stop runbook for the wiki maintainer agent.
 
 ## Shared Concepts
 
@@ -49,6 +49,7 @@ This is the global catalog for the PostgreSQL engine wiki.
 - `scripts/wiki_lint` - wiki health checks.
 - `scripts/source_lookup` - project-local PostgreSQL source lookup.
 - `scripts/version_diff` - source path comparison across project-local PostgreSQL checkouts.
+- `scripts/llama_server` - start, stop, status, and logs for the local llama.cpp OpenAI-compatible server.
 
 ## Maintenance Notes
 

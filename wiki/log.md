@@ -164,3 +164,61 @@ For version-agnostic work, omit the version segment:
 - Fixed the dotenv quote stripping in `scripts/wiki_agent` so values with embedded quotes survive parsing.
 - Added a Threat Model section to `wiki/operations/agent.md` and updated `templates/wiki-agent-hermes.env.example` with chmod, allowlist, and absolute-path guidance.
 - Verified end to end with a smoke test: start, status, stop, env-permission rejection, env-allowlist filtering, pid tampering rejection, and 50 MiB log rotation.
+
+## [2026-04-30] tooling | project-local Hermes install
+
+- Installed `NousResearch/hermes-agent` under `.wiki-runtime/hermes-agent/` at commit `285e9efb3f2251f09cfbc9acb335c3d943d5a7b2`.
+- Added project-local `uv` under `.wiki-runtime/env/uvprefix/` and installed Hermes Agent `0.11.0` into `.wiki-runtime/env/hermes-agent/`.
+- Added `.wiki-runtime/hermes-agent/venv` as a symlink to `.wiki-runtime/env/hermes-agent/` for Hermes diagnostics.
+- Created `.wiki-runtime/hermes/.env` from the Hermes example with `0600` permissions.
+- Synced bundled Hermes skills into `.wiki-runtime/hermes/skills/`.
+- Updated `.wiki-runtime/hermes/wiki-agent.env` and `templates/wiki-agent-hermes.env.example` to launch `.wiki-runtime/env/hermes-agent/bin/hermes gateway run --replace`.
+- Updated `wiki/operations/agent.md` and `wiki/index.md` with the project-local Hermes runtime layout and commands.
+
+## [2026-04-30] tooling | Hermes local LLM config
+
+- Configured `.wiki-runtime/hermes/config.yaml` to use the project-local custom provider `pgwiki-local`.
+- Set the default local model to `qwen2.5-coder:14b` through `http://127.0.0.1:11434/v1` with `chat_completions`, `context_length: 65536`, and `ollama_num_ctx: 65536`.
+- Verified Hermes runtime resolution selects provider `custom`, requested provider `pgwiki-local`, base URL `http://127.0.0.1:11434/v1`, and model `qwen2.5-coder:14b`.
+- Verified `scripts/wiki_lint --warnings-as-errors`; result was 0 errors and 0 warnings.
+- Local endpoint probe failed because no server was listening on `127.0.0.1:11434`; documented the required Ollama/OpenAI-compatible server step in `wiki/operations/agent.md`.
+
+## [2026-04-30] tooling | project-local planned model
+
+- Downloaded the planned local coder model into `.wiki-runtime/models/qwen2.5-coder-14b-instruct-gguf/qwen2.5-coder-14b-instruct-q4_k_m.gguf`.
+- Switched `scripts/llama_server` away from the borrowed `/data/repos/image-private/` model and made the project-local Qwen2.5-Coder 14B `q4_K_M` GGUF the default.
+- Set the default llama.cpp KV cache types to `q4_0` for the 14B model so the 64K context target can fit the expected 16 GB GPU profile.
+- Restarted llama.cpp with the project-local model and verified the OpenAI-compatible `/v1/models` and `/v1/chat/completions` endpoints.
+
+## [2026-04-30] tooling | llama.cpp local LLM backend
+
+- Added `scripts/llama_server` to start, stop, inspect, and tail logs for `/data/ollamacpp/llama.cpp/build/bin/llama-server`.
+- Configured Hermes provider `pgwiki-local` to use llama.cpp at `http://127.0.0.1:8080/v1` with model alias `pgwiki-local`.
+- Set the llama.cpp default model path to `/data/repos/image-private/models/Qwen3-4B-Instruct-2507-Q8_0.gguf`, with `LLAMA_MODEL` available as an override.
+- Verified llama.cpp serves model alias `pgwiki-local` with `n_ctx_train: 262144` and 65,536-token slots.
+- Verified the OpenAI-compatible chat endpoint at `http://127.0.0.1:8080/v1/chat/completions` with a tiny request.
+- Updated `wiki/operations/agent.md` and `wiki/index.md` with the llama.cpp lifecycle workflow.
+
+## [2026-04-30] tooling | Qwen3.5-9B local model
+
+- Downloaded `Qwen3.5-9B-Q4_K_M.gguf` into `.wiki-runtime/models/qwen3.5-9b-gguf/`.
+- Switched `scripts/llama_server` from the Qwen2.5-Coder 14B GGUF to the project-local Qwen3.5-9B `Q4_K_M` GGUF.
+- Kept the OpenAI-compatible model alias `pgwiki-local` and Hermes provider endpoint at `http://127.0.0.1:8080/v1`.
+
+## [2026-04-30] tooling | Qwen3.5-9B Q6_K 128K
+
+- Downloaded `Qwen_Qwen3.5-9B-Q6_K.gguf` into `.wiki-runtime/models/qwen3.5-9b-gguf/`.
+- Switched `scripts/llama_server` to the project-local Qwen3.5-9B `Q6_K` GGUF.
+- Raised the llama.cpp default context and Hermes provider context metadata from 65,536 to 131,072 tokens.
+- Restarted llama.cpp and verified `Q6_K`, 131,072-token slots, `/v1/models`, and `/v1/chat/completions`.
+
+## [2026-04-30] tooling | Qwen3.5 thinking disabled
+
+- Updated `scripts/llama_server` to start llama.cpp with `--reasoning off` and `--chat-template-kwargs '{"enable_thinking":false}'`.
+- Documented the default and the `LLAMA_REASONING` / `LLAMA_CHAT_TEMPLATE_KWARGS` overrides in `wiki/operations/agent.md`.
+- Restarted llama.cpp and verified the startup log reports `thinking = 0`; a plain `/v1/chat/completions` request returned answer text without per-request template overrides.
+
+## [2026-04-30] docs | operator dashboard runbook
+
+- Added top-level `operator.md` with commands for running `hermes dashboard` against the project-local Hermes home and llama.cpp backend.
+- Documented dashboard status, stop, remote SSH tunnel access, and the distinction between the dashboard and `scripts/wiki_agent`.

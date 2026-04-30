@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Stop every project-local runtime dependency for the PostgreSQL wiki:
+# the Hermes dashboard, the wiki agent gateway, and the llama.cpp server.
+#
+# Teardown order is reverse of startup: consumers first (dashboard, agent),
+# then the LLM backend. Each step is idempotent and runs even if a prior
+# step failed, so a stuck component does not block the rest of the teardown.
+#
+# Usage:
+#   scripts/stop_all              # graceful stop
+#   scripts/stop_all --force      # SIGKILL anything that ignores SIGTERM
+
+set -u
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
+FORCE=0
+for arg in "$@"; do
+  case "$arg" in
+    --force|-f) FORCE=1 ;;
+    -h|--help)
+      sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    *)
+      echo "stop_all: unknown argument: $arg" >&2
+      exit 2
+      ;;
+  esac
+done
+
+export WIKI_RUNTIME="$REPO_ROOT/.wiki-runtime"
+export HERMES_HOME="$WIKI_RUNTIME/hermes"
+
+HERMES_BIN="$WIKI_RUNTIME/env/hermes-agent/bin/hermes"
+RC=0
+
+step() {
+  local label="$1"; shift
+  echo "==> $label"
+  if "$@"; then
+    return 0
+  else
+    local code=$?
+    echo "    (step exited with status $code; continuing)" >&2
+    RC=1
+    return $code
+  fi
+}
+
+# 1. Hermes dashboard.
+if [ -x "$HERMES_BIN" ]; then
+  step "stopping Hermes dashboard" "$HERMES_BIN" dashboard --stop || true
+else
+  echo "==> stopping Hermes dashboard"
+  echo "    hermes binary not found at $HERMES_BIN; skipping"
+fi
+
+# 2. Wiki agent gateway.
+WIKI_AGENT_STOP_ARGS=(stop)
+if [ "$FORCE" -eq 1 ]; then
+  WIKI_AGENT_STOP_ARGS+=(--force)
+fi
+step "stopping wiki agent gateway" scripts/wiki_agent "${WIKI_AGENT_STOP_ARGS[@]}" || true
+
+# 3. Local llama.cpp server.
+LLAMA_STOP_ARGS=(stop)
+if [ "$FORCE" -eq 1 ]; then
+  LLAMA_STOP_ARGS+=(--force)
+fi
+step "stopping llama.cpp server" scripts/llama_server "${LLAMA_STOP_ARGS[@]}" || true
+
+echo
+echo "==> final status"
+if [ -x "$HERMES_BIN" ]; then
+  "$HERMES_BIN" dashboard --status || true
+fi
+scripts/wiki_agent status || true
+scripts/llama_server status || true
+
+exit "$RC"
