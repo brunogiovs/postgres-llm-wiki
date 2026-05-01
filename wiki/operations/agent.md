@@ -47,6 +47,26 @@ Bundled Hermes skills are synced into `.wiki-runtime/hermes/skills/`, using `.wi
 HERMES_HOME=/data/repos/pg-wiki/.wiki-runtime/hermes .wiki-runtime/env/hermes-agent/bin/hermes setup
 ```
 
+### Project-Local PDF Export Skills
+
+The project-local Hermes home includes `markdown-pdf` at `.wiki-runtime/hermes/skills/productivity/markdown-pdf/`. It converts Markdown files to PDFs with:
+
+```bash
+.wiki-runtime/env/hermes-agent/bin/python \
+  .wiki-runtime/hermes/skills/productivity/markdown-pdf/scripts/md_to_pdf.py \
+  input.md output.pdf
+```
+
+It also includes `html-pdf` at `.wiki-runtime/hermes/skills/productivity/html-pdf/`. It converts document-style HTML files to PDFs with:
+
+```bash
+.wiki-runtime/env/hermes-agent/bin/python \
+  .wiki-runtime/hermes/skills/productivity/html-pdf/scripts/html_to_pdf.py \
+  input.html output.pdf
+```
+
+The Markdown converter depends on `markdown-it-py` and `reportlab`; the HTML converter uses Python's standard HTML parser plus `reportlab`. `reportlab` pulls in `pillow`. Keep these dependencies in the project-local Hermes runtime rather than installing them globally.
+
 ## Local LLM Configuration
 
 Hermes is configured to use a project-local custom provider named `pgwiki-local`, backed by `/data/ollamacpp/llama.cpp/build/bin/llama-server`:
@@ -170,6 +190,30 @@ Use logs for recent lifecycle events, stdout, and stderr:
 ```bash
 scripts/wiki_agent logs --lines 120
 ```
+
+## Clear Saved Sessions
+
+Hermes conversation sessions are kept under `.wiki-runtime/hermes/sessions/` and in the `sessions` / `messages` tables of `.wiki-runtime/hermes/state.db`. List both with:
+
+```bash
+scripts/hermes_sessions list
+```
+
+Preview a cleanup:
+
+```bash
+scripts/hermes_sessions clear
+```
+
+Delete all saved session files:
+
+```bash
+scripts/hermes_sessions clear --yes
+```
+
+This deletes session files, purges session/message rows from `state.db`, resets the message autoincrement sequence, checkpoints the WAL, and vacuums the database while leaving schema and non-session metadata intact.
+
+Deletion refuses to run while `scripts/wiki_agent` reports a live pid. Stop the agent first, or pass `--force` if the pid check is stale. Dry runs are allowed while the agent is live.
 
 ## Stop
 

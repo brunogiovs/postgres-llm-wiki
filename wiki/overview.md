@@ -50,6 +50,7 @@ The first shared concept layer covers:
 - `scripts/wiki_lint` - broken links, metadata drift, source-reference checks, and orphan warnings.
 - `scripts/source_lookup` - source search and file lookup inside `raw/postgres-NN/`.
 - `scripts/version_diff` - path diff across two project-local source checkouts.
+- `scripts/hermes_sessions` - list and clear project-local Hermes session files and database rows.
 
 ## Operating Principles
 

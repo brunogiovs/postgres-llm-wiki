@@ -50,6 +50,7 @@ This is the global catalog for the PostgreSQL engine wiki.
 - `scripts/source_lookup` - project-local PostgreSQL source lookup.
 - `scripts/version_diff` - source path comparison across project-local PostgreSQL checkouts.
 - `scripts/llama_server` - start, stop, status, and logs for the local llama.cpp OpenAI-compatible server.
+- `scripts/hermes_sessions` - list and clear project-local Hermes session files and database rows.
 
 ## Maintenance Notes
 

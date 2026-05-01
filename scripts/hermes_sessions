@@ -1,0 +1,282 @@
+#!/usr/bin/env python3
+"""List or clear project-local Hermes session files."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import shutil
+import sqlite3
+import sys
+from pathlib import Path
+
+sys.dont_write_bytecode = True
+
+from wiki_tooling import REPO_ROOT, RUNTIME_ROOT, append_tool_log, die, ensure_private_dir, ensure_runtime_dirs
+
+
+HERMES_ROOT = RUNTIME_ROOT / "hermes"
+SESSIONS_DIR = HERMES_ROOT / "sessions"
+STATE_DB = HERMES_ROOT / "state.db"
+PID_FILE = HERMES_ROOT / "wiki-agent.pid"
+
+
+def rel(path: Path) -> str:
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def safe_sessions_dir() -> Path:
+    runtime_root = RUNTIME_ROOT.resolve(strict=False)
+    hermes_root = HERMES_ROOT.resolve(strict=False)
+    sessions_dir = SESSIONS_DIR.resolve(strict=False)
+    try:
+        hermes_root.relative_to(runtime_root)
+    except ValueError:
+        die(f"refusing to use Hermes home outside runtime root: {hermes_root}")
+    try:
+        sessions_dir.relative_to(hermes_root)
+    except ValueError:
+        die(f"refusing to use session directory outside Hermes home: {sessions_dir}")
+    if sessions_dir == hermes_root:
+        die("refusing to treat Hermes home itself as the session directory")
+    return sessions_dir
+
+
+def safe_state_db() -> Path:
+    hermes_root = HERMES_ROOT.resolve(strict=False)
+    state_db = STATE_DB.resolve(strict=False)
+    try:
+        state_db.relative_to(hermes_root)
+    except ValueError:
+        die(f"refusing to use state database outside Hermes home: {state_db}")
+    if state_db.name != "state.db":
+        die(f"refusing to use unexpected Hermes state database path: {state_db}")
+    return state_db
+
+
+def ensure_session_root() -> None:
+    ensure_runtime_dirs()
+    safe_sessions_dir()
+    safe_state_db()
+    ensure_private_dir(HERMES_ROOT)
+    safe_sessions_dir()
+    ensure_private_dir(SESSIONS_DIR)
+    safe_sessions_dir()
+    safe_state_db()
+
+
+def session_items() -> list[Path]:
+    if not SESSIONS_DIR.exists():
+        return []
+    if not SESSIONS_DIR.is_dir():
+        die(f"session path is not a directory: {rel(SESSIONS_DIR)}")
+    safe_sessions_dir()
+    return sorted(SESSIONS_DIR.iterdir(), key=lambda path: path.name)
+
+
+def state_db_counts() -> tuple[int, int]:
+    if not STATE_DB.exists():
+        return 0, 0
+    safe_state_db()
+    try:
+        conn = sqlite3.connect(f"file:{STATE_DB}?mode=ro", uri=True)
+    except sqlite3.Error as exc:
+        die(f"could not open Hermes state database: {exc}")
+    try:
+        return (
+            conn.execute("SELECT count(*) FROM sessions").fetchone()[0],
+            conn.execute("SELECT count(*) FROM messages").fetchone()[0],
+        )
+    except sqlite3.Error as exc:
+        die(f"could not read Hermes state database: {exc}")
+    finally:
+        conn.close()
+
+
+def purge_state_db() -> tuple[int, int]:
+    if not STATE_DB.exists():
+        return 0, 0
+    safe_state_db()
+    try:
+        conn = sqlite3.connect(str(STATE_DB), timeout=1.0, isolation_level=None)
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            session_count = conn.execute("SELECT count(*) FROM sessions").fetchone()[0]
+            message_count = conn.execute("SELECT count(*) FROM messages").fetchone()[0]
+            conn.execute("DELETE FROM messages")
+            conn.execute("UPDATE sessions SET parent_session_id = NULL")
+            conn.execute("DELETE FROM sessions")
+            conn.execute("DELETE FROM sqlite_sequence WHERE name = 'messages'")
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        conn.execute("VACUUM")
+        return session_count, message_count
+    except sqlite3.Error as exc:
+        die(f"could not purge Hermes state database: {exc}")
+    finally:
+        try:
+            conn.close()
+        except UnboundLocalError:
+            pass
+
+
+def read_proc_starttime(pid: int) -> int | None:
+    try:
+        stat_text = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
+    except (FileNotFoundError, ProcessLookupError, PermissionError):
+        return None
+    rparen = stat_text.rfind(")")
+    if rparen < 0:
+        return None
+    fields = stat_text[rparen + 1:].split()
+    if len(fields) < 20:
+        return None
+    try:
+        return int(fields[19])
+    except ValueError:
+        return None
+
+
+def read_pid_record() -> tuple[int, int] | None:
+    try:
+        text = PID_FILE.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return None
+    if not text:
+        return None
+    try:
+        data = json.loads(text)
+        return int(data["pid"]), int(data["starttime"])
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+        return None
+
+
+def wiki_agent_running() -> bool:
+    record = read_pid_record()
+    if not record:
+        return False
+    pid, recorded_starttime = record
+    if pid <= 0:
+        return False
+    return read_proc_starttime(pid) == recorded_starttime
+
+
+def describe_item(path: Path) -> str:
+    if path.is_symlink():
+        kind = "symlink"
+    elif path.is_dir():
+        kind = "dir"
+    else:
+        kind = "file"
+    return f"{kind}\t{rel(path)}"
+
+
+def delete_item(path: Path) -> None:
+    sessions_dir = safe_sessions_dir()
+    try:
+        if path.parent.resolve(strict=False) != sessions_dir:
+            die(f"refusing to delete path outside the session directory: {path}")
+    except OSError as exc:
+        die(f"could not verify session path {path}: {exc}")
+
+    try:
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+    except FileNotFoundError:
+        return
+
+
+def list_sessions(args: argparse.Namespace) -> int:
+    append_tool_log("hermes_sessions", ["list"])
+    items = session_items()
+    session_count, message_count = state_db_counts()
+    if not items:
+        print(f"no Hermes sessions found in {rel(SESSIONS_DIR)}")
+    else:
+        for item in items:
+            print(describe_item(item))
+    if STATE_DB.exists():
+        print(f"db\t{rel(STATE_DB)}\t{session_count} session row(s), {message_count} message row(s)")
+    else:
+        print(f"db\t{rel(STATE_DB)}\tmissing")
+    return 0
+
+
+def clear_sessions(args: argparse.Namespace) -> int:
+    logged_args = ["clear"]
+    if args.yes:
+        logged_args.append("--yes")
+    if args.force:
+        logged_args.append("--force")
+    append_tool_log("hermes_sessions", logged_args)
+
+    ensure_session_root()
+    items = session_items()
+    session_count, message_count = state_db_counts()
+    if not items and session_count == 0 and message_count == 0:
+        print(f"no Hermes session files found in {rel(SESSIONS_DIR)}")
+        print(f"no Hermes session rows found in {rel(STATE_DB)}")
+        return 0
+
+    if args.yes and wiki_agent_running() and not args.force:
+        die("wiki agent appears to be running; stop it first or pass --force")
+
+    action = "delete" if args.yes else "would delete"
+    for item in items:
+        print(f"{action}\t{rel(item)}")
+        if args.yes:
+            delete_item(item)
+
+    if args.yes:
+        purged_sessions, purged_messages = purge_state_db()
+        print(f"deleted {len(items)} Hermes session file item(s)")
+        print(
+            f"purged {purged_sessions} session row(s) and "
+            f"{purged_messages} message row(s) from {rel(STATE_DB)}"
+        )
+    else:
+        print(
+            f"would purge {session_count} session row(s) and "
+            f"{message_count} message row(s) from {rel(STATE_DB)}"
+        )
+        print(
+            "dry run: pass --yes to delete "
+            f"{len(items)} Hermes session file item(s) and purge the session database"
+        )
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    list_parser = subparsers.add_parser("list", help="list project-local Hermes session items")
+    list_parser.set_defaults(func=list_sessions)
+
+    clear_parser = subparsers.add_parser("clear", help="delete all project-local Hermes session items")
+    clear_parser.add_argument("--yes", action="store_true", help="actually delete sessions; without this, show a dry run")
+    clear_parser.add_argument("--force", action="store_true", help="clear sessions even if scripts/wiki_agent reports a live pid")
+    clear_parser.set_defaults(func=clear_sessions)
+
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

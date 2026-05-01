@@ -8,7 +8,7 @@
 #   scripts/dashboard restart
 #
 # Environment overrides:
-#   HERMES_DASHBOARD_HOST=127.0.0.1
+#   HERMES_DASHBOARD_HOST=localhost
 #   HERMES_DASHBOARD_PORT=9119
 #   HERMES_DASHBOARD_TUI=0
 #   HERMES_DASHBOARD_OPEN=1
@@ -41,7 +41,7 @@ if [ ! -x "$HERMES_BIN" ]; then
 fi
 
 usage() {
-  sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 dashboard_start() {
@@ -70,6 +70,14 @@ dashboard_start() {
     "$@"
 }
 
+dashboard_status() {
+  "$HERMES_BIN" dashboard --status "$@" || true
+}
+
+dashboard_stop() {
+  "$HERMES_BIN" dashboard --stop "$@"
+}
+
 command="${1:-start}"
 if [ "$#" -gt 0 ]; then
   shift
@@ -80,10 +88,10 @@ case "$command" in
     dashboard_start "$@"
     ;;
   status)
-    exec "$HERMES_BIN" dashboard --status "$@"
+    dashboard_status "$@"
     ;;
   stop)
-    exec "$HERMES_BIN" dashboard --stop "$@"
+    dashboard_stop "$@"
     ;;
   restart)
     "$HERMES_BIN" dashboard --stop || true

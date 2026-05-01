@@ -50,7 +50,9 @@ step() {
 }
 
 # 1. Hermes dashboard.
-if [ -x "$HERMES_BIN" ]; then
+if [ -x "$HERMES_BIN" ] && [ -x scripts/dashboard ]; then
+  step "stopping Hermes dashboard" scripts/dashboard stop || true
+elif [ -x "$HERMES_BIN" ]; then
   step "stopping Hermes dashboard" "$HERMES_BIN" dashboard --stop || true
 else
   echo "==> stopping Hermes dashboard"
@@ -73,7 +75,9 @@ step "stopping llama.cpp server" scripts/llama_server "${LLAMA_STOP_ARGS[@]}" ||
 
 echo
 echo "==> final status"
-if [ -x "$HERMES_BIN" ]; then
+if [ -x "$HERMES_BIN" ] && [ -x scripts/dashboard ]; then
+  scripts/dashboard status || true
+elif [ -x "$HERMES_BIN" ]; then
   "$HERMES_BIN" dashboard --status || true
 fi
 scripts/wiki_agent status || true

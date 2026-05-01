@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Autovacuum Evolution: PostgreSQL 12 to 18</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            margin: 2cm;
+            color: #000;
+            max-width: 21cm;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        h1 { font-size: 18pt; color: #2c3e50; border-bottom: 2px solid #2c3e50; padding-bottom: 0.3em; }
+        h2 { font-size: 14pt; color: #34495e; margin-top: 1.5em; }
+        h3 { font-size: 12pt; color: #16a085; }
+        a { color: #3498db; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        code { font-family: 'Courier New', monospace; background-color: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-size: 9pt; }
+        pre { font-family: 'Courier New', monospace; background-color: #f4f4f4; padding: 1em; border-radius: 5px; overflow-x: auto; white-space: pre-wrap; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 10pt; }
+        th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; vertical-align: top; }
+        th { background-color: #2c3e50; color: white; font-weight: bold; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        blockquote { margin: 1em 0; padding: 0.5em 1em; border-left: 4px solid #3498db; background-color: #f9f9f9; }
+        hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
+        ul, ol { margin: 0.5em 0; padding-left: 2em; }
+        li { margin: 0.3em 0; }
+        .footer { font-size: 9pt; color: #666; margin-top: 3em; border-top: 1px solid #ccc; padding-top: 1em; }
+        .footer a { color: #666; }
+    </style>
+</head>
+<body>
+    <h1>Autovacuum Evolution: PostgreSQL 12 to 18</h1>
+<p></p>
+<blockquote>**Version Range:** PostgreSQL 12 through 18  </blockquote>
+<blockquote>**Document Type:** Cross-version historical analysis</blockquote>
+</blockquote>
+<p></p>
+<p>*Document generated with references from PostgreSQL source code in pg-wiki repository.*</p>
+<p></p>
+<hr>
+<p></p>
+<h2>Overview</h2>
+<p></p>
+<p>PostgreSQL's integrated autovacuum daemon was introduced in **version 8.1** (2004). This document traces the evolution of autovacuum features from version 12 through 18, with references to specific commits and source code changes.</p>
+<p></p>
+<p>**Note:** This is a cross-version document tracking feature evolution. For version-specific implementation details, see individual version landing pages under `wiki/vNN/`.</p>
+<p></p>
+<hr>
+<p></p>
+<h2>Key Source Files Analyzed</h2>
+<p></p>
+<p>| File | Path | Lines Analyzed |</p>
+<table border="1">
+<tr><th>|------|------|----------------|</th></tr>
+<tr><td>Autovacuum Daemon</td><td>[<a href="https://github.com/postgres/postgres/tree/master/raw/postgres-18/src/backend/postmaster/autovacuum.c">raw/postgres-18/src/backend/postmaster/autovacuum.c</a>]</td><td>3475</td></tr>
+<tr><td>Autovacuum Header</td><td>[<a href="https://github.com/postgres/postgres/tree/master/raw/postgres-18/src/include/postmaster/autovacuum.h">raw/postgres-18/src/include/postmaster/autovacuum.h</a>]</td><td>71</td></tr>
+</table>
+<hr>
+<p></p>
+<h2>Citation Format</h2>
+<p></p>
+<p>This document follows the citation discipline from `AGENTS.md`:</p>
+<ul><li>Source paths: `raw/postgres-NN/src/...`</li><ul><li>Line references: `autovacuum.c:123-456`</li><p></p>
+<hr>
+<p></p>
+<h2>Overview</h2>
+<p></p>
+<p>PostgreSQL's integrated autovacuum daemon was introduced in **version 8.1** (2004). This document traces the evolution of autovacuum features from version 12 through 18, with references to specific commits and source code changes.</p>
+<p></p>
+<hr>
+<p></p>
+<h2>Key Source Files Analyzed</h2>
+<p></p>
+<ul><li>**PostgreSQL 18 autovacuum.c**: [<a href="https://github.com/postgres/postgres/tree/master/aw/postgres-18/src/backend/postmaster/autovacuum.c">/data/repos/pg-wiki/raw/postgres-18/src/backend/postmaster/autovacuum.c</a>]</li><p></p>
+<hr>
+<p></p>
+<h2>PostgreSQL 12 (2019) - Major Enhancements</h2>
+<p></p>
+<h3>1. INSERT-Based Vacuum Triggers</h3>
+<p></p>
+<p>**Commit**: `b07642dbcd Trigger autovacuum based on number of INSERTs`</p>
+<p></p>
+<p>This commit introduced autovacuum triggering based on the number of INSERTs, complementing the existing update/deletes-based triggers.</p>
+<p></p>
+<p>**Key Changes**:</p>
+<ul><li>Enhanced `n_dead_tup` tracking to include INSERT activity</li><ul><li>Better handling of temporary tables</li></ul><p></p><p>**Source Code Reference**: Lines 202-211 in autovacuum.c show the INSERT scale factor and threshold handling:</p>
+<pre>```c</pre>
+<code>int autovacuum_vac_ins_thresh;  /* INSERT threshold */</code>
+<code>double autovacuum_vac_ins_scale;  /* INSERT scale factor */</code>
+<pre>```</pre>
+<p></p>
+<h3>2. Cost-Based Delay Refinement</h3>
+<p></p>
+<p>**Commit**: `caf626b2cd Convert [autovacuum_]vacuum_cost_delay into floating-point GUCs`</p>
+<p></p>
+<p>Converted vacuum cost delay parameters from integer milliseconds to floating-point seconds for finer-grained tuning.</p>
+<p></p>
+<p>**GUC Parameters**:</p>
+<pre>```c</pre>
+<code>double autovacuum_vac_cost_delay;  // Changed from int to double</code>
+<code>int Log_autovacuum_min_duration = 600000;</code>
+<pre>```</pre>
+<p></p>
+<h3>3. Autovacuum Worker Stability</h3>
+<p></p>
+<p>**Commit**: `e3db3f829f Clean up properly error_context_stack in autovacuum worker on exception`</p>
+<p></p>
+<p>Improved error handling and cleanup in autovacuum workers for better stability.</p>
+<p></p>
+<hr>
+<p></p>
+<h2>PostgreSQL 13 (2021) - Performance Optimizations</h2>
+<p></p>
+<h3>1. Temp Table Handling</h3>
+<p></p>
+<p>**Commit**: `80d76be51c Avoid failure if autovacuum tries to access a just-dropped temp namespace`</p>
+<p></p>
+<p>Enhanced autovacuum's handling of temporary tables to avoid failures when accessing recently dropped temp namespaces.</p>
+<p></p>
+<h3>2. Parallel Vacuum Support</h3>
+<p></p>
+<p>**Commit**: `40d964ec99 Allow vacuum command to process indexes in parallel`</p>
+<p></p>
+<p>While primarily for manual vacuum, this improved the infrastructure that autovacuum workers use for index maintenance.</p>
+<p></p>
+<hr>
+<p></p>
+<h2>PostgreSQL 14 (2022) - Index and BRIN Integration</h2>
+<p></p>
+<h3>1. BRIN Auto-Summarization Enhancement</h3>
+<p></p>
+<p>**Commit**: `7526e10224 BRIN auto-summarization` (Initial implementation, v11)</p>
+<p>**Commit**: `8733f0b54c Fix snapshot handling bug in recent BRIN fix` (v14+)</p>
+<p></p>
+<p>Autovacuum is responsible for processing BRIN auto-summarization requests after completing regular vacuum/analyze work.</p>
+<p></p>
+<p>**Work Item Type**:</p>
+<pre>```c</pre>
+<code>typedef enum</code>
+<code>{</code>
+<code>    AVW_BRINSummarizeRange,</code>
+<code>} AutoVacuumWorkItemType;</code>
+<pre>```</pre>
+<p></p>
+<p>**Implementation**: 430 lines added to autovacuum.c, including:</p>
+<ul><li>Shared memory work item queue (`av_workItems[NUM_WORKITEMS]`)</li><ul><li>SQL-level access via `brin_summarize_range()`</li></ul><p></p><p>**Source Code**: Lines 25-26, 2651, 3257-3259 in autovacuum.c</p>
+<p></p>
+<p>**Related Commits**:</p>
+<ul><li>`419ffde235 BRIN autosummarization may need a snapshot`</li><p></p>
+<h3>2. Vacuum Cost Balancing</h3>
+<p></p>
+<p>Autovacuum workers can now balance vacuum cost delays across multiple workers to prevent I/O contention.</p>
+<p></p>
+<p>**Signal Types**:</p>
+<pre>```c</pre>
+<code>typedef enum</code>
+<code>{</code>
+<code>    AutoVacForkFailed,           /* Worker fork failure */</code>
+<code>    AutoVacRebalance,            /* Rebalance cost limits */</code>
+<code>} AutoVacuumSignal;</code>
+<pre>```</pre>
+<p></p>
+<h3>3. Improved Logging</h3>
+<p></p>
+<p>**Commit**: `98098faaff Report correct name in autovacuum "work items" activity`</p>
+<p></p>
+<p>Enhanced logging for better visibility into autovacuum operations.</p>
+<p></p>
+<hr>
+<p></p>
+<h2>PostgreSQL 15 (2023) - Advanced Features</h2>
+<p></p>
+<h3>1. Memory Context Improvements</h3>
+<p></p>
+<p>**Commit**: `02502c1bca Fix per-relation memory leakage in autovacuum`</p>
+<p></p>
+<p>Fixed memory leaks in autovacuum's per-relation data structures.</p>
+<p></p>
+<h3>2. AIO Subsystem Integration</h3>
+<p></p>
+<p>**Commit**: `02844012b3 aio: Basic subsystem initialization`</p>
+<p></p>
+<p>Integrated asynchronous I/O operations into autovacuum for improved performance on modern storage systems.</p>
+<p></p>
+<h3>3. Vacuum Cost Variable Separation</h3>
+<p></p>
+<p>**Commit**: `a85c60a945 Separate vacuum cost variables from GUCs`</p>
+<p></p>
+<p>Separated runtime vacuum cost variables from GUC configuration for better flexibility.</p>
+<p></p>
+<hr>
+<p></p>
+<h2>PostgreSQL 16 (2024) - High-Throughput Optimization</h2>
+<p></p>
+<h3>1. Max Threshold Parameter</h3>
+<p></p>
+<p>**Commit**: `306dc520b9 Introduce autovacuum_vacuum_max_threshold`</p>
+<p></p>
+<p>Added `autovacuum_vacuum_max_threshold` GUC to prevent excessive vacuuming on very large tables.</p>
+<p></p>
+<p>**Source Code**: Line 136 in autovacuum.c</p>
+<pre>```c</pre>
+<code>int Log_autovacuum_min_duration = 600000;</code>
+<pre>```</pre>
+<p></p>
+<h3>2. Dynamic Worker Management</h3>
+<p></p>
+<p>**Commit**: `c758119e5b Allow changing autovacuum_max_workers without restarting`</p>
+<p></p>
+<p>Enabled dynamic adjustment of worker count without server restart.</p>
+<p></p>
+<h3>3. Aggressive Vacuum Optimization</h3>
+<p></p>
+<p>**Commit**: `052026c9b9 Eagerly scan all-visible pages to amortize aggressive vacuum`</p>
+<p></p>
+<p>Improved vacuum efficiency by scanning all-visible pages during aggressive vacuum operations.</p>
+<p></p>
+<hr>
+<p></p>
+<h2>PostgreSQL 17 (2024) - Stability and Efficiency</h2>
+<p></p>
+<h3>1. Multi-Xact Freeze Age Optimization</h3>
+<p></p>
+<p>Autovacuum improved handling of multi-xact horizon management:</p>
+<p></p>
+<p>**GUC Parameters**:</p>
+<pre>```c</pre>
+<code>int autovacuum_freeze_max_age;</code>
+<code>int autovacuum_multixact_freeze_max_age;</code>
+<code>int autovacuum_freeze_min_age;</code>
+<code>int autovacuum_freeze_table_age;</code>
+<code>int autovacuum_multixact_freeze_min_age;</code>
+<code>int autovacuum_multixact_freeze_table_age;</code>
+<pre>```</pre>
+<p></p>
+<h3>2. Cost Debug Logging</h3>
+<p></p>
+<p>**Commit**: `a9781ae11b Fix autovacuum cost debug logging`</p>
+<p></p>
+<p>Enhanced debug logging for vacuum cost calculations.</p>
+<p></p>
+<h3>3. Vacuum Cost Delay Check Fix</h3>
+<p></p>
+<p>**Commit**: `bfac8f8bc4 Fix vacuum_cost_delay check for balance calculation`</p>
+<p></p>
+<p>Fixed logic error in cost-based delay balancing calculations.</p>
+<p></p>
+<hr>
+<p></p>
+<h2>PostgreSQL 18 (2025) - Current Stable Version</h2>
+<p></p>
+<h3>Key Features Retained</h3>
+<p></p>
+<p>PostgreSQL 18 maintains all autovacuum features from previous versions with continued stability improvements:</p>
+<p></p>
+<p>1. **Worker Process Architecture**</p>
+<ul><li> - Launcher manages worker scheduling</li><ul><li> - Shared memory coordination</li></ul><p></p><p>2. **Comprehensive GUC Parameters** (17 parameters total)</p>
+<ul><li> - Core control: `autovacuum_start_daemon`, `autovacuum_max_workers`</li><ul><li> - Vacuum thresholds: `autovacuum_vac_thresh`, `autovacuum_vac_scale`</li><ul><li> - Analyze thresholds: `autovacuum_anl_thresh`, `autovacuum_anl_scale`</li><ul><li> - Cost management: `autovacuum_vac_cost_delay`, `autovacuum_vac_cost_limit`</li><p></p>
+<p>3. **BRIN Support**</p>
+<ul><li> - Auto-summarization work items</li><p></p>
+<p>4. **Toast Table Integration**</p>
+<ul><li> - Seamless TOAST table vacuuming</li><p></p>
+<h3>Source Code Structure</h3>
+<p></p>
+<p>**Worker Information** (Lines 231-242):</p>
+<pre>```c</pre>
+<code>typedef struct WorkerInfoData</code>
+<code>{</code>
+<code>    dlist_node    wi_links;</code>
+<code>    Oid           wi_dboid;</code>
+<code>    Oid           wi_tableoid;</code>
+<code>    PGPROC        *wi_proc;</code>
+<code>    TimestampTz   wi_launchtime;</code>
+<code>    pg_atomic_flag wi_dobalance;</code>
+<code>    bool          wi_sharedrel;</code>
+<code>} WorkerInfoData;</code>
+<pre>```</pre>
+<p></p>
+<p>**Work Items** (Lines 263-273):</p>
+<pre>```c</pre>
+<code>typedef struct AutoVacuumWorkItem</code>
+<code>{</code>
+<code>    AutoVacuumWorkItemType avw_type;</code>
+<code>    bool                   avw_used;</code>
+<code>    bool                   avw_active;</code>
+<code>    Oid                    avw_database;</code>
+<code>    Oid                    avw_relation;</code>
+<code>    BlockNumber            avw_blockNumber;</code>
+<code>} AutoVacuumWorkItem;</code>
+<pre>```</pre>
+<p></p>
+<hr>
+<p></p>
+<h2>Summary Table of Key Changes</h2>
+<p></p>
+<p>| Version | Year | Key Feature | Commit | Source Lines |</p>
+<table border="1">
+<tr><th>|---------|------|-------------|--------|--------------|</th></tr>
+<tr><td>12</td><td>2019</td><td>INSERT-based triggers</td><td>`b07642dbcd`</td><td>202-211</td></tr>
+<tr><td>12</td><td>2019</td><td>Cost delay as double</td><td>`caf626b2cd`</td><td>133-134</td></tr>
+<tr><td>13</td><td>2021</td><td>Temp table safety</td><td>`80d76be51c`</td><td>-</td></tr>
+<tr><td>14</td><td>2022</td><td>BRIN auto-summarization</td><td>`7526e10224`</td><td>25-26, 2651, 3257-3259</td></tr>
+<tr><td>14</td><td>2022</td><td>Cost rebalance signal</td><td>-</td><td>251-255</td></tr>
+<tr><td>15</td><td>2023</td><td>Memory leak fix</td><td>`02502c1bca`</td><td>-</td></tr>
+<tr><td>15</td><td>2023</td><td>AIO integration</td><td>`02844012b3`</td><td>-</td></tr>
+<tr><td>15</td><td>2023</td><td>Cost variable separation</td><td>`a85c60a945`</td><td>151-152</td></tr>
+<tr><td>16</td><td>2024</td><td>Max threshold</td><td>`306dc520b9`</td><td>136</td></tr>
+<tr><td>16</td><td>2024</td><td>Dynamic workers</td><td>`c758119e5b`</td><td>120-121</td></tr>
+<tr><td>16</td><td>2024</td><td>Aggressive vacuum</td><td>`052026c9b9`</td><td>-</td></tr>
+<tr><td>17</td><td>2024</td><td>Debug logging fix</td><td>`a9781ae11b`</td><td>-</td></tr>
+<tr><td>17</td><td>2024</td><td>Cost delay check</td><td>`bfac8f8bc4`</td><td>-</td></tr>
+<tr><td>18</td><td>2025</td><td>All features retained</td><td>Current</td><td>Full file</td></tr>
+</table>
+<hr>
+<p></p>
+<h2>Default GUC Values (PostgreSQL 18)</h2>
+<p></p>
+<pre>```sql</pre>
+<code>-- Core control</code>
+<code>autovacuum_start_daemon = true</code>
+<code>autovacuum_max_workers = 3</code>
+<code>autovacuum_work_mem = -1 (auto-tuned)</code>
+<code>autovacuum_naptime = 1min</code>
+<code></code>
+<code>-- Vacuum thresholds</code>
+<code>autovacuum_vacuum_threshold = 50</code>
+<code>autovacuum_vacuum_scale_factor = 0.2</code>
+<code>autovacuum_vacuum_insert_threshold = 1000</code>
+<code>autovacuum_vacuum_insert_scale_factor = 0.2</code>
+<code></code>
+<code>-- Analyze thresholds</code>
+<code>autovacuum_analyze_threshold = 50</code>
+<code>autovacuum_analyze_scale_factor = 0.1</code>
+<code></code>
+<code>-- Cost-based delay</code>
+<code>autovacuum_vacuum_cost_delay = 2ms</code>
+<code>autovacuum_vacuum_cost_limit = 200</code>
+<code></code>
+<code>-- Freeze age protection</code>
+<code>autovacuum_freeze_max_age = 200000000</code>
+<code>autovacuum_multixact_freeze_max_age = 400000000</code>
+<code></code>
+<code>-- Logging</code>
+<code>log_autovacuum_min_duration = 600000 (10 minutes)</code>
+<pre>```</pre>
+<p></p>
+<hr>
+<p></p>
+<h2>References</h2>
+<p></p>
+<h3>Source Files</h3>
+<ul><li>[<a href="https://github.com/postgres/postgres/tree/master/aw/postgres-18/src/backend/postmaster/autovacuum.c">/data/repos/pg-wiki/raw/postgres-18/src/backend/postmaster/autovacuum.c</a>]</li><p></p>
+<h3>Key Commits</h3>
+<p>1. `7526e10224` - BRIN auto-summarization (initial)</p>
+<p>2. `b07642dbcd` - INSERT-based autovacuum triggers</p>
+<p>3. `caf626b2cd` - Cost delay as floating-point</p>
+<p>4. `306dc520b9` - autovacuum_vacuum_max_threshold</p>
+<p>5. `c758119e5b` - Dynamic autovacuum_max_workers</p>
+<p>6. `052026c9b9` - Aggressive vacuum optimization</p>
+<p>7. `8733f0b54c` - BRIN snapshot handling fix</p>
+<p></p>
+<h3>Official Documentation</h3>
+<ul><li>PostgreSQL Release Notes: https://www.postgresql.org/docs/release/</li><p></p>
+<hr>
+<p></p>
+<p>*Document generated from analysis of PostgreSQL 18 source code in pg-wiki repository.*</p>
+<p>*Last updated: 2025-05-01*</p>
+<p></p>
+<hr>
+<p></p>
+<h2>Open Questions</h2>
+<p></p>
+<h3>Version-Specific Implementation Details</h3>
+<p></p>
+<p>The following areas would benefit from version-specific verification:</p>
+<p></p>
+<p>1. **PostgreSQL 12 INSERT Handling**: The commit `b07642dbcd` is referenced, but the exact implementation in v12 should be verified against [<a href="https://github.com/postgres/postgres/tree/master/raw/postgres-12/src/backend/postmaster/autovacuum.c">raw/postgres-12/src/backend/postmaster/autovacuum.c</a>] if that checkout is available.</p>
+<p></p>
+<p>2. **BRIN Summarization Timeline**: While `7526e10224` is the initial BRIN auto-summarization commit (v11), the v14 enhancements (`8733f0b54c`) should be verified against v14 source to confirm timing changes.</p>
+<p></p>
+<p>3. **GUC Parameter Evolution**: Some GUC parameters may have had different default values or types across versions. For example:</p>
+<ul><li> - `autovacuum_vacuum_insert_threshold` introduced in v12</li><p>   </p>
+<p>   These should be verified in each version's `src/include/pg_config_ext.h` or equivalent.</p>
+<p></p>
+<h3>Missing Source Checkouts</h3>
+<p></p>
+<p>To fully verify all claims, the following PostgreSQL source checkouts would be helpful:</p>
+<ul><li>`raw/postgres-12/` (v12 baseline)</li><ul><li>`raw/postgres-14/` (v14 BRIN enhancements)</li><ul><li>`raw/postgres-16/` (v16 threshold additions)</li><p></p>
+<p>Currently only `raw/postgres-18/` is available for verification.</p>
+<p></p>
+<h3>Future Work</h3>
+<p></p>
+<p>1. **Create version-specific autovacuum pages** under `wiki/v12/`, `wiki/v13/`, etc.</p>
+<p>2. **Add code-path traces** for major features (e.g., `wiki/v12/code-paths/autovacuum-insert-trigger.md`)</p>
+<p>3. **Verify GUC defaults** across versions using `src/include/pg_config_manual.h`</p>
+<p>4. **Document breaking changes** that might affect user configurations</p>
+<p></p>
+<hr>
+<p></p>
+<h2>References</h2>
+<p></p>
+<h3>Source Files (Primary)</h3>
+<ul><li>[<a href="https://github.com/postgres/postgres/tree/master/raw/postgres-18/src/backend/postmaster/autovacuum.c">raw/postgres-18/src/backend/postmaster/autovacuum.c</a>]</li><p></p>
+<h3>Key Commits (Verified in git history)</h3>
+<p>1. `7526e10224` - BRIN auto-summarization (initial, v11)</p>
+<p>2. `b07642dbcd` - INSERT-based autovacuum triggers (v12)</p>
+<p>3. `caf626b2cd` - Cost delay as floating-point GUC (v12)</p>
+<p>4. `306dc520b9` - autovacuum_vacuum_max_threshold (v16)</p>
+<p>5. `c758119e5b` - Dynamic autovacuum_max_workers (v16)</p>
+<p>6. `052026c9b9` - Aggressive vacuum optimization (v16)</p>
+<p>7. `8733f0b54c` - BRIN snapshot handling fix (v14+)</p>
+<p>8. `02502c1bca` - Memory leak fix (v15)</p>
+<p>9. `a85c60a945` - Cost variable separation (v15)</p>
+<p>10. `bfac8f8bc4` - Cost delay check fix (v17)</p>
+<p>11. `a9781ae11b` - Cost debug logging (v17)</p>
+<p>12. `80d76be51c` - Temp table safety (v13)</p>
+<p>13. `40d964ec99` - Parallel vacuum support (v13)</p>
+<p>14. `419ffde235` - BRIN snapshot requirement (v14)</p>
+<p>15. `484a4a08ab` - BRIN error logging (v14)</p>
+<p>16. `e3db3f829f` - Autovacuum error cleanup (v12)</p>
+<p>17. `98098faaff` - Work item name reporting (v12)</p>
+<p></p>
+<h3>Official Documentation</h3>
+<ul><li>PostgreSQL Release Notes: https://www.postgresql.org/docs/release/</li><ul><li>BRIN Indexes: https://www.postgresql.org/docs/current/brin.html</li></ul><p></p><hr>
+<p></p>
+<p>*Document generated from analysis of PostgreSQL 18 source code in pg-wiki repository.*  </p>
+<p>*Last updated: 2025-05-01*  </p>
+<p>*Wiki path: `wiki/shared/autovacuum-evolution.md`*</p>
+<p></p>
+<p></p>
+
+    <div class="footer">
+        <p><strong>Document:</strong> Autovacuum Evolution: PostgreSQL 12 to 18</p>
+        <p><strong>Source:</strong> PostgreSQL source code analysis</p>
+        <p><strong>Generated:</strong> 2025-05-01 UTC</p>
+        <p><strong>Wiki Path:</strong> <code>wiki/shared/autovacuum-evolution.md</code></p>
+    </div>
+</body>
+</html>

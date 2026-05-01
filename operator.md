@@ -31,42 +31,40 @@ curl http://127.0.0.1:8080/v1/models
 
 ## Start The Dashboard
 
-Use the project-local Hermes install and Hermes home:
+Use the convenience wrapper. It starts the project-local Hermes dashboard and exposes the selected port to your tailnet with Tailscale Serve by default:
 
 ```bash
-export WIKI_RUNTIME="$PWD/.wiki-runtime"
-export HERMES_HOME="$WIKI_RUNTIME/hermes"
-export HF_HOME="$WIKI_RUNTIME/huggingface"
-export TRANSFORMERS_CACHE="$WIKI_RUNTIME/huggingface"
-export OLLAMA_MODELS="$WIKI_RUNTIME/ollama/models"
-export XDG_CACHE_HOME="$WIKI_RUNTIME/cache"
-export TMPDIR="$WIKI_RUNTIME/tmp"
-export PATH="$WIKI_RUNTIME/env/node-prefix/bin:$PATH"
-
-.wiki-runtime/env/hermes-agent/bin/hermes dashboard \
-  --host localhost \
-  --port 9119 \
-  --no-open \
-  --tui \
-  --insecure
+scripts/dashboard start
 ```
 
-`--insecure` is required when binding to a non-loopback host (`0.0.0.0`); see the warning under [Remote Access](#remote-access). Drop it (and switch back to `--host 127.0.0.1`) for loopback-only operation.
-
-Open:
+Local URL:
 
 ```text
 http://127.0.0.1:9119
 ```
 
+Tailnet URL:
+
+```text
+https://agentserver.tailda962e.ts.net/
+```
+
 `--tui` enables the browser Chat tab. `--no-open` avoids trying to launch a browser from a headless shell.
 
-**`--tui` requires loopback access.** The Chat tab's WebSocket endpoints (`/api/pty`, `/api/ws`) reject any client whose source IP isn't `127.0.0.1` / `::1`, regardless of `--insecure`. If you bind to `0.0.0.0` and access the dashboard from another machine over LAN, the dashboard renders but the Chat tab fails with `WebSocket connection failed` (close code 4403). Two ways out:
+The wrapper keeps the dashboard bound to `127.0.0.1` and has Tailscale Serve proxy tailnet HTTPS traffic back to that loopback listener. That avoids binding the dashboard directly to `0.0.0.0`.
 
-- **Use the SSH tunnel** under [Remote Access](#remote-access) — the connection then originates from loopback on the server and the Chat tab works.
-- **Drop `--tui`** if you only need the HTTP dashboard surface remotely.
+Environment overrides:
 
-The dashboard auto-builds the React frontend on first launch via `npm`. Node 22 LTS lives at `.wiki-runtime/env/node-prefix/` — the `PATH` export above puts it ahead of any system Node (system `node` 18 is too old for Vite 7). To rebuild manually:
+```bash
+HERMES_DASHBOARD_PORT=9119 scripts/dashboard start
+HERMES_DASHBOARD_TAILSCALE=0 scripts/dashboard start
+HERMES_DASHBOARD_TAILSCALE_MODE=funnel scripts/dashboard start
+HERMES_DASHBOARD_TAILSCALE_PATH=/pg-wiki scripts/dashboard start
+```
+
+`HERMES_DASHBOARD_TAILSCALE_MODE=serve` is the default and exposes the dashboard only inside your tailnet. `funnel` exposes it on the public internet and should be used only deliberately.
+
+The dashboard auto-builds the React frontend on first launch via `npm`. Node 22 LTS lives at `.wiki-runtime/env/node-prefix/`; `scripts/dashboard` puts it ahead of any system Node (system `node` 18 is too old for Vite 7). To rebuild manually:
 
 ```bash
 cd .wiki-runtime/hermes-agent/web && npm install && npm run build
@@ -75,24 +73,25 @@ cd .wiki-runtime/hermes-agent/web && npm install && npm run build
 ## Status And Stop
 
 ```bash
-HERMES_HOME="$PWD/.wiki-runtime/hermes" \
-  .wiki-runtime/env/hermes-agent/bin/hermes dashboard --status
+scripts/dashboard status
+scripts/dashboard stop
+```
 
-HERMES_HOME="$PWD/.wiki-runtime/hermes" \
-  .wiki-runtime/env/hermes-agent/bin/hermes dashboard --stop
+`scripts/dashboard stop` stops the Hermes dashboard. It leaves the Tailscale Serve config in place by default so it does not accidentally remove unrelated Serve config on the node. Remove the dashboard exposure explicitly with:
+
+```bash
+scripts/dashboard unserve
+```
+
+Or opt into cleanup during stop:
+
+```bash
+HERMES_DASHBOARD_TAILSCALE_RESET_ON_STOP=1 scripts/dashboard stop
 ```
 
 ## Remote Access
 
-Keep the dashboard bound to `127.0.0.1`. If accessing from another machine, use an SSH tunnel:
-
-```bash
-ssh -L 9119:127.0.0.1:9119 <user>@<host>
-```
-
-Then open `http://127.0.0.1:9119` locally. The tunnel is also the only way to use `--tui` from a remote machine, since the Chat tab's WebSocket is hard-gated to loopback clients.
-
-Only use `--insecure` (and `--host 0.0.0.0`) when deliberately exposing the dashboard on a trusted network. The dashboard can manage config and credentials, so prefer the SSH tunnel above unless LAN exposure is genuinely intended. Note that `--insecure` opens the HTTP surface but does **not** unlock the `--tui` Chat WebSocket — that gate is independent.
+Prefer Tailscale Serve through `scripts/dashboard start`. It keeps access scoped to devices in the tailnet and avoids directly exposing the dashboard listener on the LAN. The dashboard can manage config and credentials, so only use `HERMES_DASHBOARD_TAILSCALE_MODE=funnel` when public internet exposure is genuinely intended.
 
 ## Agent Gateway
 
@@ -118,15 +117,14 @@ scripts/stop_all --force      # escalate to SIGKILL if a step times out
 
 The script runs every step even if a prior step fails and prints a final status block, so a stuck component will not block the rest of the teardown. It calls, in order:
 
-1. `hermes dashboard --stop` — Hermes dashboard (browser UI + Chat tab).
+1. `scripts/dashboard stop` — Hermes dashboard (browser UI + Chat tab).
 2. `scripts/wiki_agent stop` — wiki agent gateway started via the lifecycle wrapper.
 3. `scripts/llama_server stop` — local llama.cpp server.
 
 Manual equivalents, if you need to run a single step:
 
 ```bash
-HERMES_HOME="$PWD/.wiki-runtime/hermes" \
-  .wiki-runtime/env/hermes-agent/bin/hermes dashboard --stop
+scripts/dashboard stop
 scripts/wiki_agent stop
 scripts/llama_server stop
 ```
@@ -134,8 +132,7 @@ scripts/llama_server stop
 Verify nothing is left running:
 
 ```bash
-HERMES_HOME="$PWD/.wiki-runtime/hermes" \
-  .wiki-runtime/env/hermes-agent/bin/hermes dashboard --status
+scripts/dashboard status
 scripts/wiki_agent status
 scripts/llama_server status
 ```

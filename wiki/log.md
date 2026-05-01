@@ -222,3 +222,71 @@ For version-agnostic work, omit the version segment:
 
 - Added top-level `operator.md` with commands for running `hermes dashboard` against the project-local Hermes home and llama.cpp backend.
 - Documented dashboard status, stop, remote SSH tunnel access, and the distinction between the dashboard and `scripts/wiki_agent`.
+
+## [2025-05-01] research | autovacuum history from v12 to v18
+
+- Traced autovacuum evolution from PostgreSQL 12 to 18.
+- Identified key commits from git history:
+  - `b07642dbcd` - INSERT-based autovacuum triggers (v12)
+  - `caf626b2cd` - Cost delay as floating-point GUC (v12)
+  - `80d76be51c` - Temp table safety (v13)
+  - `7526e10224` - BRIN auto-summarization (v11, enhanced in v14)
+  - `306dc520b9` - autovacuum_vacuum_max_threshold (v16)
+  - `c758119e5b` - Dynamic autovacuum_max_workers (v16)
+  - `052026c9b9` - Aggressive vacuum optimization (v16)
+  - `a9781ae11b` - Cost debug logging fix (v17)
+  - `bfac8f8bc4` - Cost delay check fix (v17)
+- Analyzed source files:
+  - `src/backend/postmaster/autovacuum.c` (3475 lines)
+  - `src/include/postmaster/autovacuum.h` (71 lines)
+- Documented 17 GUC parameters and their evolution
+| 2025-05-01 12:48 | **autovacuum-evolution** | Research | ✅ | Moved to `wiki/shared/autovacuum-evolution.md` for cross-version content. Added Open Questions section per AGENTS.md. Updated citations to use `raw/postgres-18/` source paths. Document now has 26 git commit references and follows citation discipline. |
+  - Version-by-version feature breakdown
+  - Git commit references for each major change
+  - Source code line references
+  - Default GUC values table
+  - Summary table of all key changes
+
+- Key features traced:
+  - INSERT-based vacuum triggers (v12)
+  - Cost-based vacuum delay (v12)
+  - Temp table handling (v13)
+  - BRIN auto-summarization integration (v14)
+  - Memory leak fixes (v15)
+  - AIO subsystem integration (v15)
+  - Vacuum cost variable separation (v15)
+  - Max threshold parameter (v16)
+  - Dynamic worker management (v16)
+  - Multi-xact freeze age improvements (v17)
+
+## [2026-05-01] tooling | Hermes session cleanup
+
+- Added `scripts/hermes_sessions` to list or clear project-local Hermes session files under `.wiki-runtime/hermes/sessions/`.
+- Documented the cleanup workflow in `wiki/operations/agent.md`, `wiki/index.md`, and `wiki/overview.md`.
+- The clear command defaults to a dry run and requires `--yes` to delete session files; it refuses to run while `scripts/wiki_agent` reports a live pid unless `--force` is supplied.
+
+## [2026-05-01] tooling | Hermes session database purge
+
+- Extended `scripts/hermes_sessions clear` to purge session rows from `.wiki-runtime/hermes/state.db` in addition to deleting files under `.wiki-runtime/hermes/sessions/`.
+- The dry run now reports both session file items and `state.db` session/message row counts.
+- The purge deletes `messages` and `sessions`, resets the message autoincrement sequence, checkpoints the WAL, and vacuums the database while keeping schema and non-session metadata intact; only destructive runs require the agent to be stopped or `--force`.
+
+## [2026-05-01] tooling | Hermes Markdown PDF skill
+
+- Added the project-local Hermes skill `markdown-pdf` under `.wiki-runtime/hermes/skills/productivity/markdown-pdf/`.
+- Added bundled converter script `scripts/md_to_pdf.py` for generating PDFs from Markdown through the Hermes Python runtime.
+- Installed `reportlab==4.5.0` and `pillow==12.2.0` into `.wiki-runtime/env/hermes-agent/`; reused existing `markdown-it-py==4.0.0`.
+- Documented the skill and dependency location in `wiki/operations/agent.md`.
+
+## [2026-05-01] tooling | Hermes HTML PDF skill
+
+- Added the project-local Hermes skill `html-pdf` under `.wiki-runtime/hermes/skills/productivity/html-pdf/`.
+- Added bundled converter script `scripts/html_to_pdf.py` for generating document-style PDFs from local HTML through the Hermes Python runtime.
+- Reused the existing project-local `reportlab==4.5.0` and `pillow==12.2.0` runtime dependencies instead of adding a browser or system-Cairo renderer.
+- Documented the skill and dependency location in `wiki/operations/agent.md`.
+
+## [2026-05-01] tooling | dashboard Tailscale exposure
+
+- Updated `scripts/dashboard` so `start` exposes the dashboard port through Tailscale Serve by default while keeping the Hermes dashboard bound to loopback.
+- Added `scripts/dashboard unserve` plus `HERMES_DASHBOARD_TAILSCALE_*` environment overrides for Serve/Funnel mode, HTTPS port, path, target, and stop cleanup.
+- Updated `scripts/stop_all` and `operator.md` to use the dashboard wrapper instead of calling `hermes dashboard` directly.
