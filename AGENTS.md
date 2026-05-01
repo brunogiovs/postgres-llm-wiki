@@ -135,7 +135,7 @@ For version-agnostic work:
 
 ### Add A Supported Version
 
-1. Add the source checkout under `raw/postgres-NN/`.
+1. Add the source checkout under `raw/postgres-NN/` using `scripts/source_update`.
 2. Pin the checkout to an exact commit.
 3. Add the version to `wiki/versions.md`.
 4. Create `wiki/vNN/index.md`.
@@ -191,7 +191,9 @@ scripts/wiki_lint
 scripts/source_lookup --symbol ExecutorRun
 scripts/source_lookup --path src/backend/executor/execMain.c
 scripts/version_diff --from 18 --to 17 --path src/backend/executor/execMain.c
+scripts/source_update --list
+scripts/source_update --version 18
 scripts/wiki_agent status
 ```
 
-`scripts/source_lookup` defaults to the primary version in `wiki/versions.md`. `scripts/version_diff` requires both source checkouts to exist under `raw/postgres-NN/`. Tool caches, logs, and temporary diffs must stay under `.wiki-runtime/`.
+`scripts/source_lookup` defaults to the primary version in `wiki/versions.md`. `scripts/version_diff` requires both source checkouts to exist under `raw/postgres-NN/`. `scripts/source_update` clones or updates a checkout to the commit pinned in `wiki/versions.md`; pass `--branch` and `--commit` to override. Tool caches, logs, and temporary diffs must stay under `.wiki-runtime/`.

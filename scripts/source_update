@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""Clone or update a PostgreSQL source checkout under raw/postgres-NN/.
+
+Clones from the official PostgreSQL GitHub mirror when the checkout does not
+exist, or fetches and resets to the pinned commit when it does.  The pinned
+commit is read from wiki/versions.md unless --commit is supplied.
+
+Usage:
+  scripts/source_update --version 18
+  scripts/source_update --version 18 --commit <sha>
+  scripts/source_update --version 18 --branch REL_18_STABLE --commit <sha>
+  scripts/source_update --list
+"""
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+
+sys.dont_write_bytecode = True
+
+from wiki_tooling import REPO_ROOT, append_tool_log, die, load_versions
+
+MIRROR = "https://github.com/postgres/postgres.git"
+RAW_ROOT = REPO_ROOT / "raw"
+
+
+def run(cmd: list[str], cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(cmd, cwd=cwd, text=True, check=check)
+
+
+def git(*args: str, cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
+    return run(["git"] + list(args), cwd=cwd, check=check)
+
+
+def resolve_head(checkout: Path) -> str:
+    proc = git("rev-parse", "HEAD", cwd=checkout)
+    return proc.stdout.strip() if hasattr(proc, "stdout") else ""
+
+
+def do_clone(checkout: Path, branch: str, commit: str) -> None:
+    print(f"cloning postgres {branch} into {checkout.relative_to(REPO_ROOT)} …")
+    RAW_ROOT.mkdir(parents=True, exist_ok=True)
+    git("clone", "--filter=blob:none", "--branch", branch, MIRROR, str(checkout))
+    print(f"resetting to {commit[:12]} …")
+    git("checkout", "--detach", commit, cwd=checkout)
+    head = git("rev-parse", "HEAD", cwd=checkout, check=False).stdout.strip()
+    print(f"checkout ready: {head}")
+
+
+def do_update(checkout: Path, branch: str, commit: str) -> None:
+    print(f"fetching {branch} in {checkout.relative_to(REPO_ROOT)} …")
+    git("fetch", "origin", branch, cwd=checkout)
+    print(f"resetting to {commit[:12]} …")
+    git("checkout", "--detach", commit, cwd=checkout)
+    head = git("rev-parse", "HEAD", cwd=checkout, check=False).stdout.strip()
+    print(f"checkout ready: {head}")
+
+
+def list_versions(versions: dict[str, dict[str, str]]) -> int:
+    if not versions:
+        print("no versions in wiki/versions.md")
+        return 0
+    for info in sorted(versions.values(), key=lambda v: int(v["version"])):
+        checkout = RAW_ROOT / f"postgres-{info['version']}"
+        present = "present" if checkout.exists() else "missing"
+        commit = info.get("commit", "?")[:12]
+        print(f"  v{info['version']}  {info['status']:<8}  {present:<8}  pin={commit}  branch={info['branch']}")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--version", help="PostgreSQL major version to clone/update (e.g. 18)")
+    parser.add_argument("--branch", help="remote branch to fetch (default: read from wiki/versions.md)")
+    parser.add_argument("--commit", help="exact commit hash to pin (default: read from wiki/versions.md)")
+    parser.add_argument("--list", action="store_true", help="list versions and their checkout status, then exit")
+    args = parser.parse_args(argv)
+
+    append_tool_log("source_update", sys.argv[1:])
+
+    versions = load_versions()
+
+    if args.list:
+        return list_versions(versions)
+
+    if not args.version:
+        parser.error("--version is required unless --list is given")
+
+    version = args.version
+    info = versions.get(version)
+
+    branch = args.branch or (info.get("branch") if info else None)
+    commit = args.commit or (info.get("commit") if info else None)
+
+    if not branch:
+        die(
+            f"no branch for version {version} in wiki/versions.md; "
+            "supply --branch (e.g. REL_18_STABLE or master)"
+        )
+    if not commit:
+        die(
+            f"no pinned commit for version {version} in wiki/versions.md; "
+            "supply --commit <sha>"
+        )
+
+    checkout = RAW_ROOT / f"postgres-{version}"
+
+    if checkout.exists():
+        do_update(checkout, branch, commit)
+    else:
+        do_clone(checkout, branch, commit)
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
