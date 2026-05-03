@@ -3,7 +3,7 @@ type: question
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
 verified: false
-verified_by_agent: Cline 2026-05-03T11:32:00Z
+verified_by_agent: Cline 2026-05-03T14:01:00Z
 ---
 
 # `plan_cache_mode` Production Impact
@@ -16,7 +16,7 @@ Detailed for `auto` mode: what is the overhead of checking whether the generic p
 
 ## Short Answer
 
-PostgreSQL 12 introduced `plan_cache_mode`, controlling custom vs generic plans for parameterized cached plans (`PREPARE`, extended protocol `Parse`, PL/pgSQL). `raw/postgres-12/src/backend/utils/cache/plancache.c:choose_custom_plan`, `raw/postgres-12/src/backend/utils/cache/plancache.c:GetCachedPlan`, `raw/postgres-12/src/include/utils/plancache.h:PlanCacheMode`.
+PostgreSQL 12 introduced `plan_cache_mode`, controlling custom vs generic plans for parameterized cached plans (`PREPARE`, extended protocol `Parse`, PL/pgSQL). [[raw/postgres-12/src/backend/utils/cache/plancache.c#choose_custom_plan]], [[raw/postgres-12/src/backend/utils/cache/plancache.c#GetCachedPlan]], [[raw/postgres-12/src/include/utils/plancache.h#PlanCacheMode]].
 
 Modes: `auto` (default), `force_generic_plan`, `force_custom_plan`. PGC_USERSET.
 
@@ -24,7 +24,7 @@ Decision: shape depends on params? Yes → `force_custom_plan` (skew, ranges, pa
 
 ## Where The Setting Is Read
 
-GUC `int plan_cache_mode` in `plancache.c`. Read in `choose_custom_plan` → `GetCachedPlan` every exec. `raw/postgres-12/src/backend/utils/cache/plancache.c:plan_cache_mode`.
+GUC `int plan_cache_mode` in `plancache.c`. Read in `choose_custom_plan` → `GetCachedPlan` every exec. [[raw/postgres-12/src/backend/utils/cache/plancache.c#plan_cache_mode]].
 
 Decision tree (`plancache.c`):
 
@@ -54,10 +54,10 @@ Locked to first 5 custom.
 
 Once per execute, before the executor starts. Entry points in PG 12:
 
-- Extended protocol `Bind`: `exec_bind_message` → `GetCachedPlan` (`raw/postgres-12/src/backend/tcop/postgres.c:1876`).
-- `EXECUTE name(...)`: `ExecuteQuery` → `GetCachedPlan` (`raw/postgres-12/src/backend/commands/prepare.c:246`).
-- `EXPLAIN EXECUTE`: `ExplainExecuteQuery` → `GetCachedPlan` (`raw/postgres-12/src/backend/commands/prepare.c:663`).
-- SPI / PL/pgSQL: `_SPI_execute_plan` and friends → `GetCachedPlan` (`raw/postgres-12/src/backend/executor/spi.c:1389,1822,2215`).
+- Extended protocol `Bind`: `exec_bind_message` → `GetCachedPlan` ([[raw/postgres-12/src/backend/tcop/postgres.c#1876]]).
+- `EXECUTE name(...)`: `ExecuteQuery` → `GetCachedPlan` ([[raw/postgres-12/src/backend/commands/prepare.c#246]]).
+- `EXPLAIN EXECUTE`: `ExplainExecuteQuery` → `GetCachedPlan` ([[raw/postgres-12/src/backend/commands/prepare.c#663]]).
+- SPI / PL/pgSQL: `_SPI_execute_plan` and friends → `GetCachedPlan` ([[raw/postgres-12/src/backend/executor/spi.c#1389]], [[raw/postgres-12/src/backend/executor/spi.c#1822]], [[raw/postgres-12/src/backend/executor/spi.c#2215]]).
 
 The whole revalidation/recheck dance sits between message dispatch and `ExecutorStart`. None of its cost shows up in `EXPLAIN ANALYZE` exec time; it shows up as Bind / Execute latency on the wire.
 
@@ -162,7 +162,7 @@ Best: skewed params.
 
 ## Impact of Slow Random I/O Disk
 
-Planning: catalog reads (`get_relation_info` pg_class/index/statistic), syscache, relcache rebuilds → random I/O if cold. `raw/postgres-12/src/backend/optimizer/util/plancat.c:get_relation_info`.
+Planning: catalog reads (`get_relation_info` pg_class/index/statistic), syscache, relcache rebuilds → random I/O if cold. [[raw/postgres-12/src/backend/optimizer/util/plancat.c#get_relation_info]].
 
 Even warm: SLRU (CLOG), dirty victim `FlushBuffer`. See [[v12/questions/query-disk-io-with-warm-cache]].
 
@@ -178,16 +178,16 @@ Slow disk: amplify planning latency → prefer generic reuse.
 
 ## Source References
 
-- `raw/postgres-12/src/backend/utils/cache/plancache.c:choose_custom_plan`
-- `raw/postgres-12/src/backend/utils/cache/plancache.c:GetCachedPlan`
-- `raw/postgres-12/src/backend/utils/cache/plancache.c:cached_plan_cost`
-- `raw/postgres-12/src/backend/utils/cache/plancache.c:BuildCachedPlan`
-- `raw/postgres-12/src/backend/utils/cache/plancache.c:RevalidateCachedQuery`
-- `raw/postgres-12/src/backend/utils/misc/guc.c:plan_cache_mode_options`
-- `raw/postgres-12/src/include/utils/plancache.h:PlanCacheMode`
-- `raw/postgres-12/src/include/utils/plancache.h:CachedPlanSource`
-- `raw/postgres-12/src/backend/optimizer/util/plancat.c:get_relation_info`
-- `raw/postgres-12/doc/src/sgml/ref/prepare.sgml`
+- [[raw/postgres-12/src/backend/utils/cache/plancache.c#choose_custom_plan]]
+- [[raw/postgres-12/src/backend/utils/cache/plancache.c#GetCachedPlan]]
+- [[raw/postgres-12/src/backend/utils/cache/plancache.c#cached_plan_cost]]
+- [[raw/postgres-12/src/backend/utils/cache/plancache.c#BuildCachedPlan]]
+- [[raw/postgres-12/src/backend/utils/cache/plancache.c#RevalidateCachedQuery]]
+- [[raw/postgres-12/src/backend/utils/misc/guc.c#plan_cache_mode_options]]
+- [[raw/postgres-12/src/include/utils/plancache.h#PlanCacheMode]]
+- [[raw/postgres-12/src/include/utils/plancache.h#CachedPlanSource]]
+- [[raw/postgres-12/src/backend/optimizer/util/plancat.c#get_relation_info]]
+- [[raw/postgres-12/doc/src/sgml/ref/prepare.sgml]]
 
 ## Open Questions
 

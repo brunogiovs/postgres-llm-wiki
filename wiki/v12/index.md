@@ -10,7 +10,7 @@
 
 ## Coverage
 
-Questions: [[v12/questions/query-disk-io-with-warm-cache]], [[v12/questions/plan-cache-mode-production-impact]], [[v12/questions/detect-slow-random-io-disk-metrics]], [[v12/questions/track-io-timing-blk-write-time-dirty-victim-select]].
+Questions: [[v12/questions/can-non-prepared-statements-use-generic-plans]], [[v12/questions/query-disk-io-with-warm-cache]], [[v12/questions/plan-cache-mode-production-impact]], [[v12/questions/detect-slow-random-io-disk-metrics]], [[v12/questions/track-io-timing-blk-write-time-dirty-victim-select]].
 
 ## Subsystems
 
@@ -36,6 +36,8 @@ No source file map pages have been created yet.
 - [[diagrams/source-code-tree-overview]] - Source code tree overview diagram.
 
 ## Questions
+
+- [[v12/questions/can-non-prepared-statements-use-generic-plans]] - Do non-prepared SELECT statements use generic plans in PostgreSQL 12?
 
 - [[v12/questions/query-disk-io-with-warm-cache]] - PG 12 pre-execution and execution disk I/O paths and how slow random I/O hurts even with warm shared buffers and OS page cache.
 

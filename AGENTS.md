@@ -17,6 +17,8 @@ This repository is an LLM-maintained wiki for PostgreSQL engine internals. The a
 - For non-Markdown files you must include the full file extension (.c, .py, .java, etc.).
 - Cite from the `raw/postgres-NN/` checkout matching the page's `version:`.
 - Shared concept pages may cite version examples through `verified_against:`.
+- Use the same citation format for all code references, function names, and symbols mentioned in the text.
+- Code references may use aliases for compact display: `[[raw/postgres-NN/path/file.c#symbol|file.c#symbol]]`.
 - If a claim is not backed by a source file, symbol, documentation page, commit, or saved design discussion, do not write it as fact.
 - Put uncertainty under `## Open Questions` instead of guessing.
 

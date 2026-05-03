@@ -1,4 +1,4 @@
-hes# Wiki Log
+# Wiki Log
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
@@ -8,11 +8,33 @@ Use this prefix shape:
 ## [YYYY-MM-DD] <kind> v<NN> | <subject>
 ```
 
+## [2026-05-03] answer v12 | can non-prepared statements use generic plans
+
+- Created `wiki/v12/questions/can-non-prepared-statements-use-generic-plans.md` answering: Yes, non-prepared SELECT statements can use generic plans in PostgreSQL 12. Generic plans are cached query execution plans independent of parameter values, used for both prepared and non-prepared statements.
+
+- Verified against `raw/postgres-12@45b88269a353ad93744772791feb6d01bc7e1e42`: `plancache.c:choose_custom_plan()` prefers generic plans for queries with no parameters (`boundParams == NULL`), `GetCachedPlan()` orchestrates plan caching, simple queries in `postgres.c:exec_simple_query()` call `GetCachedPlan(psrc, NULL, false, NULL)`.
+
+- Updated `wiki/v12/index.md` and `wiki/index.md`.
+
+## [2026-05-03] update | AGENTS.md citation discipline clarified
+
+- Added "Use the same citation format for all code references, function names, and symbols mentioned in the text" to Citation Discipline section.
+- Added "Code references may use aliases for compact display: `[[raw/postgres-NN/path/file.c#symbol|file.c#symbol]]`" to allow compact display of citations.
+- Updated `wiki/v12/questions/can-non-prepared-statements-use-generic-plans.md` to use aliases for code references, displaying as `plancache.c#choose_custom_plan` instead of full paths.
+
 For version-agnostic work, omit the version segment:
 
 ```md
 ## [YYYY-MM-DD] <kind> | <subject>
 ```
+
+## [2026-05-03] lint v12 | Fixed citation format on plan_cache_mode production impact question
+
+- Fixed citation format to use mandatory shape `[[raw/postgres-12/path#symbol]]` per AGENTS.md.
+- Previously used incorrect bare `raw/postgres-12/path#symbol` format without `[[ ]]`.
+- Verified all citations point to correct source files in `raw/postgres-12/` at pinned commit.
+- Updated `verified_by_agent` timestamp.
+- Updated wiki/index.md and wiki/v12/index.md with page references.
 
 ## [2026-05-03] lint v12 | Corrected citation format on source code tree overview diagram
 

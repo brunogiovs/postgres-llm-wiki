@@ -1,0 +1,203 @@
+{
+  "main": {
+    "id": "25f7dbd07d37ac92",
+    "type": "split",
+    "children": [
+      {
+        "id": "d1c98e1e712afefe",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "c435316645267d35",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "wiki/v12/questions/can-non-prepared-statements-use-generic-plans.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "can-non-prepared-statements-use-generic-plans"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "d34bb7f9de24de4c",
+    "type": "split",
+    "children": [
+      {
+        "id": "6a4750a2263befdc",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "daf305d09e3d4515",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "08070bb3ecfc183a",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "279a6804e09bc5d5",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "4ac59f81f42a516b",
+    "type": "split",
+    "children": [
+      {
+        "id": "b95c9e89a59a3289",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "2d9a4bb801e4db75",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "wiki/v12/questions/can-non-prepared-statements-use-generic-plans.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for can-non-prepared-statements-use-generic-plans"
+            }
+          },
+          {
+            "id": "751f7f7420959686",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "wiki/v12/questions/can-non-prepared-statements-use-generic-plans.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from can-non-prepared-statements-use-generic-plans"
+            }
+          },
+          {
+            "id": "e671f4bf2ff2f494",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "badba18103b59859",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "96f97c4d85a550f6",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "wiki/v12/questions/can-non-prepared-statements-use-generic-plans.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of can-non-prepared-statements-use-generic-plans"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "c435316645267d35",
+  "lastOpenFiles": [
+    "wiki/v12/questions/detect-slow-random-io-disk-metrics.md",
+    "wiki/v12/questions/can-non-prepared-statements-use-generic-plans.md",
+    "wiki/v12/questions/plan-cache-mode-production-impact.md",
+    "wiki/v12/questions/query-disk-io-with-warm-cache.md",
+    "wiki/v12/diagrams/source-code-tree-overview.md",
+    "v12/files/src/backend/access/nbtree/README.md",
+    "v12/files/src/backend/commands/tablecmds.c.md",
+    "v12/files/src/backend/commands",
+    "v12/files/src/backend/access/nbtree",
+    "v12/files/src/backend/access",
+    "v12/files/src/backend",
+    "v12/files/src",
+    "v12/files",
+    "v12"
+  ]
+}
