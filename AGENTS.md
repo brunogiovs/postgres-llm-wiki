@@ -14,11 +14,11 @@ This repository is an LLM-maintained wiki for PostgreSQL engine internals. The a
 
 - Cite source paths and symbols for every behavioral claim.
 - Preferred citation shape: `src/backend/executor/execMain.c:ExecutorRun`.
+- For non-Markdown files you must include the full file extension (.c, .py, .java, etc.).
 - Cite from the `raw/postgres-NN/` checkout matching the page's `version:`.
 - Shared concept pages may cite version examples through `verified_against:`.
 - If a claim is not backed by a source file, symbol, documentation page, commit, or saved design discussion, do not write it as fact.
 - Put uncertainty under `## Open Questions` instead of guessing.
-- Never paraphrase code in a way that adds behavior the code does not exhibit.
 
 ## Verification
 
