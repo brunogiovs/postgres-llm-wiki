@@ -438,3 +438,7 @@ For version-agnostic work, omit the version segment:
 - Implemented new checks in `scripts/wiki_lint`: `verified:` must be 'true'/'false'; `verified_by_agent:` regex format; question pages (type=question) require `verified: false`; managed pages WARN if missing both fields.
 - Test run (`scripts/wiki_lint --warnings-as-errors`): 11 ERRORS (question pages missing verified: false), 16 WARN (missing fields + orphan).
 - Updated AGENTS.md `## Lint The Wiki` check list.
+
+## [2026-05-03] lint | set verified: false on all question pages
+
+- Added `verified: false` to `wiki/v12/questions/detect-slow-random-io-disk-metrics.md` (the only one missing it)
