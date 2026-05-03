@@ -39,7 +39,7 @@ Rules for agents:
 
 - Set `verified_by_agent:` only after a comprehensive review checking all claims and sources on the question, re-checking every behavioral claim on the page against the cited source paths in the matching `raw/postgres-NN/` checkout, and following all agent rules for the wiki.
 - If verification fails for any claim, do not set `verified_by_agent:`. Either fix the claim, move it under `## Open Questions`, or leave the field absent.
-- When creating new pages or reports (e.g., question pages under `wiki/vNN/questions/`), agents must set `verified: false` and `verified_by_agent:` in front matter. Never change or remove a human-set `verified:`. Treat human-set values as authoritative.
+- When creating new pages or reports (e.g., question pages under `wiki/vNN/questions/`), agents must set `verified: false` and `verified_by_agent: not yet` in front matter. Never change or remove a human-set `verified:`. Treat human-set values as authoritative.
 - `verified:` and `verified_by_agent:` are independent. A page may have either, both, or neither.
 
 - For question pages under `wiki/vNN/questions/`, front matter must use **exactly** this order:
