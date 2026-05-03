@@ -6,21 +6,6 @@ title: Wiki Maintainer Agent Runbook
 
 Project-local Hermes + llama.cpp setup for LLM-maintained PostgreSQL wiki.
 
-## Lifecycle (scripts/wiki_agent)
-
-```
-scripts/wiki_agent start
-scripts/wiki_agent status
-scripts/wiki_agent logs --lines 80
-scripts/wiki_agent stop
-```
-
-- Stores pid/command/env/logs locally.
-- Launches `WIKI_AGENT_COMMAND` (default: `agent run --project /data/repos/pg-wiki`).
-- Hermes-managed LLM: agent → Hermes gateway → pgwiki-local (llama.cpp).
-- Refuses unsafe .env (writable/group vars filtered).
-- Pid validation by start time; log rotation at 50MiB.
-
 ## Local LLM Backend (scripts/llama_server)
 
 ```
@@ -50,4 +35,4 @@ scripts/llama_server stop
 - Pid tamper-proof.
 - Session purge keeps schema.
 
-See AGENTS.md (#local-model-operating-mode, #agent-lifecycle).
+See AGENTS.md.

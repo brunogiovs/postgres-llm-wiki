@@ -147,14 +147,20 @@ def lint() -> tuple[list[Issue], list[Issue]]:
                 errors.append(Issue("ERROR", rel(path), "Question pages must have verified: false"))
 
             if page_type == "question":
-                expected_keys = ['type', 'version', 'pinned_commit', 'verified', 'verified_by_agent']
-                if list(fm.keys()) != expected_keys:
-                    warnings.append(Issue("WARN", rel(path), f"front matter keys not in order: {list(fm.keys())} (expected {expected_keys})"))
+                all_keys = ['type', 'version', 'pinned_commit', 'verified', 'verified_by_agent']
+                # verified_by_agent is optional (set only after review); accept 4- or 5-key forms
+                present_expected = [k for k in all_keys if k in fm]
+                if list(fm.keys()) != present_expected:
+                    warnings.append(Issue("WARN", rel(path), f"front matter keys not in order: {list(fm.keys())} (expected {all_keys})"))
 
             if verified is None and vba is None and not slug.startswith("shared/concepts/"):
                 warnings.append(Issue("WARN", rel(path), "Missing verification fields (verified or verified_by_agent)"))
 
         for target in extract_obsidian_links(text):
+            if target.startswith("raw/"):
+                if not (REPO_ROOT / target).exists():
+                    errors.append(Issue("ERROR", rel(path), f"broken wiki link [[{target}]]"))
+                continue
             resolved = resolve_link(target, slug, slugs)
             if not resolved:
                 errors.append(Issue("ERROR", rel(path), f"broken wiki link [[{target}]]"))

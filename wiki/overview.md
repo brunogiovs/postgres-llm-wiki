@@ -45,7 +45,6 @@ The first shared concept layer covers:
 
 ## Maintenance Tooling
 
-- `scripts/wiki_agent` - start, stop, status, and logs for the maintainer agent process. See [[operations/agent]].
 - `scripts/recent_log` - recent entries from `wiki/log.md`.
 - `scripts/wiki_lint` - broken links, metadata drift, source-reference checks, and orphan warnings.
 - `scripts/source_lookup` - source search and file lookup inside `raw/postgres-NN/`.

@@ -126,3 +126,9 @@ Monitor these metrics to validate bgwriter tuning:
 - `pg_stat_bgwriter.buffers_alloc`: Total buffer allocations
 
 The bgwriter should handle most buffer cleaning, with backends only cleaning buffers when absolutely necessary for new allocations.
+
+## Source References
+
+- [[raw/postgres-12/src/backend/utils/misc/guc.c]] — GUC definitions for `bgwriter_delay`, `bgwriter_lru_maxpages`, `bgwriter_lru_multiplier`, `bgwriter_flush_after`
+- [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c]] — bgwriter LRU scan and buffer allocation logic
+- [[raw/postgres-12/src/backend/postmaster/bgwriter.c]] — bgwriter main loop and hibernation

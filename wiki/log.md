@@ -8,6 +8,13 @@ Use this prefix shape:
 ## [YYYY-MM-DD] <kind> v<NN> | <subject>
 ```
 
+## [2026-05-03] answer v12 | key metrics for usage and operational status
+
+- Created `wiki/v12/questions/key-metrics-usage-operational-status.md` answering key metrics to categorize database usage and operational status in PostgreSQL 12.
+- Covered connection metrics (pg_stat_activity), database performance (pg_stat_database cache hit ratio, I/O timing), background writer activity (pg_stat_bgwriter), table/index usage patterns, lock contention, and operational health assessment.
+- Cited system view definitions `raw/postgres-12/src/backend/catalog/system_views.sql` and statistics functions `raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c`.
+- Updated `wiki/v12/index.md` and `wiki/index.md`.
+
 ## [2026-05-03] answer v12 | bgwriter tuning scenarios
 
 - Created `wiki/v12/questions/bgwriter-tuning-scenarios.md` answering recommended bgwriter settings for 8 tuning scenarios in PostgreSQL 12 (checkpoint I/O spikes, maxwritten_clean limits, backend writing, bursty workloads, idle systems, low-power environments, kernel page cache pressure, high-write OLTP).
@@ -188,26 +195,6 @@ For version-agnostic work, omit the version segment:
 - Ran `scripts/wiki_lint --warnings-as-errors`; result was 0 errors and 0 warnings after replacing a stale illustrative `v17/index` wiki link with plain text.
 - Verified `scripts/recent_log`, `scripts/source_lookup`, and `scripts/version_diff` against the current PostgreSQL 18 checkout.
 
-## [2026-04-30] tooling | agent lifecycle wrapper
-
-- Added `scripts/wiki_agent` to start, stop, inspect, and tail logs for the wiki maintainer process.
-- Added `wiki/operations/agent.md` as the start/stop runbook.
-- Updated `AGENTS.md`, `wiki/index.md`, and `wiki/overview.md` with the agent lifecycle workflow.
-
-## [2026-04-30] lint | agent lifecycle smoke check
-
-- Verified `scripts/wiki_agent start`, `status`, `logs`, and `stop` with a temporary Python sleep process.
-- Ran `scripts/wiki_lint --warnings-as-errors`; result was 0 errors and 0 warnings.
-
-## [2026-04-30] tooling | wiki_agent hardening
-
-- `scripts/wiki_agent` now refuses to read `.wiki-runtime/hermes/wiki-agent.env` when it is group- or world-writable, and only honors an allowlist of variables (`WIKI_AGENT_COMMAND` plus runtime/cache/model vars). Other keys are logged and ignored.
-- The pid file records pid plus the kernel-recorded process start time; `stop` and `status` verify the live start time before signaling, so a tampered or stale pid file cannot redirect signals to an unrelated process.
-- `wiki-agent.stdout.log` and `wiki-agent.stderr.log` rotate to `.log.1` once they exceed 50 MiB.
-- Fixed the dotenv quote stripping in `scripts/wiki_agent` so values with embedded quotes survive parsing.
-- Added a Threat Model section to `wiki/operations/agent.md` and updated `templates/wiki-agent-hermes.env.example` with chmod, allowlist, and absolute-path guidance.
-- Verified end to end with a smoke test: start, status, stop, env-permission rejection, env-allowlist filtering, pid tampering rejection, and 50 MiB log rotation.
-
 ## [2026-04-30] tooling | project-local Hermes install
 
 - Installed `NousResearch/hermes-agent` under `.wiki-runtime/hermes-agent/` at commit `285e9efb3f2251f09cfbc9acb335c3d943d5a7b2`.
@@ -247,7 +234,7 @@ For version-agnostic work, omit the version segment:
 ## [2026-04-30] docs | operator dashboard runbook
 
 - Added top-level `operator.md` with commands for running `hermes dashboard` against the project-local Hermes home and llama.cpp backend.
-- Documented dashboard status, stop, remote SSH tunnel access, and the distinction between the dashboard and `scripts/wiki_agent`.
+- Documented dashboard status, stop, and remote SSH tunnel access.
 
 ## [2025-05-01] research | autovacuum history from v12 to v18
 
@@ -289,7 +276,7 @@ For version-agnostic work, omit the version segment:
 
 - Added `scripts/hermes_sessions` to list or clear project-local Hermes session files under `.wiki-runtime/hermes/sessions/`.
 - Documented the cleanup workflow in `wiki/operations/agent.md`, `wiki/index.md`, and `wiki/overview.md`.
-- The clear command defaults to a dry run and requires `--yes` to delete session files; it refuses to run while `scripts/wiki_agent` reports a live pid unless `--force` is supplied.
+- The clear command defaults to a dry run and requires `--yes` to delete session files.
 
 ## [2026-05-01] tooling | Hermes session database purge
 

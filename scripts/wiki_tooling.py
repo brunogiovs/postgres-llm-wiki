@@ -217,9 +217,15 @@ def parse_front_matter(text: str) -> tuple[dict[str, object], str, bool]:
 
 
 LINK_RE = re.compile(r"(?<!!)\[\[([^\]\n]+)\]\]")
+_CODE_SPAN_RE = re.compile(r"`[^`\n]*`")
+_CODE_BLOCK_RE = re.compile(r"```.*?```", re.DOTALL)
 
 
 def extract_obsidian_links(text: str) -> list[str]:
+    # Strip fenced code blocks and inline code spans so we don't flag
+    # example citations written in documentation prose.
+    text = _CODE_BLOCK_RE.sub("", text)
+    text = _CODE_SPAN_RE.sub("", text)
     links: list[str] = []
     for match in LINK_RE.finditer(text):
         target = match.group(1).split("|", 1)[0].strip()

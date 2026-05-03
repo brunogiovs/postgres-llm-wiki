@@ -1,8 +1,8 @@
 ---
 type: question
-verified: false
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
+verified: false
 ---
 
 # Disk I/O in PostgreSQL 12.2: Pre-Execution, Execution, and Slow Random I/O Impact (Warm Cache)

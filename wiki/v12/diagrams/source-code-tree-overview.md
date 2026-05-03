@@ -57,21 +57,21 @@ postgres-12/
 - Key: [[raw/postgres-12/src/backend/bootstrap/bootparse.y]] for initial catalog parsing.
 - **commands/**: SQL command processing (DDL/DML: CREATE TABLE, ANALYZE, VACUUM). [[raw/postgres-12/src/backend/commands/tablecmds.c]], [[raw/postgres-12/src/backend/commands/analyze.c]].
 - **executor/**: Query execution engine. [[raw/postgres-12/src/backend/executor/execMain.c#ExecutorRun]], [[raw/postgres-12/src/backend/executor/README]], [[raw/postgres-12/src/backend/executor/nodeSeqscan.c]].
-- **nodes/**: Node types for parse trees, plans, PlanState. [[raw/postgres-12/src/backend/nodes/README]], [[raw/postgres-12/src/backend/nodes/parsenodes.h]], [[raw/postgres-12/src/backend/nodes/plannodes.h]].
+- **nodes/**: Node types for parse trees, plans, PlanState. [[raw/postgres-12/src/backend/nodes/README]], [[raw/postgres-12/src/include/nodes/parsenodes.h]], [[raw/postgres-12/src/include/nodes/plannodes.h]].
 - **optimizer/**: Query planning/optimizer. [[raw/postgres-12/src/backend/optimizer/README]], [[raw/postgres-12/src/backend/optimizer/plan/planner.c]], [[raw/postgres-12/src/backend/optimizer/path/allpaths.c]].
 - **parser/**: SQL parsing (gram.y bison). [[raw/postgres-12/src/backend/parser/README]], [[raw/postgres-12/src/backend/parser/gram.y]], [[raw/postgres-12/src/backend/parser/scan.l]].
 - **postmaster/**: Postmaster & backend processes (autovacuum, bgwriter, etc.). [[raw/postgres-12/src/backend/postmaster/postmaster.c]], [[raw/postgres-12/src/backend/postmaster/autovacuum.c]].
-- **storage/**: Storage manager (buffers, WAL, lock manager, SMGR). [[raw/postgres-12/src/backend/storage/buffer/README]], [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c]], [[raw/postgres-12/src/backend/storage/wal/xlog.c]], [[raw/postgres-12/src/backend/storage/lmgr/README]].
+- **storage/**: Storage manager (buffers, WAL, lock manager, SMGR). [[raw/postgres-12/src/backend/storage/buffer/README]], [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c]], [[raw/postgres-12/src/backend/access/transam/xlog.c]], [[raw/postgres-12/src/backend/storage/lmgr/README]].
 - **tcop/**: TCOP (postgres.c query dispatcher). [[raw/postgres-12/src/backend/tcop/postgres.c#exec_simple_query]], [[raw/postgres-12/src/backend/tcop/dest.c]].
 - **utils/**: Utilities, data types, hash tables, arrays. [[raw/postgres-12/src/backend/utils/adt/]], [[raw/postgres-12/src/backend/utils/hash/]], [[raw/postgres-12/src/backend/utils/resowner/README]].
 
 ### Other Areas
 
 - **config/**: Autoconf build configuration.
-- **contrib/**: Contributed extensions (pg_stat_statements, pgcrypto). [[raw/postgres-12/contrib/README]], [[raw/postgres-12/contrib/pg_stat_statements/README]].
+- **contrib/**: Contributed extensions (pg_stat_statements, pgcrypto). [[raw/postgres-12/contrib/README]], [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.c]].
 - **doc/**: Documentation sources.
 
-- **src/bin/**: Client tools (psql, pg_dump, pg_restore). [[raw/postgres-12/src/bin/psql/psql.c]], [[raw/postgres-12/src/bin/pg_dump/]].
+- **src/bin/**: Client tools (psql, pg_dump, pg_restore). [[raw/postgres-12/src/bin/psql/command.c]], [[raw/postgres-12/src/bin/pg_dump/]].
 - **src/common/**: Shared code (base64, username, etc.).
 - **src/pl/**: Procedural languages (plpgsql, plperl, plpython). [[raw/postgres-12/src/pl/plpgsql/src/pl_exec.c]], [[raw/postgres-12/src/pl/plperl/README]].
 - **src/interfaces/**: Client libraries (libpq, ecpg). [[raw/postgres-12/src/interfaces/libpq/README]], [[raw/postgres-12/src/interfaces/ecpg/README.dynSQL]].

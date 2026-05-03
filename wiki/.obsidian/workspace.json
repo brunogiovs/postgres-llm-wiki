@@ -185,6 +185,7 @@
   },
   "active": "5fe94ced878a98d0",
   "lastOpenFiles": [
+    "v12/questions/bgwriter-tuning-scenarios.md",
     "v12/questions/dirty-victim-select-mitigation.md",
     "v12/questions/can-non-prepared-statements-use-generic-plans.md"
   ]

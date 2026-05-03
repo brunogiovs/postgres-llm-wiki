@@ -33,15 +33,14 @@ Pages carry two distinct verification fields in front matter. They are not inter
   verified_by_agent: claude-opus-4-7 2026-05-03T14:30:00Z
   ```
 
-  Use the exact model identifier the agent is running as, and a UTC timestamp in `YYYY-MM-DDTHH:MM:SSZ` form. Overwrite any prior `verified_by_agent:` value when re-verifying; do not accumulate history in front matter.
+  Use the exact model identifier the agent is running as, and a UTC timestamp in `YYYY-MM-DDTHH:MM:SSZ` form. Use the system-provided current date/time if available; otherwise omit the seconds component. Overwrite any prior `verified_by_agent:` value when re-verifying; do not accumulate history in front matter.
 
 Rules for agents:
 
 - Set `verified_by_agent:` only after a comprehensive review checking all claims and sources on the question, re-checking every behavioral claim on the page against the cited source paths in the matching `raw/postgres-NN/` checkout, and following all agent rules for the wiki.
 - If verification fails for any claim, do not set `verified_by_agent:`. Either fix the claim, move it under `## Open Questions`, or leave the field absent.
-- When creating new pages or reports (e.g., question pages under `wiki/vNN/questions/`), agents must set `verified: false` in front matter. Never change or remove a human-set `verified:`. Treat human-set values as authoritative.
+- When creating new pages or reports (e.g., question pages under `wiki/vNN/questions/`), agents must set `verified: false` and `verified_by_agent:` in front matter. Never change or remove a human-set `verified:`. Treat human-set values as authoritative.
 - `verified:` and `verified_by_agent:` are independent. A page may have either, both, or neither.
-
 
 - For question pages under `wiki/vNN/questions/`, front matter must use **exactly** this order:
   ```yaml
@@ -74,17 +73,14 @@ Rules for agents:
 
 ## Operating Mode
 
-Operating rules:
-
 - Trace one code path, subsystem slice, or question at a time.
 - Prefer `rg`, `git grep`, and short source excerpts over loading entire directories into context.
-- Do not ingest a large subsystem in one pass unless a stronger hosted model is being used.
+- Do not ingest a large subsystem in one pass unless the model is Opus-class or the user explicitly instructs a full-pass ingest.
 - Treat generated pages as drafts until their source references are checked.
-- Use active-version verification sparingly.
-- Defer active-version verification explicitly on `wiki/vNN/index.md` when it exceeds the local context or latency budget.
+- Active-version verification means re-checking page claims against the live `raw/postgres-NN/` checkout rather than relying on the agent's prior context. Use it sparingly.
+- Defer active-version verification on `wiki/vNN/index.md` when it exceeds the local context or latency budget.
 - Escalate hard traces, such as planner internals, WAL, crash recovery, or MVCC visibility, when the local model cannot keep the call chain straight.
-- Always use a Unicode/ASCII Tree for visual representation of directory trees.
-
+- Always use a unicode/ASCII tree for visual representation of directory trees.
 
 ## Bookkeeping
 
@@ -150,14 +146,11 @@ For version-agnostic work:
 
 A report here means any answer or wiki page produced from a user prompt — most commonly a question page under `wiki/vNN/questions/` with a `## Question` section.
 
-During generation or review, when the user asks for a modification, clarification, narrowing, broadening, or follow-up, treat that ask as part of the question itself, not just guidance for the answer.
+When the user asks for a modification, clarification, or follow-up during generation or review, fold it into the report's `## Question` section before updating the answer body — treat it as part of the question itself, not just guidance for the answer.
 
-- Fold the user's modification ask into the report's `## Question` section before updating the answer body.
-- Preserve the original question; extend or refine it in place so the section reflects the full scope of what is being asked.
-- Rewrite for coherence rather than appending raw transcript fragments — the `## Question` section should read as a single, current statement of the question.
-- Only after the `## Question` section is updated, revise the answer, citations, and any downstream sections to match.
-- If the page has no `## Question` section yet (for example a freshly generated draft), add one and seed it from the user's original prompt plus the modification ask.
-- This applies to every review round: each new ask is merged into the same `## Question` section, not stacked as a changelog.
+- Rewrite the `## Question` section for coherence each round; do not append transcript fragments or stack changelogs.
+- Update the answer, citations, and downstream sections only after the `## Question` section reflects the full, current scope.
+- If the page has no `## Question` section yet, add one seeded from the user's original prompt plus the modification ask.
 
 ### Lint The Wiki
 
@@ -168,7 +161,7 @@ Check for:
 - Pages without source references.
 - Version-local pages with missing or stale `version:` / `pinned_commit:`.
 - Shared concept pages with stale `verified_against:`.
-- Pages citing source from the wrong version checkout.
+- Pages citing source from the wrong version checkout. If discovered mid-task, stop, flag the discrepancy under `## Open Questions`, and do not rewrite citations without user confirmation.
 - Version landing pages missing links to existing version-local pages.
 - `wiki/versions.md` coverage notes that disagree with actual pages.
 - Invalid or malformed `verified:` / `verified_by_agent:` fields.
@@ -186,7 +179,6 @@ scripts/source_lookup --path src/backend/executor/execMain.c
 scripts/version_diff --from 18 --to 17 --path src/backend/executor/execMain.c
 scripts/source_update --list
 scripts/source_update --version 18
-scripts/wiki_agent status
 ```
 
 `scripts/source_lookup` defaults to the primary version in `wiki/versions.md`. `scripts/version_diff` requires both source checkouts to exist under `raw/postgres-NN/`. `scripts/source_update` clones or updates a checkout to the commit pinned in `wiki/versions.md`; pass `--branch` and `--commit` to override.
