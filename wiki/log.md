@@ -8,6 +8,22 @@ Use this prefix shape:
 ## [YYYY-MM-DD] <kind> v<NN> | <subject>
 ```
 
+## [2026-05-03] answer v12 | pg-test-timing-track-io-timing-overhead
+
+- Created `wiki/v12/questions/pg-test-timing-track-io-timing-overhead.md` answering what `pg_test_timing` does and `track_io_timing` overhead on modern hardware/virtual systems (AWS/Azure).
+- `pg_test_timing`: Measures wall-clock timing call overhead (~700ns) and monotonicity.
+- `track_io_timing`: ~1-2μs per I/O operation; minimal on bare metal, slightly higher in VMs due to hypervisor.
+- Cited `raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c`, `raw/postgres-12/src/backend/utils/misc/guc.c:1402`, `raw/postgres-12/src/backend/storage/buffer/bufmgr.c:2752-2769`.
+- Updated `wiki/v12/index.md` and `wiki/index.md`.
+
+## [2026-05-03] answer v12 | data-checksums-implementation
+
+- Created `wiki/v12/questions/data-checksums-implementation.md` answering: PG 12 data checksums implementation, overhead, storage location, additional storage usage, pg_checksums --enable operation, and expected fraction of database data modified (~0.024%).
+
+- Cited `raw/postgres-12/src/include/storage/checksum_impl.h#pg_checksum_page` (FNV-1a checksum algorithm), `raw/postgres-12/src/backend/storage/page/bufpage.c#PageIsVerified` (verification), `raw/postgres-12/src/include/storage/bufpage.h` (PageHeaderData.pd_checksum), `raw/postgres-12/src/bin/pg_checksums/pg_checksums.c#scan_file` (enable process).
+
+- Updated `wiki/v12/index.md` and `wiki/index.md`.
+
 ## [2026-05-03] answer v12 | key metrics for usage and operational status
 
 - Created `wiki/v12/questions/key-metrics-usage-operational-status.md` answering key metrics to categorize database usage and operational status in PostgreSQL 12.
