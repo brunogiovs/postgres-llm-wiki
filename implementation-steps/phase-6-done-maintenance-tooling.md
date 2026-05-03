@@ -12,7 +12,7 @@ Add small local tools that help the LLM and human maintainer keep the wiki healt
 
 Start with simple scripts. They should make wiki problems visible, not replace the LLM maintainer.
 
-All tooling must run from the project root and store generated state inside this project directory. Durable helper scripts live in `scripts/`; generated indexes, caches, logs, and temporary files live under `.wiki-runtime/`.
+All tooling must run from the project root and store generated state inside this project directory. Durable helper scripts live in `scripts/`.
 
 ## Proposed Scripts
 
@@ -22,15 +22,6 @@ scripts/
   source_lookup
   version_diff
   recent_log
-
-.wiki-runtime/
-  indexes/
-    ctags/
-    search/
-    tree-sitter/
-  cache/
-  logs/
-  tmp/
 ```
 
 ## `scripts/wiki_lint`
@@ -53,9 +44,9 @@ Purpose:
 
 - Wrap `rg`, `git grep`, and `git log` for the selected PostgreSQL version.
 - Default to the primary version from `wiki/versions.md`.
-- Make source lookup easy for Hermes Agent.
+- Make source lookup easy for the agent.
 - Use only source checkouts under `raw/postgres-NN/`.
-- Use project-local indexes under `.wiki-runtime/indexes/` when available.
+- Use project-local indexes when available.
 
 Example shape:
 
@@ -113,7 +104,7 @@ scripts/recent_log --limit 20
 
 ## Local Model Guidance
 
-These tools are especially important for the 16GB local model setup. They reduce context load by letting Hermes Agent ask narrow questions:
+These tools are especially important for the 16GB local model setup. They reduce context load by letting the agent ask narrow questions:
 
 - "Find this symbol."
 - "Show recent log entries."

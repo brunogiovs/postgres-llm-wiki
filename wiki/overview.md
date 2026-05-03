@@ -1,4 +1,4 @@
-# PostgreSQL Engine Wiki Overview
+e# PostgreSQL Engine Wiki Overview
 
 This wiki is an LLM-maintained knowledge base for PostgreSQL engine internals.
 

@@ -39,37 +39,9 @@ This repository is an LLM-maintained wiki for PostgreSQL engine internals. The a
 - A page is born when the work justifies it. Do not create empty content stubs.
 - A concept earns its own page when it is referenced from at least two other pages or repeatedly in conversation.
 
-## Project-Local Dependency Policy
-
-All wiki-specific dependencies must run from, and store state inside, this project directory.
-
-- Run wiki tooling from the project root.
-- Store PostgreSQL source checkouts under `raw/postgres-NN/`.
-- Store runtime state under `.wiki-runtime/`.
-- Store local tool environments under `.wiki-runtime/env/`.
-- Store Hermes Agent config, state, and logs under `.wiki-runtime/hermes/`.
-- Store model files or model-manager caches under `.wiki-runtime/models/`, `.wiki-runtime/ollama/`, or `.wiki-runtime/huggingface/`.
-- Store generated ctags, search, tree-sitter, and documentation indexes under `.wiki-runtime/indexes/`.
-- Store temporary files under `.wiki-runtime/tmp/`.
-- Store run logs under `.wiki-runtime/logs/`.
-- Do not rely on global caches, global virtualenvs, global Hermes state, global model stores, external source checkouts, or global source indexes for normal operation.
-- If a system-level prerequisite is unavoidable, such as the NVIDIA driver, CUDA runtime, Docker, or a system package manager, document it separately and keep all wiki-specific config inside this repository.
-
-Recommended environment when running local tooling:
-
-```bash
-export WIKI_RUNTIME="$PWD/.wiki-runtime"
-export HERMES_HOME="$WIKI_RUNTIME/hermes"
-export HF_HOME="$WIKI_RUNTIME/huggingface"
-export TRANSFORMERS_CACHE="$WIKI_RUNTIME/huggingface"
-export OLLAMA_MODELS="$WIKI_RUNTIME/ollama/models"
-export XDG_CACHE_HOME="$WIKI_RUNTIME/cache"
-export TMPDIR="$WIKI_RUNTIME/tmp"
-```
-
 ## Local Model Operating Mode
 
-The expected local hardware profile is a 16GB NVIDIA GPU with Hermes Agent orchestrating a local model.
+The expected local hardware profile is a 16GB NVIDIA GPU with agent orchestrating a local model.
 
 Default local model target:
 
@@ -77,7 +49,7 @@ Default local model target:
 
 Context target:
 
-- Minimum: 64K tokens for Hermes multi-step workflows when feasible.
+- Minimum: 64K tokens for agent multi-step workflows when feasible.
 - Preferred: 64K to 128K if the serving stack and VRAM allow it.
 - If 64K does not fit reliably, reduce task scope before accepting a tiny context window.
 
@@ -102,10 +74,10 @@ scripts/wiki_agent logs --lines 80
 scripts/wiki_agent stop
 ```
 
-`scripts/wiki_agent` stores pid files, command metadata, local environment, and process logs under `.wiki-runtime/hermes/`. The chosen lifecycle model is that the wrapper starts Hermes, and Hermes starts or connects to the local LLM backend. Configure the real Hermes command with `WIKI_AGENT_COMMAND` or by passing it after `--`, for example:
+`scripts/wiki_agent` stores pid files, command metadata, local environment, and process logs locally. The chosen lifecycle model is that the wrapper starts agent, and agent starts or connects to the local LLM backend. Configure the real agent command with `WIKI_AGENT_COMMAND` or by passing it after `--`, for example:
 
 ```bash
-scripts/wiki_agent start -- hermes-agent run --project /data/repos/pg-wiki
+scripts/wiki_agent start -- agent run --project /data/repos/pg-wiki
 ```
 
 See [[operations/agent]] for the full start/stop runbook.
@@ -196,4 +168,4 @@ scripts/source_update --version 18
 scripts/wiki_agent status
 ```
 
-`scripts/source_lookup` defaults to the primary version in `wiki/versions.md`. `scripts/version_diff` requires both source checkouts to exist under `raw/postgres-NN/`. `scripts/source_update` clones or updates a checkout to the commit pinned in `wiki/versions.md`; pass `--branch` and `--commit` to override. Tool caches, logs, and temporary diffs must stay under `.wiki-runtime/`.
+`scripts/source_lookup` defaults to the primary version in `wiki/versions.md`. `scripts/version_diff` requires both source checkouts to exist under `raw/postgres-NN/`. `scripts/source_update` clones or updates a checkout to the commit pinned in `wiki/versions.md`; pass `--branch` and `--commit` to override.

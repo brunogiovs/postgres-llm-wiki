@@ -26,20 +26,6 @@ This is not a wiki generated from a PostgreSQL database. It is a wiki about how 
 The wiki tracks a fixed set of supported PostgreSQL versions and maintains content per version. Pages are born organically — directories are containers, not pre-declared trees.
 
 ```text
-.wiki-runtime/              # Untracked project-local runtime dependencies and generated state
-  env/                      # Python virtualenv or other local tool environments
-  hermes/                   # Hermes Agent config, state, and logs for this wiki
-  models/                   # Local model files when managed directly by this project
-  ollama/                   # Optional project-local Ollama model store
-  huggingface/              # Optional project-local Hugging Face cache
-  indexes/
-    ctags/                  # Generated symbol indexes
-    search/                 # Generated markdown/source search indexes
-    tree-sitter/            # Generated parser artifacts, if used
-  cache/
-  logs/
-  tmp/
-
 raw/
   postgres-17/              # PG 17 checkout, pinned commit on REL_17_STABLE
   postgres-16/              # PG 16 checkout, pinned commit on REL_16_STABLE
@@ -85,7 +71,6 @@ AGENTS.md                   # Wiki maintenance instructions for the LLM agent
 
 What goes where:
 
-- **`.wiki-runtime/`** — all untracked runtime dependencies, generated indexes, caches, local model files, Hermes state, and logs for this wiki. Tools should run with this project as their working directory and write their state here.
 - **`wiki/versions.md`** — the main page for version navigation. It lists every PostgreSQL version covered by the wiki, its support status, source pin, and link to the per-version landing page.
 - **`wiki/vNN/index.md`** — the landing page for one PostgreSQL major version. It summarizes coverage for that version and links to its subsystems, code paths, concepts, files, and filed questions.
 - **`wiki/shared/concepts/`** — concepts that are genuinely version-independent (the *theory* of a snapshot, the *theory* of MVCC). Examples cite the primary version; version-specific deviations are flagged inline.
@@ -93,35 +78,6 @@ What goes where:
 - **`wiki/vNN/questions/`** — answers tied to a single version. Questions are inherently snapshots of an investigation against a specific source pin (see Page Types).
 
 Concrete starting pages and their seeding order are listed in the [Implementation Roadmap](#implementation-roadmap). Do not stub directories with empty files — pages should appear when the work that justifies them happens.
-
-## Project-Local Dependency Policy
-
-All wiki dependencies should run from, and store their project-specific state inside, this project directory.
-
-This includes:
-
-- PostgreSQL source checkouts under `raw/postgres-NN/`.
-- Local tool environments under `.wiki-runtime/env/`.
-- Hermes Agent config, state, and logs under `.wiki-runtime/hermes/`.
-- Local model files or model-manager caches under `.wiki-runtime/models/`, `.wiki-runtime/ollama/`, or `.wiki-runtime/huggingface/`.
-- Generated symbol, search, ctags, tree-sitter, and documentation indexes under `.wiki-runtime/indexes/`.
-- Temporary files, run logs, and cache files under `.wiki-runtime/tmp/`, `.wiki-runtime/logs/`, and `.wiki-runtime/cache/`.
-
-Avoid hidden global dependencies. Do not assume a globally-installed virtualenv, global Ollama model store, global Hugging Face cache, global Hermes state directory, or global source index. If an operating-system-level prerequisite is unavoidable, such as the NVIDIA driver, CUDA runtime, Docker, or a system package manager, document it as a system prerequisite and keep all wiki-specific config and generated state inside this repo.
-
-Recommended environment variables when running local tooling from the project root:
-
-```bash
-export WIKI_RUNTIME="$PWD/.wiki-runtime"
-export HERMES_HOME="$WIKI_RUNTIME/hermes"
-export HF_HOME="$WIKI_RUNTIME/huggingface"
-export TRANSFORMERS_CACHE="$WIKI_RUNTIME/huggingface"
-export OLLAMA_MODELS="$WIKI_RUNTIME/ollama/models"
-export XDG_CACHE_HOME="$WIKI_RUNTIME/cache"
-export TMPDIR="$WIKI_RUNTIME/tmp"
-```
-
-`.wiki-runtime/` is runtime state, not durable wiki content. It should normally be ignored by git, while the instructions, scripts, templates, and markdown wiki pages remain tracked.
 
 ## Version Strategy
 
@@ -432,10 +388,9 @@ The repository must include an `AGENTS.md` file. This file is the schema — it 
 ### Dependency locality
 
 - Run wiki tooling from the project root.
-- Store all wiki-specific runtime state under `.wiki-runtime/`.
 - Store PostgreSQL source checkouts under `raw/postgres-NN/`.
-- Do not rely on global caches, global virtualenvs, global Hermes state, or global source indexes for normal operation.
-- If a system-level prerequisite is required, document it, but keep the project-specific configuration and generated files inside this repository.
+- Do not rely on global source indexes for normal operation.
+- If a system-level prerequisite is required, document it.
 
 ### Bookkeeping (do these every time)
 
@@ -640,89 +595,13 @@ diff <(git -C raw/postgres-17 show HEAD:src/backend/executor/execMain.c) \
 
 Optional later tools:
 
-- `universal-ctags` per checkout, for symbol navigation, with generated tags stored under `.wiki-runtime/indexes/ctags/`.
+- `universal-ctags` per checkout, for symbol navigation.
 - `tree-sitter` for structured source exploration.
-- `doxygen` for generated call/reference maps, with output stored under `.wiki-runtime/indexes/` or another `.wiki-runtime/` subdirectory.
+- `doxygen` for generated call/reference maps.
 - A small `scripts/wiki_lint` tool to detect broken links, orphan pages, missing source references, version/pin mismatches, stale `pinned_commit:`, and stale `verified_against:` entries.
 - A small `scripts/source_lookup` wrapper around `rg`, `git grep`, and `git log`, defaulting to the primary version's checkout.
 - A small `scripts/version_diff` to compare cited files across two checkouts during active-version verification.
 
-### Local LLM and Hermes Agent setup
-
-Target hardware:
-
-```text
-NVIDIA GPU: 16GB VRAM
-System RAM: enough for CPU offload and source indexing, preferably 32GB+
-```
-
-Hermes Agent should act as the orchestrator. Run Hermes Agent and the model server from the project root with project-local runtime paths. The local model should not be trusted as a PostgreSQL authority from memory; it should repeatedly search the pinned source checkout, cite files and symbols, edit markdown, and preserve uncertainty.
-
-Project-local runtime layout:
-
-```text
-.wiki-runtime/
-  hermes/                   # Hermes config/state/logs
-  models/                   # Directly managed model files
-  ollama/models/            # Ollama model store when using Ollama
-  huggingface/              # HF/vLLM/SGLang model cache
-  logs/                     # Model-server and agent logs
-  tmp/                      # Temporary files
-```
-
-Recommended model profile:
-
-| Model | Fit on 16GB | Use |
-|---|---:|---|
-| `Qwen2.5-Coder-14B-Instruct-AWQ` or other 4-bit quant | Good | Default local model for this wiki |
-| `Qwen3-14B` 4-bit | Good | Alternative when agent/tool behavior is better than code-specialization |
-| `Qwen3-Coder-30B-A3B-Instruct` 4-bit | Stretch | Try only with CPU offload and enough RAM |
-| `Qwen3-Coder-Next` / larger coder models | Poor | Do not use as the primary local model on 16GB VRAM |
-| 7B/8B coder models | Easy | Acceptable for formatting and small edits, weak for autonomous source tracing |
-
-Context target:
-
-```text
-minimum: 64K tokens for Hermes multi-step workflows
-preferred: 64K to 128K if the serving stack and VRAM allow it
-fallback: reduce task scope rather than silently accepting a tiny context window
-```
-
-On 16GB VRAM, 64K context may require quantized KV cache, reduced batch/concurrency, or CPU offload. If the model server cannot hold 64K reliably, keep the individual source reads smaller and make the agent summarize intermediate findings into the wiki before continuing.
-
-Serving options:
-
-- **Easiest:** Ollama or llama.cpp with a 4-bit Qwen coder model. Good for local iteration.
-- **More agentic/tool-friendly:** vLLM or SGLang with an OpenAI-compatible endpoint. Use this if tool-call reliability matters more than setup simplicity.
-- **Avoid:** trying to force large 30B+ dense models into 16GB VRAM without accepting heavy CPU offload and slow responses.
-
-Example vLLM shape, if the AWQ model and context fit:
-
-```bash
-export WIKI_RUNTIME="$PWD/.wiki-runtime"
-export HERMES_HOME="$WIKI_RUNTIME/hermes"
-export HF_HOME="$WIKI_RUNTIME/huggingface"
-export TRANSFORMERS_CACHE="$WIKI_RUNTIME/huggingface"
-export XDG_CACHE_HOME="$WIKI_RUNTIME/cache"
-export TMPDIR="$WIKI_RUNTIME/tmp"
-
-vllm serve Qwen/Qwen2.5-Coder-14B-Instruct-AWQ \
-  --max-model-len 65536 \
-  --enable-auto-tool-choice \
-  --tool-call-parser hermes
-```
-
-If this does not fit in memory, first try lower concurrency, quantized cache, or CPU offload. Lower the context only as a last resort. For this project, a smaller, source-grounded task with adequate context is better than a larger model with too little working memory.
-
-Acceptance test for the local setup:
-
-1. Ask Hermes to trace one narrow path, such as a simple `SELECT`, on the primary PostgreSQL version.
-2. Confirm it uses `rg` or `git grep` rather than relying on memory.
-3. Confirm every behavioral claim cites a real file or symbol.
-4. Confirm it updates `wiki/vNN/index.md`, `wiki/index.md`, and `wiki/log.md`.
-5. Confirm it marks unclear behavior under `Open Questions` instead of inventing intent.
-
-### Obsidian setup
 
 Open `wiki/` as an Obsidian vault. The graph view is the highest-leverage navigation tool for this domain — subsystems should be hubs, concepts should be densely cross-linked, and code-path pages should connect across both. Use the graph view during lint passes to spot orphan pages and isolated clusters.
 
@@ -733,7 +612,7 @@ Diagrams should be authored as Mermaid blocks inside relevant pages (or in `wiki
 ### Phase 1: Wiki Scaffold
 
 - Create the version-agnostic wiki structure: `index.md`, `log.md`, `overview.md`, `versions.md`, `wiki/shared/concepts/`, `wiki/diagrams/`.
-- Create the project-local runtime directory layout under `.wiki-runtime/` and ignore it from git if this repo uses git.
+- Ignore runtime directories from git if this repo uses git.
 - Draft `AGENTS.md` with the maintenance rules.
 - Add page templates with the per-version and shared-concept front matter blocks.
 - Record the local-model operating profile in `AGENTS.md`: 16GB NVIDIA GPU, Hermes Agent, default model, context target, and narrow-source-tracing rules.
@@ -788,7 +667,6 @@ Add scripts for:
 The wiki is never "done" — it compounds as long as it's used. But there's a natural first milestone where it starts paying for itself:
 
 - The wiki has a clear global index, overview, and `versions.md` main version index declaring at least one supported version (the primary).
-- `.wiki-runtime/` exists and contains all project-local runtime dependencies, generated indexes, caches, model state, logs, and temporary files.
 - Each supported version has a `wiki/vNN/index.md` landing page.
 - Each supported version has a `raw/postgres-NN/` checkout pinned to a specific commit.
 - The query lifecycle is covered from parse through execute on the primary version.

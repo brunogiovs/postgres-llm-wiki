@@ -290,3 +290,17 @@ For version-agnostic work, omit the version segment:
 - Updated `scripts/dashboard` so `start` exposes the dashboard port through Tailscale Serve by default while keeping the Hermes dashboard bound to loopback.
 - Added `scripts/dashboard unserve` plus `HERMES_DASHBOARD_TAILSCALE_*` environment overrides for Serve/Funnel mode, HTTPS port, path, target, and stop cleanup.
 - Updated `scripts/stop_all` and `operator.md` to use the dashboard wrapper instead of calling `hermes dashboard` directly.
+
+## [2026-05-02] answer v18 | insert-row-disk-writes
+
+- Created `wiki/v18/questions/insert-row-disk-writes.md` tracing disk writes on simple row insert txn: WAL sync at commit (XLogFlush in CommitTransaction@xact.c:2228/1502) only; heap/index async via bgwriter/checkpointer; cites heap_insert@heapam_handler.c:255/278, ExecInsert@nodeModifyTable.c; mermaid + excalidraw JSON seq diagrams; cross-links [[v18/code-paths/insert-path]].
+- Updated `wiki/v18/index.md` and `wiki/index.md` question lists.
+
+## [2026-05-02] tooling | model config alignment and unused model prune
+
+- Renamed every Hermes auxiliary model id from `Qwen3.5-9B-Q8_0` to `pgwiki-local` in `.wiki-runtime/hermes/config.yaml` so the config matches the alias the running llama-server actually advertises.
+- Made `scripts/llama_server`'s `thinking` mode actually toggle `--reasoning auto` and `enable_thinking:true`; the `precise` mode keeps reasoning off. Previously the mode flag only changed sampling and the chat template kept thinking disabled.
+- Refreshed `wiki/operations/agent.md` to document the split hosted-main / local-aux design, the `pgwiki-local` server alias, the `q8_0` KV cache default, and the precise/thinking sampling modes.
+- Updated `AGENTS.md` to reference the local model by alias rather than file-name quantization.
+- Deleted `scripts/llama_server_old copy` leftover and pruned unused GGUFs under `.wiki-runtime/models/`: `Qwen3.5-9B-Q4_K_M.gguf`, `Qwen3.5-9B-Q8_0.gguf`, the `qwen2.5-coder-14b-instruct-gguf/` tree, and the `qwen3-coder-30b-a3b-instruct-gguf/` tree. The currently-loaded `Qwen_Qwen3.5-9B-Q6_K.gguf` is the only weights file kept.
+- Restored `wiki/log.md` after an accidental truncation that had wiped historical entries.

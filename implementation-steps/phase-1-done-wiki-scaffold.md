@@ -21,14 +21,11 @@ Create the version-agnostic wiki structure and the agent rules that will keep fu
 ## Create Files and Directories
 
 ```text
-.wiki-runtime/
-  env/
-  hermes/
-  models/
-  ollama/
-    models/
-  huggingface/
-  indexes/
+ .wiki-runtime/
+   env/
+   models/
+   huggingface/
+   indexes/
     ctags/
     search/
     tree-sitter/

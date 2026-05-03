@@ -40,7 +40,7 @@ Trace the first end-to-end PostgreSQL engine operations through the source tree.
 
 ## Local Model Guidance
 
-For Hermes Agent on a 16GB GPU:
+For local agent on a 16GB GPU:
 
 - Trace only one operation at a time.
 - Keep each pass narrow, such as "find the executor entry points for simple SELECT."
@@ -53,7 +53,7 @@ Keep all runtime state project-local:
 - Read source from `raw/postgres-NN/`.
 - Use generated indexes from `.wiki-runtime/indexes/` only.
 - Store temporary call-chain notes under `.wiki-runtime/tmp/` unless they become durable wiki pages.
-- Store Hermes/model logs under `.wiki-runtime/logs/` or `.wiki-runtime/hermes/`.
+- Store model logs under `.wiki-runtime/logs/`.
 
 ## Required Code Path Page Sections
 

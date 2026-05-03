@@ -41,6 +41,16 @@ This is the global catalog for the PostgreSQL engine wiki.
 - [[v18/code-paths/insert-path]] - PG 18 simple `INSERT ... VALUES`.
 - [[v18/code-paths/update-path]] - PG 18 simple `UPDATE`.
 - [[v18/code-paths/delete-path]] - PG 18 simple `DELETE`.
+- [[v18/code-paths/pgstatindex]] - PG 18 `pgstatindex` btree scan from `contrib/pgstattuple` (with picture diagram).
+
+#### Questions
+
+- [[v18/questions/query-plan-interpretation-inputs]] - PG 18 diagnostic packet for interpreting a query plan and production impact.
+- [[v18/questions/prepared-statement-replanning]] - PG 18 prepared statement revalidation and replanning after DDL, added indexes, and statistics changes.
+- [[v18/questions/btree-leaf-density-estimate]] - PG 18 catalog-only SQL that approximates `pgstatindex.avg_leaf_density` without scanning the index; handles partial indexes and surfaces deduplication.
+- [[v18/questions/avg-leaf-density-vacuum-stat-table]] - PG 18 design for piggybacking `avg_leaf_density` onto every successful (auto)VACUUM of a btree index and persisting it through a new cumulative-statistics kind.
+- [[v18/questions/plan-cache-mode-production-impact]] - PG 18 production analysis of `plan_cache_mode` modes (`auto`, `force_generic_plan`, `force_custom_plan`) with pros/cons and a per-scenario picker.
+- [[v18/questions/insert-row-disk-writes]] - PG 18 disk writes during row insert txn (WAL sync at commit only, data async).
 
 ## Maintenance Tooling
 

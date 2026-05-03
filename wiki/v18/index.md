@@ -26,6 +26,7 @@ Query lifecycle subsystem spine, first code-path pages, and foundational shared 
 - [[v18/code-paths/insert-path]] - Simple `INSERT ... VALUES` through `ModifyTable` and `ExecInsert`.
 - [[v18/code-paths/update-path]] - Simple `UPDATE` through `ModifyTable` and `ExecUpdate`.
 - [[v18/code-paths/delete-path]] - Simple `DELETE` through `ModifyTable` and `ExecDelete`.
+- [[v18/code-paths/pgstatindex]] - `pgstatindex` btree page-by-page scan (with picture diagram).
 
 ## Concepts
 
@@ -49,7 +50,12 @@ No source file map pages have been created yet.
 
 ## Questions
 
-No filed question pages have been created yet.
+- [[v18/questions/query-plan-interpretation-inputs]] - Inputs needed to interpret a plan, planner choices, and production impact.
+- [[v18/questions/prepared-statement-replanning]] - Automatic revalidation/replanning of prepared statements after DDL, index, and statistics changes.
+- [[v18/questions/btree-leaf-density-estimate]] - Catalog-only SQL approximating `pgstatindex.avg_leaf_density` with no index I/O; partial- and dedup-aware.
+- [[v18/questions/avg-leaf-density-vacuum-stat-table]] - Modify VACUUM/autovacuum to compute and persist `avg_leaf_density` per btree index in a new pgstat kind, riding the existing leaf-page scan.
+- [[v18/questions/plan-cache-mode-production-impact]] - Production impact of `plan_cache_mode` (`auto`, `force_generic_plan`, `force_custom_plan`), pros/cons per mode, and which to pick per scenario.
+- [[v18/questions/insert-row-disk-writes]] - PG 18 disk writes during row insert txn (WAL sync at commit only, data async).
 
 ## Open Questions
 
