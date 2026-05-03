@@ -1,7 +1,7 @@
 ---
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
-verified_by_agent: Cline 2026-05-03T12:40:00Z
+verified_by_agent: Cline 2026-05-03T13:25:00Z
 ---
 
 # PostgreSQL 12 Source Code Tree Overview
@@ -53,11 +53,10 @@ mindmap
 
 ### src/backend/ - Core Server Logic
 
-- **access/**: Table and index access methods (heap, btree, gin, gist, hash, brin, spgist). `raw/postgres-12/src/backend/access/heap/README`, `access/nbtree/README`, `access/gin/README`, `access/heap/README.HOT`.
-- **bootstrap/**: Cluster initialization (initdb backend). `raw/postgres-12/src/backend/bootstrap/bootstrap.c`.
+- **access/**: Table and index access methods (heap, btree, gin, gist, hash, brin, spgist). `src/backend/access/heap/README.HOT`, `src/backend/access/nbtree/README`, `src/backend/access/gin/README`.
+- **bootstrap/**: Cluster initialization (initdb backend). `src/backend/bootstrap/bootstrap.c`.
 - Key: boot_parse, boot_yyparse for initial catalogs.
-- **catalog/**: System catalogs (pg_class, pg_attribute, etc.). `raw/postgres-12/src/backend/catalog/heap.c`, `catalog/pg_class.h`, `catalog/indexing.c`.
-- **commands/**: SQL command processing (DDL/DML: CREATE TABLE, ANALYZE, VACUUM). `raw/postgres-12/src/backend/commands/tablecmds.c`, `commands/analyze.c`, `commands/vacuum.c`.
+- **commands/**: SQL command processing (DDL/DML: CREATE TABLE, ANALYZE, VACUUM). `src/backend/commands/tablecmds.c`, `src/backend/commands/analyze.c`, `
 - **executor/**: Query execution engine. `raw/postgres-12/src/backend/executor/execMain.c:ExecutorRun`, `executor/README`, `executor/nodeSeqscan.c`.
 - **nodes/**: Node types for parse trees, plans, PlanState. `raw/postgres-12/src/backend/nodes/README`, `nodes/parsenodes.h`, `nodes/plannodes.h`.
 - **optimizer/**: Query planning/optimizer. `raw/postgres-12/src/backend/optimizer/README`, `optimizer/plan/planner.c`, `optimizer/path/allpaths.c`.
