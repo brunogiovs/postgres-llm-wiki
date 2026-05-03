@@ -304,3 +304,7 @@ For version-agnostic work, omit the version segment:
 - Updated `AGENTS.md` to reference the local model by alias rather than file-name quantization.
 - Deleted `scripts/llama_server_old copy` leftover and pruned unused GGUFs under `.wiki-runtime/models/`: `Qwen3.5-9B-Q4_K_M.gguf`, `Qwen3.5-9B-Q8_0.gguf`, the `qwen2.5-coder-14b-instruct-gguf/` tree, and the `qwen3-coder-30b-a3b-instruct-gguf/` tree. The currently-loaded `Qwen_Qwen3.5-9B-Q6_K.gguf` is the only weights file kept.
 - Restored `wiki/log.md` after an accidental truncation that had wiped historical entries.
+
+## [2026-05-02] lint | fixed wiki_lint errors/warnings
+
+- Created `wiki/operations/agent.md` runbook (Hermes/llama lifecycle).

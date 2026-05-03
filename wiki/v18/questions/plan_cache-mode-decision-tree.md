@@ -1,3 +1,8 @@
+---
+version: 18
+pinned_commit: 6cb307251c5c6261286c1566496920976640108e
+---
+
 # Plan Cache Mode Decision Tree - PostgreSQL 18 Quick Reference
 
 **Version:** PostgreSQL 18 (Primary)  

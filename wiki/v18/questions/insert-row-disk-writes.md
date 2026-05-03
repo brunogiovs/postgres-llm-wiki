@@ -55,7 +55,7 @@ From [[v18/code-paths/insert-path]]:
 - Dirty buffers → 
   - **Checkpointer** (checkpoint): Syncs all dirty at interval (`checkpoint_timeout`).
   - **Bgwriter** (`bgwriter.c`): Periodic flushes to prevent checkpoint storms.
-- Visibility: xmin set; vacuum/autovacuum prunes later (INSERT triggers via `autovacuum_vac_ins_thresh`, per [[postgresql-18-autovacuum-analysis]]).
+- Visibility: xmin set; vacuum/autovacuum prunes later (INSERT triggers via `autovacuum_vac_ins_thresh`, per [[shared/autovacuum-evolution]]).
 
 **Variants**:
 - `synchronous_commit=local`: WAL flush, no fsync.
@@ -90,7 +90,7 @@ sequenceDiagram
 - [[v18/code-paths/insert-path]] (upper path to ExecInsert)
 - [[shared/concepts/modifytable]] (ModifyTable)
 - [[shared/concepts/tuple-table-slot]] (slots)
-- [[postgresql-18-autovacuum-analysis]] (INSERT vacuum triggers)
+- [[shared/autovacuum-evolution]] (INSERT vacuum triggers)
 
 ## Source References
 - `raw/postgres-18/src/backend/executor/nodeModifyTable.c` (ExecInsert)
