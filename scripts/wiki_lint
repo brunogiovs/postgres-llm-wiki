@@ -146,7 +146,12 @@ def lint() -> tuple[list[Issue], list[Issue]]:
             if page_type == "question" and verified != "false":
                 errors.append(Issue("ERROR", rel(path), "Question pages must have verified: false"))
 
-            if verified is None and vba is None:
+            if page_type == "question":
+                expected_keys = ['type', 'version', 'pinned_commit', 'verified', 'verified_by_agent']
+                if list(fm.keys()) != expected_keys:
+                    warnings.append(Issue("WARN", rel(path), f"front matter keys not in order: {list(fm.keys())} (expected {expected_keys})"))
+
+            if verified is None and vba is None and not slug.startswith("shared/concepts/"):
                 warnings.append(Issue("WARN", rel(path), "Missing verification fields (verified or verified_by_agent)"))
 
         for target in extract_obsidian_links(text):
