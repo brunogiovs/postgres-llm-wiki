@@ -1,9 +1,9 @@
 ---
 type: question
 version: NN
-pinned_commit: COMMIT_HASH
+pinned_commit: abc123...
 verified: false
-filed: YYYY-MM-DD
+verified_by_agent: model-name YYYY-MM-DDTHH:MM:SSZ
 ---
 
 # Question

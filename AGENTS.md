@@ -40,6 +40,16 @@ Rules for agents:
 - When creating new pages or reports (e.g., question pages under `wiki/vNN/questions/`), agents must set `verified: false` in front matter. Never change or remove a human-set `verified:`. Treat human-set values as authoritative.
 - `verified:` and `verified_by_agent:` are independent. A page may have either, both, or neither.
 
+- For question pages under `wiki/vNN/questions/`, front matter must use **exactly** this order:
+  ```yaml
+  type: question
+  version: NN
+  pinned_commit: abc123...
+  verified: false
+  verified_by_agent: model-name YYYY-MM-DDTHH:MM:SSZ
+  ```
+  Replace placeholders with actual values. Do not add extra fields like `filed`. Set `verified_by_agent` only after verifying claims.
+
 ## Version Awareness
 
 - `wiki/versions.md` is the top-level version index and source pin manifest.
