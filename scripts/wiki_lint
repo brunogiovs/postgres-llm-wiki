@@ -132,6 +132,23 @@ def lint() -> tuple[list[Issue], list[Issue]]:
         if page_type in SOURCE_REQUIRED_TYPES and not has_source_references(text):
             errors.append(Issue("ERROR", rel(path), "missing ## Source References entries"))
 
+        # Verification field checks
+        if requires_front_matter(slug):
+            verified = fm.get("verified")
+            if verified is not None and verified not in ("true", "false"):
+                errors.append(Issue("ERROR", rel(path), "verified must be 'true' or 'false'"))
+
+            vba = fm.get("verified_by_agent")
+            if vba is not None:
+                if not re.match(r"^[a-zA-Z0-9_-]+ \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", str(vba)):
+                    errors.append(Issue("ERROR", rel(path), "verified_by_agent invalid format: <model> YYYY-MM-DDTHH:MM:SSZ"))
+
+            if page_type == "question" and verified != "false":
+                errors.append(Issue("ERROR", rel(path), "Question pages must have verified: false"))
+
+            if verified is None and vba is None:
+                warnings.append(Issue("WARN", rel(path), "Missing verification fields (verified or verified_by_agent)"))
+
         for target in extract_obsidian_links(text):
             resolved = resolve_link(target, slug, slugs)
             if not resolved:

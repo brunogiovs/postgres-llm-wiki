@@ -20,6 +20,26 @@ This repository is an LLM-maintained wiki for PostgreSQL engine internals. The a
 - Put uncertainty under `## Open Questions` instead of guessing.
 - Never paraphrase code in a way that adds behavior the code does not exhibit.
 
+## Verification
+
+Pages carry two distinct verification fields in front matter. They are not interchangeable.
+
+- `verified:` — human-verified. Only a human reviewer may set, change, or remove this field. Agents must never write or modify it. Treat its presence and value as authoritative.
+- `verified_by_agent:` — agent-verified. Agents may set or update this field after re-checking the page's claims against the pinned source. Format the value as `<agent-model> <ISO-8601-datetime-UTC>`, for example:
+
+  ```yaml
+  verified_by_agent: claude-opus-4-7 2026-05-03T14:30:00Z
+  ```
+
+  Use the exact model identifier the agent is running as, and a UTC timestamp in `YYYY-MM-DDTHH:MM:SSZ` form. Overwrite any prior `verified_by_agent:` value when re-verifying; do not accumulate history in front matter.
+
+Rules for agents:
+
+- Set `verified_by_agent:` only after every behavioral claim on the page has been re-checked against the cited source paths in the matching `raw/postgres-NN/` checkout.
+- If verification fails for any claim, do not set `verified_by_agent:`. Either fix the claim, move it under `## Open Questions`, or leave the field absent.
+- When creating new pages or reports (e.g., question pages under `wiki/vNN/questions/`), agents must set `verified: false` in front matter. Never change or remove a human-set `verified:`. Treat human-set values as authoritative.
+- `verified:` and `verified_by_agent:` are independent. A page may have either, both, or neither.
+
 ## Version Awareness
 
 - `wiki/versions.md` is the top-level version index and source pin manifest.
@@ -142,6 +162,19 @@ For version-agnostic work:
 5. File durable answers as question pages or fold them into existing pages.
 6. Update indexes and log.
 
+### Report Generation And Review
+
+A report here means any answer or wiki page produced from a user prompt — most commonly a question page under `wiki/vNN/questions/` with a `## Question` section.
+
+During generation or review, when the user asks for a modification, clarification, narrowing, broadening, or follow-up, treat that ask as part of the question itself, not just guidance for the answer.
+
+- Fold the user's modification ask into the report's `## Question` section before updating the answer body.
+- Preserve the original question; extend or refine it in place so the section reflects the full scope of what is being asked.
+- Rewrite for coherence rather than appending raw transcript fragments — the `## Question` section should read as a single, current statement of the question.
+- Only after the `## Question` section is updated, revise the answer, citations, and any downstream sections to match.
+- If the page has no `## Question` section yet (for example a freshly generated draft), add one and seed it from the user's original prompt plus the modification ask.
+- This applies to every review round: each new ask is merged into the same `## Question` section, not stacked as a changelog.
+
 ### Lint The Wiki
 
 Check for:
@@ -154,6 +187,9 @@ Check for:
 - Pages citing source from the wrong version checkout.
 - Version landing pages missing links to existing version-local pages.
 - `wiki/versions.md` coverage notes that disagree with actual pages.
+- Invalid or malformed `verified:` / `verified_by_agent:` fields.
+- New reports and question pages missing `verified: false`.
+- Managed pages missing verification fields (both `verified:` and `verified_by_agent:` absent).
 
 Use the project-local scripts first:
 

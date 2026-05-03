@@ -1,5 +1,6 @@
 ---
 type: question
+verified: false
 version: 18
 pinned_commit: 6cb307251c5c6261286c1566496920976640108e
 verified: true
@@ -50,7 +51,7 @@ After `heap_insert` returns, the durable state of the cluster on disk is **uncha
 A real insert can also touch:
 
 - **Indexes.** `ExecInsertIndexTuples` walks each index on the result relation and calls `index_insert`, which routes to the AM-specific entry point (`btinsert` for btree, etc.). Each AM emits its own WAL record and dirties index buffers; nothing is fsynced inline. Citations: `raw/postgres-18/src/backend/executor/execIndexing.c:ExecInsertIndexTuples`, `raw/postgres-18/src/backend/access/index/indexam.c:index_insert`.
-- **TOAST.** When a tuple has out-of-line attributes, `heap_toast_insert_or_update` inserts chunk rows into the TOAST relation and its TOAST index before the heap-table insert returns. Each chunk goes through the same `heap_insert` + index-insert dance, all buffered. Citation: `raw/postgres-18/src/backend/access/common/toast_helper.c:toast_tuple_externalize`, `raw/postgres-18/src/backend/access/heap/heaptoast.c:heap_toast_insert_or_update`.
+- **TOAST.** When a tuple has out-of-line attributes, `heap_toast_insert_or_update` inserts chunk rows into the TOAST relation and its TOAST index before the heap-table insert returns. Each chunk goes through the same `heap_insert` + index-insert dance, all buffered. Citation: `raw/postgres-18/src/backend/access/table/toast_helper.c:toast_tuple_externalize`, `raw/postgres-18/src/backend/access/heap/heaptoast.c:heap_toast_insert_or_update`.
 - **Visibility map.** If the page being inserted into is currently all-visible, `heap_insert` clears the VM bit before dirtying the heap page (`visibilitymap_clear`, called near `heapam.c:2138`). Updates the VM buffer in memory only. Citation: `raw/postgres-18/src/backend/access/heap/visibilitymap.c:visibilitymap_clear`.
 - **Free space map.** `RelationGetBufferForTuple` consults and may update FSM pages through `RecordPageWithFreeSpace`; FSM writes are dirtied in shared buffers and never WAL-logged. Citation: `raw/postgres-18/src/backend/access/brin/brin_xlog.c` is unrelated; the relevant file is `raw/postgres-18/src/backend/storage/freespace/freespace.c:RecordPageWithFreeSpace`.
 - **CLOG.** The transaction's commit status will be written to CLOG by `TransactionIdCommitTree` at commit time, but CLOG pages are buffered in shared memory; they are not synchronously fsynced as part of the commit path. Citation: `raw/postgres-18/src/backend/access/transam/clog.c:TransactionIdSetTreeStatus`.
@@ -115,7 +116,7 @@ sequenceDiagram
 - `synchronous_commit = off` → no synchronous disk write at commit; the only durability comes from the walwriter draining WAL buffers later.
 - `UNLOGGED` table → `RelationNeedsWAL` is false, no WAL is emitted, and the commit path does not need to flush WAL for that relation.
 - `INSERT ... ON CONFLICT` → uses `heap_insert_speculative` and a confirm/abort follow-up, but commit-time WAL flush behaves the same.
-- Multi-row `INSERT` and `COPY` → use `heap_multi_insert` (`heapam.c:2400`+) which batches WAL via `XLOG_HEAP2_MULTI_INSERT`. Same commit semantics.
+- Multi-row `INSERT` and `COPY` → use `heap_multi_insert` (`heapam.c:2351`) which batches WAL via `XLOG_HEAP2_MULTI_INSERT`. Same commit semantics.
 - Foreign-table inserts via FDW → no heap write happens locally; commit-time durability depends on the FDW's two-phase or non-2PC behavior.
 - `BEGIN; INSERT; ROLLBACK;` → no commit record is written; if `XLogFlush` already ran for some other reason (e.g. an intervening `synchronous_commit`-forcing operation), WAL contains the insert, but recovery sees no commit record and discards the change.
 

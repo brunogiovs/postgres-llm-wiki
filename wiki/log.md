@@ -1,4 +1,4 @@
-# Wiki Log
+hes# Wiki Log
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
@@ -319,6 +319,34 @@ For version-agnostic work, omit the version segment:
 - Removed the obsolete duplicate-pages note from the `Open Questions` section of [[v18/questions/plan-cache-mode-production-impact]].
 - Updated [[v18/index]] question list to drop the three deleted entries. [[index]] already pointed only at the canonical page.
 
+## [2026-05-02] revise v18 | query-disk-io-with-warm-cache per-planning-phase summary
+
+- Added a "Per-Planning-Phase Summary" section to `wiki/v18/questions/query-disk-io-with-warm-cache.md` covering raw parse (`raw_parser`), parse analysis (`parse_analyze_fixedparams`), rewriter (`QueryRewrite`/`fireRIRrules`/`fireRules`), planner (`planner`/`standard_planner`/`get_relation_info`), plan-cache revalidation (`GetCachedPlan`/`RevalidateCachedQuery`/`BuildCachedPlan`), and JIT compilation (`llvm_compile_module`/`llvm_load_summary`).
+- Documented per-phase catalog access: `pg_namespace`/`pg_class`/`pg_attribute` for analysis; `pg_rewrite`/`pg_policy` for rewriter; `pg_class`/`pg_index`/`pg_statistic`/`pg_statistic_ext_data`/`pg_amop`/`pg_amproc` for planner; `*.bc` bitcode files under `$pkglibdir/bitcode/` for JIT.
+- Cited `analyze.c:parse_analyze_fixedparams:105`, `rewriteHandler.c:fireRIRrules:2026`, `rewriteHandler.c:fireRules:2458`, `plancat.c:get_relation_info:130-286`, `plancat.c:1428` (extended-stats syscache), `relcache.c:RelationBuildDesc:1059`, `plancache.c:GetCachedPlan`/`RevalidateCachedQuery`/`BuildCachedPlan`, `jit.c:jit_compile_expr:151`, `llvmjit.c:llvm_compile_module:709`, `llvmjit_inline.cpp:llvm_load_summary:768`.
+- Added a planning-phase quick-reference matrix grading each phase across catalog buffer reads, dirty-victim writeback, relcache rebuild, plan-cache revalidation cost, SLRU reads for catalog visibility, and JIT bitcode load.
+- Ranked slow-random-disk impact within planning: first JIT'd query > first relation reference > invalidated plan-cache replan > steady-state fresh-statement planning > cached plan reuse > raw parse.
+- `scripts/wiki_lint --warnings-as-errors`: 0 errors, 1 unrelated pre-existing warning (`wiki/shared/output/README.md` orphan).
+
+## [2026-05-02] revise v18 | query-disk-io-with-warm-cache per-statement summary
+
+- Added a "Per-Statement-Type Summary" section to `wiki/v18/questions/query-disk-io-with-warm-cache.md` covering `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `COPY FROM`/`COPY TO`, `TRUNCATE`, DDL, `CREATE TABLESPACE`/`DATABASE`, `CREATE INDEX`/`REINDEX`, `VACUUM`/autovacuum, `ANALYZE`, `BEGIN`/`COMMIT`/`ROLLBACK`, `SAVEPOINT` family, 2PC (`PREPARE TRANSACTION`), `LISTEN`/`NOTIFY`, `LOCK TABLE`, `EXPLAIN`, `EXPLAIN ANALYZE`, and `EXECUTE`.
+- Each entry lists which I/O categories (WAL emission, commit fsync, relation extension, TOAST, VM clear, FSM update, SLRU traffic, temp spills, hint-bit dirty, dirty-victim writeback) typically apply.
+- Documented that plain `SELECT` can still emit WAL via `heap_page_prune_opt` → `XLOG_HEAP2_PRUNE_ON_ACCESS` at `pruneheap.c:193,2053,2157`, that `DELETE` does not touch indexes in the foreground (only VACUUM does), that `TRUNCATE` and `DROP` go through the `nrels > 0` synchronous-flush branch at `xact.c:1499-1502`, and that `CREATE/DROP TABLESPACE`/`DATABASE` explicitly call `ForceSyncCommit()` (`xact.c:1154`, `tablespace.c:379,553`, `dbcommands.c:1565,1894,2263`).
+- Added a quick-reference matrix grading each statement on each disk-I/O category and a slow-random-disk impact ranking (`COPY FROM`/`CREATE INDEX`/`VACUUM` highest, DML next, `SELECT` only when pruning or buffer pool is dirty, pre-execution lowest).
+- `scripts/wiki_lint --warnings-as-errors`: 0 errors, 1 unrelated pre-existing warning (`wiki/shared/output/README.md` orphan).
+
+## [2026-05-02] answer v18 | query-disk-io-with-warm-cache
+
+- Created `wiki/v18/questions/query-disk-io-with-warm-cache.md` answering: pre-execution and execution disk I/O paths in PG 18 and how a slow random-I/O disk hurts even when shared buffers and OS page cache are fully warm.
+- Pre-execution: catalog buffer reads on cache miss (relcache, syscache, statistics) all short-circuit at `BufferAlloc` when warm; plan-cache revalidation reacquires planner locks but issues no synchronous writes.
+- Execution-time categories: (1) commit-time WAL fsync via `XLogFlush` → `issue_xlog_fsync`, (2) WAL buffer wraparound via `AdvanceXLInsertBuffer`/`XLogWrite`, (3) dirty victim writeback in `GetVictimBuffer` → `FlushBuffer`, (4) relation extension via `mdzeroextend`, (5) per-backend temp-file spills via `BufFile`/`tuplesort`/`tuplestore`/`nodeHashjoin`/`nodeAgg`.
+- Highlighted hint-bit dirty-buffer pressure, SLRU read/write for CLOG/MultiXact/SubTrans/CommitTs, VM/FSM updates, and `SyncRepWaitForLSN` under synchronous replication.
+- Cited `xact.c:1499-1502`, `xlog.c:XLogFlush`, `xlog.c:issue_xlog_fsync:8744`, `xlog.c:AdvanceXLInsertBuffer:1988-2070`, `bufmgr.c:GetVictimBuffer`, `bufmgr.c:FlushBuffer`, `bufmgr.c:ExtendBufferedRelBy`, `hio.c:RelationGetBufferForTuple`, `md.c:register_dirty_segment:1499-1517`, `slru.c:SimpleLruWritePage`, `clog.c:TransactionIdGetStatus`, `buffile.c:OpenTemporaryFile`/`BufFileWrite`, `syncrep.c:SyncRepWaitForLSN`.
+- Added mermaid sequence diagram showing the warm-cache-but-still-blocked paths.
+- Linked to [[v18/questions/insert-row-disk-writes]], [[v18/code-paths/select-disk-io]], [[v18/code-paths/simple-select-query]], [[v18/questions/prepared-statement-replanning]], [[shared/autovacuum-evolution]].
+- Updated `wiki/v18/index.md` and `wiki/index.md` question lists.
+
 ## [2026-05-02] revise v18 | rewrote insert-row-disk-writes for citation discipline
 
 - Rewrote [[v18/questions/insert-row-disk-writes]] to align with AGENTS.md citation discipline and the style of the rest of `wiki/v18/questions/`.
@@ -328,3 +356,85 @@ For version-agnostic work, omit the version segment:
 - Added side-effect coverage (indexes, TOAST via `heap_toast_insert_or_update`, visibility map, free-space map via `RecordPageWithFreeSpace`, CLOG via `TransactionIdSetTreeStatus`) and the bgwriter / checkpointer / walwriter async-flush actors.
 - Replaced TODO-shaped `Open Questions` ("Extend to INSERT ... SELECT?", "Index-specific WAL details?") with three follow-up traces tied to actual uncertainty: index-AM `RelationNeedsWAL` edge cases, replication-side wait under `synchronous_commit = remote_apply`, and `heap_multi_insert` WAL byte savings.
 - `scripts/wiki_lint`: 0 errors, 1 unrelated pre-existing warning (`wiki/shared/output/README.md` orphan).
+
+## [2026-05-02] add-supported-version v12 | Added PostgreSQL 12.2 support
+
+- Pinned `raw/postgres-12/` to `REL_12_2` commit `45b88269a353ad93744772791feb6d01bc7e1e42` via `scripts/source_update --version 12`.
+- Created `wiki/v12/index.md` landing page scaffold.
+- Created empty `wiki/v12/{subsystems,concepts,code-paths,files,questions}/` directories.
+- Added v12 row to `wiki/versions.md` supported versions table.
+- Added `[[v12/index]]` section to `wiki/index.md`.
+
+## [2026-05-02] answer v12 | query-disk-io-with-warm-cache
+
+- Created `wiki/v12/questions/query-disk-io-with-warm-cache.md` answering: pre-execution and execution disk I/O paths in PG 12.2 and how a slow random-I/O disk hurts even when shared buffers and OS page cache are fully warm.
+
+- Pre-execution: catalog buffer reads short-circuit at `BufferAlloc`; plan-cache revalidation locks no writes.
+
+- Execution: commit WAL fsync (`xact.c:1371`), WAL wrap (`xlog.c:AdvanceXLInsertBuffer`), dirty victim (`bufmgr.c:FlushBuffer`), extension (`mdzeroextend`), temp spills (`BufFile`).
+
+- Added per-statement summary (SELECT, INSERT, UPDATE, DELETE, etc.) and per-planning-phase summary.
+
+- Cited `raw/postgres-12/src/backend/access/transam/xact.c:1371`, `raw/postgres-12/src/backend/storage/buffer/bufmgr.c:2672`, etc.
+
+- Updated `wiki/v12/index.md` and `wiki/index.md`.
+
+## [2026-05-02] review v12 | query-disk-io-with-warm-cache
+
+- Verified citations against `raw/postgres-12@45b88269a353ad93744772791feb6d01bc7e1e42`: `xact.c:1371` `XLogFlush(XactLastRecEnd)`, `xlog.c:2086` `AdvanceXLInsertBuffer` def, `bufmgr.c:2672` `FlushBuffer` def, etc.
+
+- Fixed source refs `xlog.c:2798` → `xlog.c:2086`.
+
+- Removed open questions (all lines verified).
+
+
+## [2026-05-02] answer v12 | plan-cache-mode-production-impact
+
+- Created \`wiki/v12/questions/plan-cache-mode-production-impact.md\` with PG 12 analysis of plan_cache_mode production impacts, best modes per scenario, pros/cons, slow random I/O disk section.
+
+- Verified/cited \`raw/postgres-12/src/backend/utils/cache/plancache.c:choose_custom_plan\`, \`plancache.h:PlanCacheMode\`, \`guc.c:plan_cache_mode_options\`, \`plancat.c:get_relation_info\`.
+
+- Updated \`wiki/v12/index.md\` (coverage, questions), \`wiki/index.md\`.
+
+## [2026-05-02] answer v12 | detect-slow-random-io-disk-metrics
+
+- Created \`wiki/v12/questions/detect-slow-random-io-disk-metrics.md\` answering PG 12 slow random disk I/O detection via pg_stat_database.blk_read_time/blks_read ratio, pg_stat_statements blk_read_time, pg_stat_activity IO:DataFileRead waits, cache hit ratio, pg_stat_user_tables idx_scan inference.
+
+- Cited \`raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c\`, \`contrib/pg_stat_statements/pg_stat_statements.c\`, \`src/backend/storage/buffer/bufmgr.c\`, \`src/backend/postmaster/pgstat.c:DataFileRead\`.
+
+- Updated \`wiki/v12/index.md\` (coverage, questions list).
+
+## [2026-05-02] answer v12 | track-io-timing-blk-write-time-dirty-victim-select
+
+- Created \`wiki/v12/questions/track-io-timing-blk-write-time-dirty-victim-select.md\` answering: PG 12 SELECT execution, does `track_io_timing=on` `blk_write_time` capture "dirty victim" time (synchronous evictions yes via `FlushBuffer`).
+
+- Cited \`raw/postgres-12/src/backend/storage/buffer/bufmgr.c:2764-2769\` (`track_io_timing` / `smgrwrite` / `pgBufferUsage.blk_write_time += io_time`), \`contrib/pg_stat_statements/pg_stat_statements.c:1051-1052,1292\` (`pgBufferUsage` delta).
+
+- Updated \`wiki/v12/index.md\` (coverage, questions), \`wiki/index.md\` (v12 questions list).
+
+## [2026-05-03] review v12 | plan-cache-mode-production-impact
+
+- Reviewed [[v12/questions/plan-cache-mode-production-impact]] against `raw/postgres-12@45b88269a3` (REL_12_2).
+- Fixed decision tree step 3: replaced `!StmtPlanRequiresRevalidation → generic` (helper does not exist in PG 12; introduced post-12) with the actual v12 macro `IsTransactionStmtPlan` at `plancache.c:82,1028`. Added explicit `plancache.c` line numbers for steps 1-9.
+- Fixed `plancat.c` path in two places: `optimizer/plan/plancat.c` → `optimizer/util/plancat.c` (Where The Setting Is Read, Source References).
+- Verified other claims against v12 source: `choose_custom_plan`/`GetCachedPlan`/`cached_plan_cost`/`BuildCachedPlan`/`RevalidateCachedQuery` in `plancache.c`; `PlanCacheMode` enum in `plancache.h:26-32`; `plan_cache_mode_options` in `guc.c:429-432` with PGC_USERSET at `guc.c:4504-4512`; `pg_prepared_statements` view (5 cols, no counters) in `system_views.sql:332`; `DISCARD PLANS` → `ResetPlanCache` in `discard.c:40,75`; EXPLAIN EXECUTE `$1` vs literal in `prepare.sgml`.
+- `scripts/wiki_lint`: 0 errors, 1 unrelated pre-existing warning (`wiki/shared/output/README.md` orphan).
+
+## [2026-05-03] revise v12 | plan-cache-mode-production-impact auto-mode revalidation detail
+
+- Added "Auto Mode: Revalidation Overhead And Timing" section to [[v12/questions/plan-cache-mode-production-impact]] covering: GetCachedPlan entry points (`postgres.c:1876` Bind, `prepare.c:246` ExecuteQuery, `prepare.c:663` ExplainExecuteQuery, `spi.c:1389,1822,2215`), steady-state cheap-path cost (two lock sweeps via `AcquirePlannerLocks`/`AcquireExecutorLocks`, sinval drain through `AcceptInvalidationMessages`, search_path/RLS compares, race rechecks at `plancache.c:616,842`), invalidation-path cost (`pg_analyze_and_rewrite[_params]` + `extract_query_dependencies` for plansource invalidation; full `pg_plan_queries` + wart recheck at `plancache.c:1200` for plan invalidation; preservation of `generic_cost`/`total_custom_cost`/`num_custom_plans` per `plancache.c:768-775` comment), and a sequence diagram showing the revalidation block sits between message dispatch and `ExecutorStart` (so cost is invisible to EXPLAIN ANALYZE but visible in client Bind/Execute latency).
+- All new citations verified against `raw/postgres-12@45b88269a3`.
+- `scripts/wiki_lint`: 0 errors, 1 unrelated pre-existing warning.
+- Updated the page's `## Question` section to record the follow-up ask (auto-mode revalidation overhead and timing in the query execution cycle) so the page stands on its own without the chat context.
+
+## [2026-05-03] update | AGENTS.md: instruct agents to set verified: false on new reports/pages
+
+- Updated ## Verification rules in AGENTS.md per user feedback.
+- New rule: When creating new pages or reports (e.g., question pages under `wiki/vNN/questions/`), agents must set `verified: false` in front matter.
+- Agents may set initial `verified: false` but never change or remove human-set values.
+
+## [2026-05-03] lint | added verification field checks to wiki_lint
+
+- Implemented new checks in `scripts/wiki_lint`: `verified:` must be 'true'/'false'; `verified_by_agent:` regex format; question pages (type=question) require `verified: false`; managed pages WARN if missing both fields.
+- Test run (`scripts/wiki_lint --warnings-as-errors`): 11 ERRORS (question pages missing verified: false), 16 WARN (missing fields + orphan).
+- Updated AGENTS.md `## Lint The Wiki` check list.

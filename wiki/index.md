@@ -51,6 +51,16 @@ This is the global catalog for the PostgreSQL engine wiki.
 - [[v18/questions/avg-leaf-density-vacuum-stat-table]] - PG 18 design for piggybacking `avg_leaf_density` onto every successful (auto)VACUUM of a btree index and persisting it through a new cumulative-statistics kind.
 - [[v18/questions/plan-cache-mode-production-impact]] - PG 18 production analysis of `plan_cache_mode` modes (`auto`, `force_generic_plan`, `force_custom_plan`) with pros/cons and a per-scenario picker.
 - [[v18/questions/insert-row-disk-writes]] - PG 18 disk writes during row insert txn (WAL sync at commit only, data async).
+- [[v18/questions/query-disk-io-with-warm-cache]] - PG 18 pre-execution and execution disk I/O paths and how slow random I/O hurts even with warm shared buffers and OS page cache.
+
+### PostgreSQL 12.2
+
+- [[v12/index]] - Legacy version landing page. Source checkout pinned to `REL_12_STABLE` commit `45b88269a353ad93744772791feb6d01bc7e1e42`.
+
+#### Questions
+
+- [[v12/questions/track-io-timing-blk-write-time-dirty-victim-select]] - PG 12: Does `track_io_timing=on` `blk_write_time` capture synchronous dirty victim flush time during SELECT (yes).
+
 
 ## Maintenance Tooling
 

@@ -1,8 +1,10 @@
 ---
 type: question
+verified: false
 version: 18
 pinned_commit: 6cb307251c5c6261286c1566496920976640108e
 verified: true
+verified_by_agent: claude-opus-4-7 2026-05-03T10:11:32Z
 ---
 
 # Prepared Statement Replanning
