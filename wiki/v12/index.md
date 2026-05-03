@@ -49,5 +49,7 @@ No source file map pages have been created yet.
 
 - [[v12/questions/dirty-victim-select-mitigation]] - How to mitigate "dirty victim" synchronous writes during SELECT queries in PostgreSQL 12?
 
+- [[v12/questions/bgwriter-tuning-scenarios]] - Recommended bgwriter settings for various tuning scenarios in PostgreSQL 12.
+
 
 ## Open Questions

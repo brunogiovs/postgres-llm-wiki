@@ -8,6 +8,14 @@ Use this prefix shape:
 ## [YYYY-MM-DD] <kind> v<NN> | <subject>
 ```
 
+## [2026-05-03] answer v12 | bgwriter tuning scenarios
+
+- Created `wiki/v12/questions/bgwriter-tuning-scenarios.md` answering recommended bgwriter settings for 8 tuning scenarios in PostgreSQL 12 (checkpoint I/O spikes, maxwritten_clean limits, backend writing, bursty workloads, idle systems, low-power environments, kernel page cache pressure, high-write OLTP).
+
+- Cited bgwriter GUC definitions `raw/postgres-12/src/backend/utils/misc/guc.c#2728-2756,3352-3359` and algorithm `raw/postgres-12/src/backend/storage/buffer/bufmgr.c#2052-2336`.
+
+- Updated `wiki/v12/index.md` and `wiki/index.md`.
+
 ## [2026-05-03] update v12 | source code tree diagram replaced with ASCII tree
 
 - Replaced Mermaid mindmap diagram in `wiki/v12/diagrams/source-code-tree-overview.md` with Unicode/ASCII tree representation per agents.md requirements.
