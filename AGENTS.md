@@ -70,19 +70,7 @@ Rules for agents:
 - A page is born when the work justifies it. Do not create empty content stubs.
 - A concept earns its own page when it is referenced from at least two other pages or repeatedly in conversation.
 
-## Local Model Operating Mode
-
-The expected local hardware profile is a 16GB NVIDIA GPU with agent orchestrating a local model.
-
-Default local model target:
-
-- `Qwen2.5-Coder-14B-Instruct-AWQ`, or another 4-bit 14B coder model.
-
-Context target:
-
-- Minimum: 64K tokens for agent multi-step workflows when feasible.
-- Preferred: 64K to 128K if the serving stack and VRAM allow it.
-- If 64K does not fit reliably, reduce task scope before accepting a tiny context window.
+## Operating Mode
 
 Operating rules:
 

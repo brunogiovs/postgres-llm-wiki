@@ -1,8 +1,9 @@
 ---
 type: question
-verified: false
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
+verified: false
+verified_by_agent: Cline 2026-05-03T11:32:00Z
 ---
 
 # `plan_cache_mode` Production Impact
