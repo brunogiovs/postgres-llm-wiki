@@ -83,24 +83,6 @@ Operating rules:
 - Defer active-version verification explicitly on `wiki/vNN/index.md` when it exceeds the local context or latency budget.
 - Escalate hard traces, such as planner internals, WAL, crash recovery, or MVCC visibility, when the local model cannot keep the call chain straight.
 
-## Agent Lifecycle
-
-Use the project-local lifecycle wrapper to run the wiki maintainer process:
-
-```bash
-scripts/wiki_agent start
-scripts/wiki_agent status
-scripts/wiki_agent logs --lines 80
-scripts/wiki_agent stop
-```
-
-`scripts/wiki_agent` stores pid files, command metadata, local environment, and process logs locally. The chosen lifecycle model is that the wrapper starts agent, and agent starts or connects to the local LLM backend. Configure the real agent command with `WIKI_AGENT_COMMAND` or by passing it after `--`, for example:
-
-```bash
-scripts/wiki_agent start -- agent run --project /data/repos/pg-wiki
-```
-
-See [[operations/agent]] for the full start/stop runbook.
 
 ## Bookkeeping
 
