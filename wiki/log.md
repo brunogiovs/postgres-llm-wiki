@@ -14,6 +14,13 @@ For version-agnostic work, omit the version segment:
 ## [YYYY-MM-DD] <kind> | <subject>
 ```
 
+## [2026-05-03] lint v12 | Corrected citation format on source code tree overview diagram
+
+- Fixed citation format to use mandatory shape `[[raw/postgres-12/path#symbol]]` per AGENTS.md.
+- Previously used incorrect `[[v12/files/path#symbol]]` format.
+- Verified all citations point to correct source files in `raw/postgres-12/` at pinned commit.
+- Updated `verified_by_agent` timestamp.
+
 ## [2026-04-30] scaffold | initialized Phase 1 wiki structure
 
 - Created version-agnostic wiki entry points.
@@ -458,3 +465,12 @@ For version-agnostic work, omit the version segment:
 - Verified against `raw/postgres-12@45b88269a353ad93744772791feb6d01bc7e1e42`.
 
 - Updated `wiki/v12/index.md` and `wiki/index.md`.
+## [2026-05-03] verify-fix v12 | source-code-tree-overview
+
+- Re-verified citations against raw/postgres-12@45b88269...
+
+- Fixed invalid (heap/README, pg_stat_statements/README), standardized relative paths (src/backend/..., include/...), corrected headers.
+
+- wiki_lint: 0 errors.
+
+
