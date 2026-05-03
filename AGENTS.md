@@ -182,7 +182,7 @@ Check for:
 - Invalid or malformed `verified:` / `verified_by_agent:` fields.
 - New reports and question pages missing `verified: false`.
 - Managed pages missing verification fields (both `verified:` and `verified_by_agent:` absent).
-- Question pages with front matter not in exact order: `type`, `version`, `pinned_commit`, `verified`, `verified_by_agent`.
+- Question pages under `wiki/vNN/questions/` with front matter not in exact order: `type`, `version`, `pinned_commit`, `verified`, `verified_by_agent`.
 
 Use the project-local scripts first:
 
