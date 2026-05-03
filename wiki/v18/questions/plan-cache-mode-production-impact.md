@@ -335,10 +335,3 @@ Citations:
   `num_generic_plans` / `generic_cost`. Adding a diagnostic view (or
   exposing these through `pg_stat_statements`) would make the
   per-statement choice observable in production without `auto_explain`.
-- Three sibling pages already exist on this topic written by another
-  agent: `wiki/v18/questions/plan_cache_mode-production-analysis.md`,
-  `plan_cache-mode-decision-tree.md`, and
-  `plan_cache-mode-memory-usage-tables-comparison.md`. They should be
-  reviewed and either consolidated into this page or cross-linked from
-  it; their filenames mix `plan_cache_mode` and `plan_cache-mode` which
-  also needs to be normalized.

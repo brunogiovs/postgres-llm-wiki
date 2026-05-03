@@ -57,9 +57,6 @@ No source file map pages have been created yet.
 - [[v18/questions/avg-leaf-density-vacuum-stat-table]] - Modify VACUUM/autovacuum to compute and persist `avg_leaf_density` per btree index in a new pgstat kind, riding the existing leaf-page scan.
 - [[v18/questions/plan-cache-mode-production-impact]] - Production impact of `plan_cache_mode` (`auto`, `force_generic_plan`, `force_custom_plan`), pros/cons per mode, and which to pick per scenario.
 - [[v18/questions/insert-row-disk-writes]] - PG 18 disk writes during row insert txn (WAL sync at commit only, data async).
-- [[v18/questions/plan_cache_mode-production-analysis]] - PG 18 production analysis of `plan_cache_mode`.
-- [[v18/questions/plan_cache-mode-decision-tree]] - PG 18 plan cache mode decision tree.
-- [[v18/questions/plan_cache-mode-memory-usage-tables-comparison]] - PG 18 plan cache mode memory usage tables comparison.
 
 ## Open Questions
 

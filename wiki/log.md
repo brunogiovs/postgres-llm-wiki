@@ -308,3 +308,23 @@ For version-agnostic work, omit the version segment:
 ## [2026-05-02] lint | fixed wiki_lint errors/warnings
 
 - Created `wiki/operations/agent.md` runbook (Hermes/llama lifecycle).
+
+## [2026-05-02] cleanup v18 | pruned duplicate plan_cache_mode question pages
+
+- Deleted three low-quality duplicates of [[v18/questions/plan-cache-mode-production-impact]]:
+  - `wiki/v18/questions/plan_cache_mode-production-analysis.md`
+  - `wiki/v18/questions/plan_cache-mode-decision-tree.md`
+  - `wiki/v18/questions/plan_cache-mode-memory-usage-tables-comparison.md`
+- Defects in the deleted pages: missing `type: question` / `verified` frontmatter; inconsistent slug shapes (`plan_cache_mode-` vs `plan_cache-mode-`); citations pointing to GitHub URLs instead of `raw/postgres-18/`; references to a non-existent `pg_stat_statements_cache_plan_stats` view; fabricated C structs (`MemoryContextNodeBitmapData`, `_HashTable`, fake `Rte`); unverified PG 18 version-change claims; numerical estimates ("5-8× larger", "~640-960 KB per custom plan") with no source backing.
+- Removed the obsolete duplicate-pages note from the `Open Questions` section of [[v18/questions/plan-cache-mode-production-impact]].
+- Updated [[v18/index]] question list to drop the three deleted entries. [[index]] already pointed only at the canonical page.
+
+## [2026-05-02] revise v18 | rewrote insert-row-disk-writes for citation discipline
+
+- Rewrote [[v18/questions/insert-row-disk-writes]] to align with AGENTS.md citation discipline and the style of the rest of `wiki/v18/questions/`.
+- Corrected the call chain: `ExecInsert` → `table_tuple_insert` (TAM dispatch at `nodeModifyTable.c:1234`) → `heapam_tuple_insert` (`heapam_handler.c:244`) → `heap_insert` (`heapam.c:2080`). The previous version skipped the TAM layer and named `heapam_handler.c:255,278` as the source of `heap_insert` itself.
+- Replaced fabricated symbol `XLogHeapInsert(rel, buffer, tuple)` with the actual inline emission inside `heap_insert`: `XLogBeginInsert` / `XLogRegisterData` / `XLogRegisterBuffer` / `XLogRegisterBufData` / `XLogInsert(RM_HEAP_ID, …)` at `heapam.c:2231`.
+- Reordered the heap_insert step list to match the source: `heap_prepare_insert` → `RelationGetBufferForTuple` → `RelationPutHeapTuple`/`PageAddItem` → `MarkBufferDirty` → WAL emission → `END_CRIT_SECTION`/`UnlockReleaseBuffer` → `pgstat_count_heap_insert`. Cited verified line numbers `heapam.c:2155`, `:2231`, `:2236`, `:2238`, `:2251`.
+- Added side-effect coverage (indexes, TOAST via `heap_toast_insert_or_update`, visibility map, free-space map via `RecordPageWithFreeSpace`, CLOG via `TransactionIdSetTreeStatus`) and the bgwriter / checkpointer / walwriter async-flush actors.
+- Replaced TODO-shaped `Open Questions` ("Extend to INSERT ... SELECT?", "Index-specific WAL details?") with three follow-up traces tied to actual uncertainty: index-AM `RelationNeedsWAL` edge cases, replication-side wait under `synchronous_commit = remote_apply`, and `heap_multi_insert` WAL byte savings.
+- `scripts/wiki_lint`: 0 errors, 1 unrelated pre-existing warning (`wiki/shared/output/README.md` orphan).
