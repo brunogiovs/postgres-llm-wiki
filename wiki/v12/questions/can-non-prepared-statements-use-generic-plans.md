@@ -52,7 +52,7 @@ Simple queries are processed in [[raw/postgres-12/src/backend/tcop/postgres.c#ex
 - [[v12/questions/plan-cache-mode-production-impact]] - Analysis of plan_cache_mode settings and their impact on generic vs custom plan usage
 - [[shared/concepts/planned-statement]] - Overview of planner output structures
 
-## Follow-Up Questions
+## Open Questions
 
 - How does PostgreSQL decide when to invalidate a cached generic plan?
 - What are the performance implications of generic plans for complex queries?

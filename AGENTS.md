@@ -83,6 +83,7 @@ Operating rules:
 - Use active-version verification sparingly.
 - Defer active-version verification explicitly on `wiki/vNN/index.md` when it exceeds the local context or latency budget.
 - Escalate hard traces, such as planner internals, WAL, crash recovery, or MVCC visibility, when the local model cannot keep the call chain straight.
+- Always use a Unicode/ASCII Tree for visual representation of directory trees.
 
 
 ## Bookkeeping
