@@ -13,7 +13,7 @@ This repository is an LLM-maintained wiki for PostgreSQL engine internals. The a
 ## Citation Discipline
 
 - Cite source paths and symbols for every behavioral claim.
-- Preferred citation shape: `src/backend/executor/execMain.c:ExecutorRun`.
+- Preferred citation shape: `[[vNN/files/src/backend/executor/execMain.c#ExecutorRun]]` (replace vNN with the page's version).
 - For non-Markdown files you must include the full file extension (.c, .py, .java, etc.).
 - Cite from the `raw/postgres-NN/` checkout matching the page's `version:`.
 - Shared concept pages may cite version examples through `verified_against:`.
