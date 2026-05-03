@@ -61,6 +61,8 @@ This is the global catalog for the PostgreSQL engine wiki.
 
 - [[v12/questions/track-io-timing-blk-write-time-dirty-victim-select]] - PG 12: Does `track_io_timing=on` `blk_write_time` capture synchronous dirty victim flush time during SELECT (yes).
 
+#### Diagrams
+- [[v12/diagrams/source-code-tree-overview]] - PG 12 source code tree overview diagram.
 
 ## Maintenance Tooling
 

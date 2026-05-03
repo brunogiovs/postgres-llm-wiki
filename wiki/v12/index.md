@@ -32,6 +32,9 @@ No shared concept pages verified against PG12 yet.
 
 No source file map pages have been created yet.
 
+## Diagrams
+- [[diagrams/source-code-tree-overview]] - Source code tree overview diagram.
+
 ## Questions
 
 - [[v12/questions/query-disk-io-with-warm-cache]] - PG 12 pre-execution and execution disk I/O paths and how slow random I/O hurts even with warm shared buffers and OS page cache.

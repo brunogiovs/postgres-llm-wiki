@@ -356,6 +356,14 @@ For version-agnostic work, omit the version segment:
 
 - Updated `wiki/v12/index.md` and `wiki/index.md`.
 
+## [2026-05-03] expand v12 | source code tree overview
+
+- Expanded key features and functionalities for each source tree directory in `wiki/v12/diagrams/source-code-tree-overview.md` with additional citations from READMEs and key source files/symbols.
+
+- Updated `verified_by_agent: Cline 2026-05-03T12:40:00Z`.
+
+- `scripts/wiki_lint`: 0 errors, 10 warnings (unrelated front matter order/orphan).
+
 ## [2026-05-02] review v12 | query-disk-io-with-warm-cache
 
 - Verified citations against `raw/postgres-12@45b88269a353ad93744772791feb6d01bc7e1e42`: `xact.c:1371` `XLogFlush(XactLastRecEnd)`, `xlog.c:2086` `AdvanceXLInsertBuffer` def, `bufmgr.c:2672` `FlushBuffer` def, etc.
@@ -436,3 +444,17 @@ For version-agnostic work, omit the version segment:
 ## [2026-05-03] cleanup | removed local LLM related log entries
 
 - Removed log entries related to local LLM setup: Hermes-managed LLM lifecycle, Hermes local LLM config, llama.cpp local LLM backend.
+## [2026-05-03] diagram v12 | source code tree overview
+
+- Created `wiki/v12/diagrams/source-code-tree-overview.md` with mermaid mindmap of source tree directories and explanations of main code areas `raw/postgres-12@45b88269...`.
+
+- Updated `wiki/v12/index.md` (## Diagrams) and `wiki/index.md` (v12 #### Diagrams).
+
+
+## [2026-05-03] diagram v12 | source code tree overview
+
+- Created `wiki/v12/diagrams/source-code-tree-overview.md` (mermaid mindmap + explanations/citations for main areas).
+
+- Verified against `raw/postgres-12@45b88269a353ad93744772791feb6d01bc7e1e42`.
+
+- Updated `wiki/v12/index.md` and `wiki/index.md`.
