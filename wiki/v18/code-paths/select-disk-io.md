@@ -1,6 +1,7 @@
 ---
 version: 18
 pinned_commit: 6cb307251c5c6261286c1566496920976640108e
+verified: true
 ---
 
 # SELECT Disk IO Path (v18)

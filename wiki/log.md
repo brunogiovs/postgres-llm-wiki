@@ -442,3 +442,17 @@ For version-agnostic work, omit the version segment:
 ## [2026-05-03] lint | set verified: false on all question pages
 
 - Added `verified: false` to `wiki/v12/questions/detect-slow-random-io-disk-metrics.md` (the only one missing it)
+
+## [2026-05-03] revert v18 | restored verified: true across all v18 pages
+
+- Reverted removal of human-set `verified: true` from 16+ v18 pages.
+- Used `sed -i '/pinned_commit: .../a verified: true'` batch insert after pinned_commit lines in `wiki/v18/*.md`.
+- Verified 18 matches post-revert.
+
+## [2026-05-03] lint v18 | removed verified: true from question pages
+
+- Removed `verified: true` from 7 v18 question pages (wiki/v18/questions/).
+- Command: `sed -i '/^verified: true$/d' wiki/v18/questions/*.md`.
+- Pre: 7 matches; Post: 0 matches in questions.
+- No v12 changes needed.
+
