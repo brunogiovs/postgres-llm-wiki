@@ -43,6 +43,11 @@ For version-agnostic work, omit the version segment:
 - Verified all citations point to correct source files in `raw/postgres-12/` at pinned commit.
 - Updated `verified_by_agent` timestamp.
 
+## [2026-05-03] lint v12 | Added missing Source References section to question page
+
+- Added required `## Source References` section to `can-non-prepared-statements-use-generic-plans.md`.
+- Updated `verified_by_agent` timestamp after structural fix.
+
 ## [2026-04-30] scaffold | initialized Phase 1 wiki structure
 
 - Created version-agnostic wiki entry points.

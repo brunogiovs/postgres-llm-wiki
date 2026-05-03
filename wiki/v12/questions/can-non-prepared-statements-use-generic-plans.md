@@ -3,7 +3,7 @@ type: question
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
 verified: false
-verified_by_agent: Cline 2026-05-03T14:06:00Z
+verified_by_agent: Cline 2026-05-03T14:23:36Z
 ---
 
 # Question
@@ -40,6 +40,12 @@ The plan cache logic is implemented in [[raw/postgres-12/src/backend/utils/cache
 - Generic plans are stored in `CachedPlanSource->gplan` and reused when valid
 
 Simple queries are processed in [[raw/postgres-12/src/backend/tcop/postgres.c#exec_simple_query|postgres.c#exec_simple_query]], which calls [[raw/postgres-12/src/backend/utils/cache/plancache.c#GetCachedPlan|plancache.c#GetCachedPlan]] at line 1876, where `params` is typically `NULL` for non-prepared queries.
+
+## Source References
+
+- [[raw/postgres-12/src/backend/utils/cache/plancache.c#choose_custom_plan]]
+- [[raw/postgres-12/src/backend/utils/cache/plancache.c#GetCachedPlan]]
+- [[raw/postgres-12/src/backend/tcop/postgres.c#exec_simple_query]]
 
 ## Related Pages
 
