@@ -1,7 +1,7 @@
 ---
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
-verified_by_agent: Cline 2026-05-03T13:55:01Z
+verified_by_agent: Cline 2026-05-03T14:28:12Z
 ---
 
 # PostgreSQL 12 Source Code Tree Overview
@@ -10,43 +10,42 @@ This page provides a visual diagram and explanations of the main code areas in t
 
 ## Diagram
 
-```mermaid
-mindmap
-  root((PG 12))
-    config((Build config))
-    contrib((Extensions))
-    doc((Documentation))
-    src((Source))
-      backend((Core server))
-        access((Access methods))
-        bootstrap((Bootstrap / initdb))
-        catalog((System catalogs))
-        commands((SQL commands DDL/DML))
-        executor((Query executor))
-        foreign((Foreign data))
-        lib((Utility libraries))
-        main((main.c))
-        nodes((Plan nodes))
-        optimizer((Planner/optimizer))
-        parser((SQL parser))
-        partitioning((Partitioning))
-        postmaster((Postmaster & processes))
-        regex((Regex))
-        replication((Replication))
-        rewrite((Rule rewriting))
-        storage((Storage: buffer, WAL, lmgr))
-        statistics((Statistics))
-        tcop((TCOP postgres.c))
-        tsearch((Full text))
-        utils((Utils, hash, arrays))
-      bin((Client binaries: psql, pg_dump))
-      common((Common code))
-      fe_utils((Frontend utils))
-      include((Headers))
-      interfaces((libpq, ecpg))
-      pl((PL/pgSQL, plperl))
-      port((Portability))
-      test((Tests))
+```
+postgres-12/
+├── config/          # Build config
+├── contrib/         # Extensions
+├── doc/             # Documentation
+└── src/             # Source
+    ├── backend/     # Core server
+    │   ├── access/      # Access methods (heap, btree, gin, gist, hash, brin, spgist)
+    │   ├── bootstrap/   # Bootstrap / initdb
+    │   ├── catalog/     # System catalogs
+    │   ├── commands/    # SQL commands DDL/DML
+    │   ├── executor/    # Query executor
+    │   ├── foreign/     # Foreign data
+    │   ├── lib/         # Utility libraries
+    │   ├── main/        # main.c
+    │   ├── nodes/       # Plan nodes
+    │   ├── optimizer/   # Planner/optimizer
+    │   ├── parser/      # SQL parser
+    │   ├── partitioning/# Partitioning
+    │   ├── postmaster/  # Postmaster & processes
+    │   ├── regex/       # Regex
+    │   ├── replication/ # Replication
+    │   ├── rewrite/     # Rule rewriting
+    │   ├── storage/     # Storage: buffer, WAL, lmgr
+    │   ├── statistics/  # Statistics
+    │   ├── tcop/        # TCOP postgres.c
+    │   ├── tsearch/     # Full text
+    │   └── utils/       # Utils, hash, arrays
+    ├── bin/         # Client binaries: psql, pg_dump
+    ├── common/      # Common code
+    ├── fe_utils/    # Frontend utils
+    ├── include/     # Headers
+    ├── interfaces/  # libpq, ecpg
+    ├── pl/          # PL/pgSQL, plperl
+    ├── port/        # Portability
+    └── test/        # Tests
 ```
 
 ## Main Code Areas

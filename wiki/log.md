@@ -8,6 +8,12 @@ Use this prefix shape:
 ## [YYYY-MM-DD] <kind> v<NN> | <subject>
 ```
 
+## [2026-05-03] update v12 | source code tree diagram replaced with ASCII tree
+
+- Replaced Mermaid mindmap diagram in `wiki/v12/diagrams/source-code-tree-overview.md` with Unicode/ASCII tree representation per agents.md requirements.
+- Verified directory structure against `raw/postgres-12@45b88269a353ad93744772791feb6d01bc7e1e42`.
+- Updated `verified_by_agent` timestamp.
+
 ## [2026-05-03] answer v12 | can non-prepared statements use generic plans
 
 - Created `wiki/v12/questions/can-non-prepared-statements-use-generic-plans.md` answering: Yes, non-prepared SELECT statements can use generic plans in PostgreSQL 12. Generic plans are cached query execution plans independent of parameter values, used for both prepared and non-prepared statements.
