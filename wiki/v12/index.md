@@ -10,7 +10,7 @@
 
 ## Coverage
 
-Questions: [[v12/questions/can-non-prepared-statements-use-generic-plans]], [[v12/questions/query-disk-io-with-warm-cache]], [[v12/questions/plan-cache-mode-production-impact]], [[v12/questions/detect-slow-random-io-disk-metrics]], [[v12/questions/track-io-timing-blk-write-time-dirty-victim-select]].
+Questions: [[v12/questions/can-non-prepared-statements-use-generic-plans]], [[v12/questions/query-disk-io-with-warm-cache]], [[v12/questions/plan-cache-mode-production-impact]], [[v12/questions/detect-slow-random-io-disk-metrics]], [[v12/questions/track-io-timing-blk-write-time-dirty-victim-select]], [[v12/questions/dirty-victim-select-mitigation]].
 
 ## Subsystems
 
@@ -46,6 +46,8 @@ No source file map pages have been created yet.
 - [[v12/questions/detect-slow-random-io-disk-metrics]] - PG 12 detecting slow random disk I/O using database metrics (pg_stat_database blk_read_time, pg_stat_statements, IO waits).
 
 - [[v12/questions/track-io-timing-blk-write-time-dirty-victim-select]] - Does `track_io_timing=on` `blk_write_time` capture synchronous dirty victim flush time during SELECT execution.
+
+- [[v12/questions/dirty-victim-select-mitigation]] - How to mitigate "dirty victim" synchronous writes during SELECT queries in PostgreSQL 12?
 
 
 ## Open Questions

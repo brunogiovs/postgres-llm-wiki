@@ -508,3 +508,10 @@ For version-agnostic work, omit the version segment:
 - wiki_lint: 0 errors.
 
 
+## [2026-05-03] answer v12 | dirty-victim-select-mitigation
+
+- Created `wiki/v12/questions/dirty-victim-select-mitigation.md` answering: PG 12 mitigation strategies for "dirty victim" synchronous writes during SELECT queries (tune bgwriter_lru_maxpages, bgwriter_lru_multiplier, checkpoint_completion_target, shared_buffers).
+
+- Cited `raw/postgres-12/src/backend/storage/buffer/bufmgr.c:1095-1167` (BufferAlloc dirty victim handling), `bufmgr.c:2051-2336` (BgBufferSync algorithm), `freelist.c:200-358` (StrategyGetBuffer victim selection).
+
+- Updated `wiki/v12/index.md` and `wiki/index.md`.

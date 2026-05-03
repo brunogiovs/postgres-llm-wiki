@@ -63,6 +63,8 @@ This is the global catalog for the PostgreSQL engine wiki.
 - [[v12/questions/plan-cache-mode-production-impact]] - PG 12 production analysis of `plan_cache_mode` modes (`auto`, `force_generic_plan`, `force_custom_plan`) with pros/cons and a per-scenario picker.
 - [[v12/questions/track-io-timing-blk-write-time-dirty-victim-select]] - PG 12: Does `track_io_timing=on` `blk_write_time` capture synchronous dirty victim flush time during SELECT (yes).
 
+- [[v12/questions/dirty-victim-select-mitigation]] - PG 12: How to mitigate "dirty victim" synchronous writes during SELECT queries.
+
 #### Diagrams
 - [[v12/diagrams/source-code-tree-overview]] - PG 12 source code tree overview diagram.
 
