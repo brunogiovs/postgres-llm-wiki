@@ -150,12 +150,6 @@ For version-agnostic work, omit the version segment:
 - Verified `scripts/wiki_agent start`, `status`, `logs`, and `stop` with a temporary Python sleep process.
 - Ran `scripts/wiki_lint --warnings-as-errors`; result was 0 errors and 0 warnings.
 
-## [2026-04-30] decision | Hermes-managed LLM lifecycle
-
-- Recorded the lifecycle choice that `scripts/wiki_agent` starts Hermes, and Hermes starts or connects to the local LLM backend.
-- Added `templates/wiki-agent-hermes.env.example` as the durable template for `.wiki-runtime/hermes/wiki-agent.env`.
-- Updated `wiki/operations/agent.md` and `AGENTS.md` with the Hermes-managed LLM startup model.
-
 ## [2026-04-30] tooling | wiki_agent hardening
 
 - `scripts/wiki_agent` now refuses to read `.wiki-runtime/hermes/wiki-agent.env` when it is group- or world-writable, and only honors an allowlist of variables (`WIKI_AGENT_COMMAND` plus runtime/cache/model vars). Other keys are logged and ignored.
@@ -175,29 +169,12 @@ For version-agnostic work, omit the version segment:
 - Updated `.wiki-runtime/hermes/wiki-agent.env` and `templates/wiki-agent-hermes.env.example` to launch `.wiki-runtime/env/hermes-agent/bin/hermes gateway run --replace`.
 - Updated `wiki/operations/agent.md` and `wiki/index.md` with the project-local Hermes runtime layout and commands.
 
-## [2026-04-30] tooling | Hermes local LLM config
-
-- Configured `.wiki-runtime/hermes/config.yaml` to use the project-local custom provider `pgwiki-local`.
-- Set the default local model to `qwen2.5-coder:14b` through `http://127.0.0.1:11434/v1` with `chat_completions`, `context_length: 65536`, and `ollama_num_ctx: 65536`.
-- Verified Hermes runtime resolution selects provider `custom`, requested provider `pgwiki-local`, base URL `http://127.0.0.1:11434/v1`, and model `qwen2.5-coder:14b`.
-- Verified `scripts/wiki_lint --warnings-as-errors`; result was 0 errors and 0 warnings.
-- Local endpoint probe failed because no server was listening on `127.0.0.1:11434`; documented the required Ollama/OpenAI-compatible server step in `wiki/operations/agent.md`.
-
 ## [2026-04-30] tooling | project-local planned model
 
 - Downloaded the planned local coder model into `.wiki-runtime/models/qwen2.5-coder-14b-instruct-gguf/qwen2.5-coder-14b-instruct-q4_k_m.gguf`.
 - Switched `scripts/llama_server` away from the borrowed `/data/repos/image-private/` model and made the project-local Qwen2.5-Coder 14B `q4_K_M` GGUF the default.
 - Set the default llama.cpp KV cache types to `q4_0` for the 14B model so the 64K context target can fit the expected 16 GB GPU profile.
 - Restarted llama.cpp with the project-local model and verified the OpenAI-compatible `/v1/models` and `/v1/chat/completions` endpoints.
-
-## [2026-04-30] tooling | llama.cpp local LLM backend
-
-- Added `scripts/llama_server` to start, stop, inspect, and tail logs for `/data/ollamacpp/llama.cpp/build/bin/llama-server`.
-- Configured Hermes provider `pgwiki-local` to use llama.cpp at `http://127.0.0.1:8080/v1` with model alias `pgwiki-local`.
-- Set the llama.cpp default model path to `/data/repos/image-private/models/Qwen3-4B-Instruct-2507-Q8_0.gguf`, with `LLAMA_MODEL` available as an override.
-- Verified llama.cpp serves model alias `pgwiki-local` with `n_ctx_train: 262144` and 65,536-token slots.
-- Verified the OpenAI-compatible chat endpoint at `http://127.0.0.1:8080/v1/chat/completions` with a tiny request.
-- Updated `wiki/operations/agent.md` and `wiki/index.md` with the llama.cpp lifecycle workflow.
 
 ## [2026-04-30] tooling | Qwen3.5-9B local model
 
@@ -454,5 +431,8 @@ For version-agnostic work, omit the version segment:
 - Removed `verified: true` from 7 v18 question pages (wiki/v18/questions/).
 - Command: `sed -i '/^verified: true$/d' wiki/v18/questions/*.md`.
 - Pre: 7 matches; Post: 0 matches in questions.
-- No v12 changes needed.
+ - No v12 changes needed.
 
+## [2026-05-03] cleanup | removed local LLM related log entries
+
+- Removed log entries related to local LLM setup: Hermes-managed LLM lifecycle, Hermes local LLM config, llama.cpp local LLM backend.
