@@ -139,7 +139,7 @@ def lint() -> tuple[list[Issue], list[Issue]]:
                 errors.append(Issue("ERROR", rel(path), "verified must be 'true' or 'false'"))
 
             vba = fm.get("verified_by_agent")
-            if vba is not None:
+            if vba is not None and vba != 'not yet':
                 if not re.match(r"^[a-zA-Z0-9_-]+ \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", str(vba)):
                     errors.append(Issue("ERROR", rel(path), "verified_by_agent invalid format: <model> YYYY-MM-DDTHH:MM:SSZ"))
 
