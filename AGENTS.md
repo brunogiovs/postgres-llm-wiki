@@ -210,3 +210,7 @@ scripts/source_update --version 18
 ```
 
 `scripts/source_lookup` defaults to the primary version in `wiki/versions.md`. `scripts/version_diff` requires both source checkouts to exist under `raw/postgres-NN/`. `scripts/source_update` clones or updates a checkout to the commit pinned in `wiki/versions.md`; pass `--branch` and `--commit` to override.
+
+## Version Control
+
+- Never commit or push without asking for permission.
