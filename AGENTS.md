@@ -22,6 +22,12 @@ This repository is an LLM-maintained wiki for PostgreSQL engine internals. The a
 - If a claim is not backed by a source file, symbol, documentation page, commit, or saved design discussion, do not write it as fact.
 - Put uncertainty under `## Open Questions` instead of guessing.
 
+## GUC Configuration Changes
+
+- Whenever a wiki page suggests changing a GUC (postgresql.conf parameter, `SET`, `ALTER SYSTEM`, etc.), state whether the change requires a PostgreSQL restart, a reload (`pg_reload_conf()` / `SIGHUP`), or takes effect per-session.
+- Determine the requirement from the GUC's `context` in `pg_settings` or its definition in `raw/postgres-NN/src/backend/utils/misc/guc_tables.c` (or the version's equivalent). Cite the source.
+- Map `context` values explicitly: `postmaster` → restart required; `sighup` → reload; `superuser` / `user` / `backend` → session or transaction scope, no restart or reload needed beyond the usual reload to change the default.
+
 ## Verification
 
 Pages carry two distinct verification fields in front matter. They are not interchangeable.

@@ -551,3 +551,10 @@ For version-agnostic work, omit the version segment:
 - Removed unsourced "~1-2μs per buffer I/O" overhead claim from safety notes (no source-backed range; deferred to Open Questions and `pg_test_timing`).
 - Tightened Source References pgstatfuncs entry: was lines 1569-1601 (overshot into bgwriter function); now split into separate read (1568-1582) and write (1584-1598) entries; added `system_views.sql:856-882` reference for `pg_stat_database` schema.
 - Updated `verified_by_agent: claude-opus-4-7 2026-05-04T12:00:00Z`.
+
+## [2026-05-04] review v12 | production-io-overhead-measurement-protocol-track-io-timing
+
+- Tightened citation discipline per AGENTS.md §Citation Discipline: every code symbol mentioned in prose now has a `[[raw/postgres-12/...#symbol]]` link.
+- Added citations for `INSTR_TIME_SET_CURRENT` ([[raw/postgres-12/src/include/portability/instr_time.h#INSTR_TIME_SET_CURRENT|instr_time.h]]:92/156/220), `smgrread`/`smgrwrite` ([[raw/postgres-12/src/backend/storage/smgr/smgr.c|smgr.c]]:587/609), `pgBufferUsage` ([[raw/postgres-12/src/backend/executor/instrument.c|instrument.c]]:20), `pg_test_timing` ([[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c|pg_test_timing.c]]), and `pg_stat_bgwriter` ([[raw/postgres-12/src/backend/catalog/system_views.sql|system_views.sql]]:935).
+- Extended Source References list with the five new symbol entries.
+- Did not bump `verified_by_agent` — citation additions only, no claim changes.

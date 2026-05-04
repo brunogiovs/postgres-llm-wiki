@@ -20,9 +20,9 @@ Enable `track_io_timing = on` temporarily during a representative workload windo
 
 ### Background: track_io_timing in PostgreSQL 12
 
-`track_io_timing` (`boolean` GUC, default `off`, [[raw/postgres-12/src/backend/utils/misc/guc.c#track_io_timing|guc.c#track_io_timing]]:1402) enables wall-clock timing of buffer I/O operations via `smgrread`/`smgrwrite` in `FlushBuffer` and `ReadBuffer_common` ([[raw/postgres-12/src/backend/storage/buffer/bufmgr.c|bufmgr.c]]). When enabled:
+`track_io_timing` (`boolean` GUC, default `off`, [[raw/postgres-12/src/backend/utils/misc/guc.c#track_io_timing|guc.c#track_io_timing]]:1402) enables wall-clock timing of buffer I/O operations via [[raw/postgres-12/src/backend/storage/smgr/smgr.c#smgrread|smgr.c#smgrread]]/[[raw/postgres-12/src/backend/storage/smgr/smgr.c#smgrwrite|smgr.c#smgrwrite]] in `FlushBuffer` and `ReadBuffer_common` ([[raw/postgres-12/src/backend/storage/buffer/bufmgr.c|bufmgr.c]]). When enabled:
 
-- **Read timing**: `INSTR_TIME_SET_CURRENT(io_start)` before `smgrread`, compute `io_time` after, accumulate in `pgBufferUsage.blk_read_time` ([[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#ReadBuffer_common|bufmgr.c#ReadBuffer_common]]:894-905).
+- **Read timing**: [[raw/postgres-12/src/include/portability/instr_time.h#INSTR_TIME_SET_CURRENT|instr_time.h#INSTR_TIME_SET_CURRENT]] called before `smgrread`, compute `io_time` after, accumulate in [[raw/postgres-12/src/backend/executor/instrument.c#pgBufferUsage|instrument.c#pgBufferUsage]]`.blk_read_time` ([[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#ReadBuffer_common|bufmgr.c#ReadBuffer_common]]:894-905).
 - **Write timing**: Similar for `smgrwrite` in `FlushBuffer`, accumulate in `pgBufferUsage.blk_write_time` ([[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#FlushBuffer|bufmgr.c#FlushBuffer]]:2752-2770).
 - **Overhead**: Two `INSTR_TIME_SET_CURRENT` calls per I/O operation; wall-clock cost depends on platform timer resolution — see `## Open Questions`.
 - **Metrics exposure**: `pg_stat_statements` captures per-statement I/O time deltas ([[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.c#pgss_store|pg_stat_statements.c#pgss_store]]:1291-1292); `pg_stat_database` aggregates system-wide ([[raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c#pg_stat_get_db_blk_read_time|pgstatfuncs.c#pg_stat_get_db_blk_read_time]]).
@@ -31,7 +31,7 @@ Enable `track_io_timing = on` temporarily during a representative workload windo
 
 #### Step 1: Pre-Measurement Assessment
 
-- **Estimate baseline overhead**: Run `pg_test_timing` on production hardware to measure per-call timing overhead before enabling cluster-wide.
+- **Estimate baseline overhead**: Run [[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c|pg_test_timing.c]] on production hardware to measure per-call timing overhead before enabling cluster-wide.
 - **Identify measurement window**: Choose low-traffic period (e.g., off-peak hours) for 1-4 hour measurement window.
 - **Backup current settings**: Record current `pg_stat_statements` configuration and data retention settings.
 
@@ -83,7 +83,7 @@ LIMIT 20;
 ```sql
 -- Total I/O time and blocks
 -- Note: pg_stat_database has no blks_written column; avg_read_ms_per_block uses blks_read (disk reads only).
--- For write block counts, join pg_stat_bgwriter.
+-- For write block counts, join pg_stat_bgwriter (see [[raw/postgres-12/src/backend/catalog/system_views.sql|system_views.sql]]:935).
 SELECT datname,
        blk_read_time, blk_write_time,
        blks_read, blks_hit,
@@ -172,7 +172,12 @@ queryid | query | calls | blk_read_time | blk_write_time | avg_read_ms_per_call 
 - [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.c#pgss_store]] — per-statement `blk_read_time`/`blk_write_time` accumulation, lines 1291-1292.
 - [[raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c#pg_stat_get_db_blk_read_time]] — database-wide read I/O time exposure, lines 1568-1582.
 - [[raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c#pg_stat_get_db_blk_write_time]] — database-wide write I/O time exposure, lines 1584-1598.
-- [[raw/postgres-12/src/backend/catalog/system_views.sql]] — `pg_stat_database` view definition (lines 856-882) shows `blks_read`/`blks_hit` but no `blks_written` column.
+- [[raw/postgres-12/src/backend/catalog/system_views.sql]] — `pg_stat_database` view definition (lines 856-882) shows `blks_read`/`blks_hit` but no `blks_written` column; `pg_stat_bgwriter` view at line 935.
+- [[raw/postgres-12/src/include/portability/instr_time.h#INSTR_TIME_SET_CURRENT]] — `INSTR_TIME_SET_CURRENT` macro, platform-specific definitions at lines 92 (`clock_gettime`), 156 (`gettimeofday`), 220 (`QueryPerformanceCounter`).
+- [[raw/postgres-12/src/backend/storage/smgr/smgr.c#smgrread]] — storage manager read entry point, line 587.
+- [[raw/postgres-12/src/backend/storage/smgr/smgr.c#smgrwrite]] — storage manager write entry point, line 609.
+- [[raw/postgres-12/src/backend/executor/instrument.c#pgBufferUsage]] — global `BufferUsage` accumulator, line 20.
+- [[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c]] — standalone tool that measures per-call `INSTR_TIME_SET_CURRENT` overhead.
 
 ## Open Questions
 
