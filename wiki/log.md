@@ -558,3 +558,18 @@ For version-agnostic work, omit the version segment:
 - Added citations for `INSTR_TIME_SET_CURRENT` ([[raw/postgres-12/src/include/portability/instr_time.h#INSTR_TIME_SET_CURRENT|instr_time.h]]:92/156/220), `smgrread`/`smgrwrite` ([[raw/postgres-12/src/backend/storage/smgr/smgr.c|smgr.c]]:587/609), `pgBufferUsage` ([[raw/postgres-12/src/backend/executor/instrument.c|instrument.c]]:20), `pg_test_timing` ([[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c|pg_test_timing.c]]), and `pg_stat_bgwriter` ([[raw/postgres-12/src/backend/catalog/system_views.sql|system_views.sql]]:935).
 - Extended Source References list with the five new symbol entries.
 - Did not bump `verified_by_agent` — citation additions only, no claim changes.
+
+## [2026-05-04] review v12 | production-io-overhead-measurement-protocol-track-io-timing
+
+- Brought all five production SQL snippets into compliance with AGENTS.md §Production SQL Snippets: prepended `-- wiki: v12/questions/production-io-overhead-measurement-protocol-track-io-timing — <intent>` traceability comments and added `SET statement_timeout` / `SET lock_timeout` sized to each snippet (10s/2s for control-plane `ALTER SYSTEM`; 30s/5s for read-only diagnostics; 5s/2s for the polled real-time sample).
+- Stated explicitly that `SET` timeouts are session-scoped per AGENTS.md guidance.
+- Tightened the GUC context note: clarified that `PGC_SUSET` maps to "session/transaction scope" — superuser `SET` takes effect immediately with no reload, while `ALTER SYSTEM` + `pg_reload_conf()` is only required to push the new default into other live sessions.
+- Split Step 6 cleanup: kept disable (`ALTER SYSTEM SET track_io_timing = off`) as routine, separated `pg_stat_statements_reset()` and `pg_stat_reset()` into a clearly-marked optional/destructive block with a warning that they wipe cluster-wide counters other consumers may rely on.
+- Did not bump `verified_by_agent` — instructed not to mark verified.
+
+## [2026-05-04] review v12 | production-io-overhead-measurement-protocol-track-io-timing
+
+- Re-read AGENTS.md and noticed §Production SQL Snippets had been updated to require an inline `/* snake_case_tag */` after the leading verb of every production-bound statement, with explicit note that a leading `--` line comment is not sufficient on its own (pg_stat_statements normalization can strip it).
+- Added inline `/* wiki_<intent> */` tags after the leading verb of every SET / SELECT / ALTER SYSTEM / SHOW statement across all five production SQL blocks (enable, top I/O statements, db-wide summary, real-time sample, disable, and both destructive resets). Kept the existing `-- wiki: …` headers as supplementary human-readable context.
+- Tags chosen: `wiki_enable_track_io_timing` (+ `_reload`), `wiki_verify_track_io_timing`, `wiki_top_io_statements`, `wiki_db_io_summary`, `wiki_io_realtime_sample`, `wiki_disable_track_io_timing` (+ `_reload`), `wiki_pgss_reset`, `wiki_pg_stat_reset`.
+- Did not bump `verified_by_agent` — instructed not to mark verified.

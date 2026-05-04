@@ -28,6 +28,28 @@ This repository is an LLM-maintained wiki for PostgreSQL engine internals. The a
 - Determine the requirement from the GUC's `context` in `pg_settings` or its definition in `raw/postgres-NN/src/backend/utils/misc/guc_tables.c` (or the version's equivalent). Cite the source.
 - Map `context` values explicitly: `postmaster` → restart required; `sighup` → reload; `superuser` / `user` / `backend` → session or transaction scope, no restart or reload needed beyond the usual reload to change the default.
 
+## Production SQL Snippets
+
+Whenever a wiki page proposes SQL intended to be executed against a production database (diagnostic queries, maintenance commands, one-off fixes, migrations, `ALTER`/`UPDATE`/`DELETE`, etc.):
+
+- Embed an inline block-comment tag inside the statement (immediately after the leading verb) that identifies the snippet's purpose so it can be traced from `pg_stat_activity`, logs, or `auto_explain` output. Use `/* snake_case_tag */` form — a short descriptive identifier, not free prose — so query-normalization tools and log greps preserve it. Example:
+
+  ```sql
+  SELECT /* wiki_capture_plan_inputs */ ...;
+  UPDATE /* wiki_backfill_user_email */ users SET ...;
+  ```
+
+  A leading `--` line comment is not sufficient on its own, because many tools and `pg_stat_statements` normalization paths strip or truncate the leading line. The inline `/* ... */` tag must be present on every production-bound statement in the snippet.
+
+- Recommend setting a reasonable `statement_timeout` and `lock_timeout` for the session before running the snippet, sized to the operation. The defaults should protect production from runaway queries and from queueing behind long locks. Example:
+
+  ```sql
+  SET statement_timeout = '30s';
+  SET lock_timeout = '5s';
+  ```
+
+- State that timeouts are session-scoped (`SET`) unless the page explicitly justifies a different scope, and remind the reader to choose values appropriate for the workload (read-only diagnostic vs. DDL vs. bulk DML).
+
 ## Verification
 
 Pages carry two distinct verification fields in front matter. They are not interchangeable.

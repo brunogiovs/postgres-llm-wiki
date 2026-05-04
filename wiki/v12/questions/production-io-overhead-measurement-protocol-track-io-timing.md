@@ -38,18 +38,22 @@ Enable `track_io_timing = on` temporarily during a representative workload windo
 #### Step 2: Enable I/O Timing
 
 ```sql
--- Enable I/O timing (requires superuser, affects entire cluster)
-ALTER SYSTEM SET track_io_timing = on;
-SELECT pg_reload_conf();
+-- wiki: v12/questions/production-io-overhead-measurement-protocol-track-io-timing — enable I/O timing
+-- Session-scoped timeouts protect this control plane statement.
+-- Inline /* tag */ survives pg_stat_statements normalization; the -- header may be stripped.
+SET /* wiki_enable_track_io_timing */ statement_timeout = '10s';
+SET /* wiki_enable_track_io_timing */ lock_timeout = '2s';
 
--- Verify
-SHOW track_io_timing;
+ALTER SYSTEM /* wiki_enable_track_io_timing */ SET track_io_timing = on;
+SELECT /* wiki_enable_track_io_timing_reload */ pg_reload_conf();
+
+SHOW /* wiki_verify_track_io_timing */ track_io_timing;
 ```
 
 **Safety notes**:
-- `track_io_timing` is `PGC_SUSET` ([[raw/postgres-12/src/backend/utils/misc/guc.c#track_io_timing|guc.c#track_io_timing]]:1402): superusers may change it at runtime via `ALTER SYSTEM`, `postgresql.conf` reload, or `SET` in their own session; default is `off`.
+- `track_io_timing` is `PGC_SUSET` ([[raw/postgres-12/src/backend/utils/misc/guc.c#track_io_timing|guc.c#track_io_timing]]:1402). Per AGENTS.md's `context` mapping (`superuser` → session/transaction scope), a superuser `SET track_io_timing = on` takes effect immediately in the current session with no reload. `ALTER SYSTEM` writes the new default to `postgresql.auto.conf`; `pg_reload_conf()` (SIGHUP) is only needed to push that default into other live sessions. No restart is ever required.
 - Overhead per I/O depends on platform timer cost — see `## Open Questions` and run `pg_test_timing` first.
-- No restart required; `pg_reload_conf()` applies cluster-wide.
+- `SET` statements above are session-scoped; tune them for the workload (read-only diagnostic vs. control-plane DDL).
 
 #### Step 3: Run Representative Workload
 
@@ -65,8 +69,12 @@ SHOW track_io_timing;
 **Per-statement I/O timing**:
 
 ```sql
--- Top I/O-intensive statements
-SELECT queryid, query, calls,
+-- wiki: v12/questions/production-io-overhead-measurement-protocol-track-io-timing — top I/O-intensive statements
+-- Session-scoped timeouts (read-only diagnostic against pg_stat_statements).
+SET /* wiki_top_io_statements */ statement_timeout = '30s';
+SET /* wiki_top_io_statements */ lock_timeout = '5s';
+
+SELECT /* wiki_top_io_statements */ queryid, query, calls,
        blk_read_time, blk_write_time,
        total_time, mean_time,
        round(blk_read_time::numeric / nullif(calls, 0), 3) AS avg_read_ms_per_call,
@@ -81,10 +89,14 @@ LIMIT 20;
 **Database-wide I/O summary**:
 
 ```sql
--- Total I/O time and blocks
+-- wiki: v12/questions/production-io-overhead-measurement-protocol-track-io-timing — database-wide I/O summary
+-- Session-scoped timeouts (read-only diagnostic against pg_stat_database).
 -- Note: pg_stat_database has no blks_written column; avg_read_ms_per_block uses blks_read (disk reads only).
 -- For write block counts, join pg_stat_bgwriter (see [[raw/postgres-12/src/backend/catalog/system_views.sql|system_views.sql]]:935).
-SELECT datname,
+SET /* wiki_db_io_summary */ statement_timeout = '30s';
+SET /* wiki_db_io_summary */ lock_timeout = '5s';
+
+SELECT /* wiki_db_io_summary */ datname,
        blk_read_time, blk_write_time,
        blks_read, blks_hit,
        round(blk_read_time::numeric / nullif(blks_read, 0), 3) AS avg_read_ms_per_block
@@ -96,8 +108,12 @@ ORDER BY (blk_read_time + blk_write_time) DESC;
 **Real-time monitoring** (during measurement):
 
 ```sql
--- I/O timing per second (run in loop)
-SELECT now(), 
+-- wiki: v12/questions/production-io-overhead-measurement-protocol-track-io-timing — real-time I/O timing sample (run in loop)
+-- Session-scoped timeouts; keep statement_timeout tight so a stuck sample cannot wedge the polling loop.
+SET /* wiki_io_realtime_sample */ statement_timeout = '5s';
+SET /* wiki_io_realtime_sample */ lock_timeout = '2s';
+
+SELECT /* wiki_io_realtime_sample */ now(),
        sum(blk_read_time) AS total_read_ms,
        sum(blk_write_time) AS total_write_ms,
        sum(calls) AS total_calls
@@ -126,17 +142,33 @@ WHERE blk_read_time > 0 OR blk_write_time > 0;
 #### Step 6: Cleanup and Disable
 
 ```sql
--- Disable I/O timing
-ALTER SYSTEM SET track_io_timing = off;
-SELECT pg_reload_conf();
+-- wiki: v12/questions/production-io-overhead-measurement-protocol-track-io-timing — disable I/O timing
+-- Session-scoped timeouts protect this control plane statement.
+SET /* wiki_disable_track_io_timing */ statement_timeout = '10s';
+SET /* wiki_disable_track_io_timing */ lock_timeout = '2s';
 
--- Reset statistics if needed
-SELECT pg_stat_statements_reset();
-SELECT pg_stat_reset();
+ALTER SYSTEM /* wiki_disable_track_io_timing */ SET track_io_timing = off;
+SELECT /* wiki_disable_track_io_timing_reload */ pg_reload_conf();
+```
+
+**Optional, destructive — only if you intentionally want to wipe stats**:
+
+The two `_reset()` functions below clear cluster-wide counters that other operators, dashboards, and slow-query reports may be relying on. They are not part of routine cleanup; archive metrics first and confirm no consumer depends on the current counters before running.
+
+```sql
+-- wiki: v12/questions/production-io-overhead-measurement-protocol-track-io-timing — DESTRUCTIVE reset of pg_stat_statements counters
+SET /* wiki_pgss_reset */ statement_timeout = '10s';
+SET /* wiki_pgss_reset */ lock_timeout = '2s';
+SELECT /* wiki_pgss_reset */ pg_stat_statements_reset();
+
+-- wiki: v12/questions/production-io-overhead-measurement-protocol-track-io-timing — DESTRUCTIVE reset of all per-database stats
+SET /* wiki_pg_stat_reset */ statement_timeout = '10s';
+SET /* wiki_pg_stat_reset */ lock_timeout = '2s';
+SELECT /* wiki_pg_stat_reset */ pg_stat_reset();
 ```
 
 **Post-measurement analysis**:
-- Archive collected metrics for trend analysis.
+- Archive collected metrics for trend analysis before any reset.
 - Correlate with OS metrics (`iostat`, `iotop`) for validation.
 - Use findings to optimize (e.g., increase `shared_buffers`, tune `bgwriter_*` settings).
 
