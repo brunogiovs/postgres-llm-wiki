@@ -542,3 +542,12 @@ For version-agnostic work, omit the version segment:
 - Converted all Source References from plain-text/line-number to Obsidian `[[raw/postgres-12/...#symbol]]` format per AGENTS.md mandate.
 - Moved unsourced per-call overhead numbers (~1-2μs, ~700-1500ns) out of factual claims; moved to Open Questions with note about pg_test_timing.
 - Set `verified_by_agent: claude-sonnet-4-6 2026-05-04T00:00:00Z`.
+
+## [2026-05-04] review v12 | production-io-overhead-measurement-protocol-track-io-timing
+
+- Re-verified all source citations against `raw/postgres-12@45b88269`: `track_io_timing` GUC at `guc.c:1402` (PGC_SUSET, default off) ✓; read timing block in `ReadBuffer_common` at `bufmgr.c:894-905` (function starts 704) ✓; write timing block in `FlushBuffer` at `bufmgr.c:2752-2770` (function starts 2672) ✓; `pgss_store` blk_read_time/blk_write_time at `pg_stat_statements.c:1291-1292` ✓; `pg_stat_get_db_blk_read_time` at `pgstatfuncs.c:1568-1582`, `pg_stat_get_db_blk_write_time` at `pgstatfuncs.c:1584-1598` ✓; `pg_stat_database` view at `system_views.sql:856-882` confirms no `blks_written` column ✓.
+- Converted inline plain-text guc.c reference (line 23) to Obsidian `[[raw/postgres-12/...#track_io_timing]]` format per AGENTS.md citation discipline.
+- Fixed misleading PGC_SUSET safety note: "session-level default" was wrong; PGC_SUSET means runtime-settable by superuser at any context (postgresql.conf, ALTER SYSTEM, SET), default is `off`.
+- Removed unsourced "~1-2μs per buffer I/O" overhead claim from safety notes (no source-backed range; deferred to Open Questions and `pg_test_timing`).
+- Tightened Source References pgstatfuncs entry: was lines 1569-1601 (overshot into bgwriter function); now split into separate read (1568-1582) and write (1584-1598) entries; added `system_views.sql:856-882` reference for `pg_stat_database` schema.
+- Updated `verified_by_agent: claude-opus-4-7 2026-05-04T12:00:00Z`.

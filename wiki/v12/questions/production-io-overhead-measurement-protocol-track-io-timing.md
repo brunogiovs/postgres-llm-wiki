@@ -3,7 +3,7 @@ type: question
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
 verified: false
-verified_by_agent: claude-sonnet-4-6 2026-05-04T00:00:00Z
+verified_by_agent: claude-opus-4-7 2026-05-04T12:00:00Z
 ---
 
 # Protocol to Measure I/O Overhead on Production Database Using track_io_timing in PostgreSQL 12
@@ -20,7 +20,7 @@ Enable `track_io_timing = on` temporarily during a representative workload windo
 
 ### Background: track_io_timing in PostgreSQL 12
 
-`track_io_timing` (`boolean` GUC, default `off`, `src/backend/utils/misc/guc.c:1402`) enables wall-clock timing of buffer I/O operations via `smgrread`/`smgrwrite` in `FlushBuffer` and `ReadBuffer_common` (`src/backend/storage/buffer/bufmgr.c`). When enabled:
+`track_io_timing` (`boolean` GUC, default `off`, [[raw/postgres-12/src/backend/utils/misc/guc.c#track_io_timing|guc.c#track_io_timing]]:1402) enables wall-clock timing of buffer I/O operations via `smgrread`/`smgrwrite` in `FlushBuffer` and `ReadBuffer_common` ([[raw/postgres-12/src/backend/storage/buffer/bufmgr.c|bufmgr.c]]). When enabled:
 
 - **Read timing**: `INSTR_TIME_SET_CURRENT(io_start)` before `smgrread`, compute `io_time` after, accumulate in `pgBufferUsage.blk_read_time` ([[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#ReadBuffer_common|bufmgr.c#ReadBuffer_common]]:894-905).
 - **Write timing**: Similar for `smgrwrite` in `FlushBuffer`, accumulate in `pgBufferUsage.blk_write_time` ([[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#FlushBuffer|bufmgr.c#FlushBuffer]]:2752-2770).
@@ -47,8 +47,8 @@ SHOW track_io_timing;
 ```
 
 **Safety notes**:
-- `track_io_timing` is `PGC_SUSET` (superuser-settable, session-level default).
-- Overhead: ~1-2μs per buffer I/O; acceptable for short-term measurement.
+- `track_io_timing` is `PGC_SUSET` ([[raw/postgres-12/src/backend/utils/misc/guc.c#track_io_timing|guc.c#track_io_timing]]:1402): superusers may change it at runtime via `ALTER SYSTEM`, `postgresql.conf` reload, or `SET` in their own session; default is `off`.
+- Overhead per I/O depends on platform timer cost — see `## Open Questions` and run `pg_test_timing` first.
 - No restart required; `pg_reload_conf()` applies cluster-wide.
 
 #### Step 3: Run Representative Workload
@@ -170,7 +170,9 @@ queryid | query | calls | blk_read_time | blk_write_time | avg_read_ms_per_call 
 - [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#ReadBuffer_common]] — read I/O timing block, lines 894-905.
 - [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#FlushBuffer]] — write I/O timing block, lines 2752-2770.
 - [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.c#pgss_store]] — per-statement `blk_read_time`/`blk_write_time` accumulation, lines 1291-1292.
-- [[raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c#pg_stat_get_db_blk_read_time]] — database-wide I/O time exposure, lines 1569-1601.
+- [[raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c#pg_stat_get_db_blk_read_time]] — database-wide read I/O time exposure, lines 1568-1582.
+- [[raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c#pg_stat_get_db_blk_write_time]] — database-wide write I/O time exposure, lines 1584-1598.
+- [[raw/postgres-12/src/backend/catalog/system_views.sql]] — `pg_stat_database` view definition (lines 856-882) shows `blks_read`/`blks_hit` but no `blks_written` column.
 
 ## Open Questions
 
