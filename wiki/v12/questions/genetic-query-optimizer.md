@@ -195,12 +195,13 @@ The GEQO implementation uses several recombination operators:
 
 Fitness evaluation involves constructing actual query plans and measuring their costs, making GEQO more expensive per evaluation than heuristic approaches but more thorough.
 
-### Citations
+## Source References
 
-- GEQO main algorithm: [[raw/postgres-12/src/backend/optimizer/geqo/geqo_main.c#geqo]]
-- Fitness evaluation: [[raw/postgres-12/src/backend/optimizer/geqo/geqo_eval.c#geqo_eval]]
-- GUC parameters: [[raw/postgres-12/src/include/optimizer/geqo.h]]
-- GEQO activation logic: [[raw/postgres-12/src/backend/optimizer/path/allpaths.c#make_rel_from_joinlist]]
+- [[raw/postgres-12/src/backend/optimizer/geqo/geqo_main.c#geqo]] - GEQO main algorithm implementation
+- [[raw/postgres-12/src/backend/optimizer/geqo/geqo_eval.c#geqo_eval]] - Fitness evaluation function
+- [[raw/postgres-12/src/include/optimizer/geqo.h]] - GEQO header with parameter definitions
+- [[raw/postgres-12/src/backend/optimizer/path/allpaths.c#make_rel_from_joinlist]] - GEQO activation logic
+- [[raw/postgres-12/src/backend/utils/misc/guc.c]] - GUC parameter definitions for geqo_threshold, enable_geqo
 
 ## Open Questions
 
