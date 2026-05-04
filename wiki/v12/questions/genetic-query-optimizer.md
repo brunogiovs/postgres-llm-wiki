@@ -8,7 +8,7 @@ verified_by_agent: not yet
 
 ## Question
 
-In PostgreSQL 12, how does the genetic query optimizer work? What are its pros and cons, and how can I tell if it is causing overhead in query execution?
+In PostgreSQL 12, how does the genetic query optimizer work? What are its pros and cons, and how can I tell if it is causing overhead in query execution? Please include examples of SQL queries that would trigger GEQO.
 
 ## Answer
 
@@ -51,6 +51,67 @@ enable_geqo = true AND number_of_relations >= geqo_threshold
 ```
 
 For queries with fewer than `geqo_threshold` relations (default 12), PostgreSQL uses the standard dynamic programming algorithm.
+
+### SQL Examples That Trigger GEQO
+
+Queries with 12 or more tables in the FROM clause will trigger GEQO by default. Here are examples:
+
+**Simple 12-table join (triggers GEQO):**
+```sql
+SELECT /* wiki_geqo_12_table_example */ *
+FROM t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12
+WHERE t1.id = t2.id AND t2.id = t3.id AND t3.id = t4.id
+  AND t4.id = t5.id AND t5.id = t6.id AND t6.id = t7.id
+  AND t7.id = t8.id AND t8.id = t9.id AND t9.id = t10.id
+  AND t10.id = t11.id AND t11.id = t12.id;
+```
+
+**Complex query with subqueries and CTEs (counted as separate relations):**
+```sql
+WITH cte1 AS (SELECT * FROM table1),
+     cte2 AS (SELECT * FROM table2)
+SELECT /* wiki_geqo_complex_cte_example */ *
+FROM cte1 c1
+JOIN cte2 c2 ON c1.id = c2.id
+JOIN table3 t3 ON c2.id = t3.id
+JOIN table4 t4 ON t3.id = t4.id
+JOIN table5 t5 ON t4.id = t5.id
+JOIN table6 t6 ON t5.id = t6.id
+JOIN table7 t7 ON t6.id = t7.id
+JOIN table8 t8 ON t7.id = t8.id
+JOIN table9 t9 ON t8.id = t9.id
+JOIN table10 t10 ON t9.id = t10.id
+JOIN table11 t11 ON t10.id = t11.id
+JOIN table12 t12 ON t11.id = t12.id;
+```
+
+**Inheritance partitioning with many child tables:**
+```sql
+SELECT /* wiki_geqo_inheritance_example */ *
+FROM parent_table p
+JOIN child1 c1 ON p.id = c1.id
+JOIN child2 c2 ON p.id = c2.id
+JOIN child3 c3 ON p.id = c3.id
+JOIN child4 c4 ON p.id = c4.id
+JOIN child5 c5 ON p.id = c5.id
+JOIN child6 c6 ON p.id = c6.id
+JOIN child7 c7 ON p.id = c7.id
+JOIN child8 c8 ON p.id = c8.id
+JOIN child9 c9 ON p.id = c9.id
+JOIN child10 c10 ON p.id = c10.id
+JOIN child11 c11 ON p.id = c11.id
+JOIN child12 c12 ON p.id = c12.id;
+```
+
+**Query that stays below threshold (uses standard optimizer):**
+```sql
+SELECT /* wiki_standard_optimizer_example */ *
+FROM t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11
+WHERE t1.id = t2.id AND t2.id = t3.id AND t3.id = t4.id
+  AND t4.id = t5.id AND t5.id = t6.id AND t6.id = t7.id
+  AND t7.id = t8.id AND t8.id = t9.id AND t9.id = t10.id
+  AND t10.id = t11.id;
+```
 
 ### Pros
 
