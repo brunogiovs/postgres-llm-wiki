@@ -3,6 +3,7 @@ type: question
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
 verified: false
+verified_by_agent: not yet
 ---
 
 # Does blk_write_time capture "dirty victim" time during SELECT in PostgreSQL 12?

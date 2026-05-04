@@ -3,7 +3,7 @@ type: question
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
 verified: false
-verified_by_agent: claude-opus-4-7 2026-05-04T12:00:00Z
+verified_by_agent: not yet
 ---
 
 # Protocol to Measure I/O Overhead on Production Database Using track_io_timing in PostgreSQL 12
