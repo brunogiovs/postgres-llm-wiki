@@ -62,6 +62,7 @@ This is the global catalog for the PostgreSQL engine wiki.
 - [[v12/questions/can-non-prepared-statements-use-generic-plans]] - Do non-prepared SELECT statements use generic plans in PostgreSQL 12?
 
 - [[v12/questions/data-checksums-implementation]] - PG 12 data checksums implementation, overhead, storage, and pg_checksums --enable operation.
+- [[v12/questions/genetic-query-optimizer]] - How does the genetic query optimizer work in PostgreSQL 12, pros/cons, and detecting overhead.
 - [[v12/questions/key-metrics-usage-operational-status]] - Key metrics for categorizing database usage and operational status in PostgreSQL 12.
 - [[v12/questions/pg-test-timing-track-io-timing-overhead]] - What does pg_test_timing do, and what is the overhead of track_io_timing on modern hardware and virtual systems like AWS/Azure?
 - [[v12/questions/plan-cache-mode-production-impact]] - PG 12 production analysis of `plan_cache_mode` modes (`auto`, `force_generic_plan`, `force_custom_plan`) with pros/cons and a per-scenario picker.

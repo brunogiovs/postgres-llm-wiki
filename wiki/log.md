@@ -8,6 +8,14 @@ Use this prefix shape:
 ## [YYYY-MM-DD] <kind> v<NN> | <subject>
 ```
 
+## [2026-05-04] answer v12 | genetic-query-optimizer
+
+- Created `wiki/v12/questions/genetic-query-optimizer.md` answering how the genetic query optimizer works in PostgreSQL 12, its pros/cons, and how to detect if it's causing overhead.
+- GEQO uses genetic algorithms to optimize join order for complex queries (>=12 relations by default).
+- Covers algorithm mechanics, GUC parameters, activation conditions, performance trade-offs, detection methods, and mitigation strategies.
+- Cited `raw/postgres-12/src/backend/optimizer/geqo/geqo_main.c#geqo`, `raw/postgres-12/src/backend/optimizer/geqo/geqo_eval.c#geqo_eval`, `raw/postgres-12/src/include/optimizer/geqo.h`, `raw/postgres-12/src/backend/optimizer/path/allpaths.c#make_rel_from_joinlist`.
+- Updated `wiki/v12/index.md` and `wiki/index.md`.
+
 ## [2026-05-03] answer v12 | pg-test-timing-track-io-timing-overhead
 
 - Created `wiki/v12/questions/pg-test-timing-track-io-timing-overhead.md` answering what `pg_test_timing` does and `track_io_timing` overhead on modern hardware/virtual systems (AWS/Azure).
