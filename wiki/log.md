@@ -24,6 +24,15 @@ Use this prefix shape:
 - Cited `raw/postgres-12/src/backend/utils/misc/guc.c:1402`, `raw/postgres-12/src/backend/storage/buffer/bufmgr.c:894-905,2752-2770`.
 - Updated `wiki/v12/index.md` and `wiki/index.md`.
 
+## [2026-05-04] answer v12 | partition-planner-settings
+
+- Created `wiki/v12/questions/partition-planner-settings.md` answering PostgreSQL 12 query planner settings for partition tables, summarized by inheritance and declarative partitioning.
+- Inheritance partitioning: Uses `constraint_exclusion` (default `partition`) for pruning based on CHECK constraints.
+- Declarative partitioning: Uses `enable_partition_pruning` (default `on`), `enable_partitionwise_join` (default `off`), `enable_partitionwise_aggregate` (default `off`).
+- All settings are session-scoped, no restart required.
+- Cited `raw/postgres-12/src/backend/utils/misc/guc.c` for all GUC definitions.
+- Updated `wiki/v12/index.md` and `wiki/index.md`.
+
 ## [2026-05-03] answer v12 | data-checksums-implementation
 
 - Created `wiki/v12/questions/data-checksums-implementation.md` answering: PG 12 data checksums implementation, overhead, storage location, additional storage usage, pg_checksums --enable operation, and expected fraction of database data modified (~0.024%).
@@ -573,3 +582,4 @@ For version-agnostic work, omit the version segment:
 - Added inline `/* wiki_<intent> */` tags after the leading verb of every SET / SELECT / ALTER SYSTEM / SHOW statement across all five production SQL blocks (enable, top I/O statements, db-wide summary, real-time sample, disable, and both destructive resets). Kept the existing `-- wiki: …` headers as supplementary human-readable context.
 - Tags chosen: `wiki_enable_track_io_timing` (+ `_reload`), `wiki_verify_track_io_timing`, `wiki_top_io_statements`, `wiki_db_io_summary`, `wiki_io_realtime_sample`, `wiki_disable_track_io_timing` (+ `_reload`), `wiki_pgss_reset`, `wiki_pg_stat_reset`.
 - Did not bump `verified_by_agent` — instructed not to mark verified.
+## [2026-05-04] answer v12 | cte-join-inheritance-partitioned-table-300-partitions-settings-overhead

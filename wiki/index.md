@@ -71,6 +71,10 @@ This is the global catalog for the PostgreSQL engine wiki.
 
 - [[v12/questions/production-io-overhead-measurement-protocol-track-io-timing]] - Protocol to measure I/O overhead on production database using track_io_timing in PostgreSQL 12.
 
+- [[v12/questions/cte-join-inheritance-partitioned-table-300-partitions-settings-overhead]] - Settings and configurations that help or add overhead to a SELECT query using CTE to join to an inheritance-partitioned table with 300 partitions in PostgreSQL 12.
+
+- [[v12/questions/partition-planner-settings]] - PostgreSQL 12 query planner settings for partition tables, summarized by inheritance and declarative partitioning.
+
 #### Diagrams
 - [[v12/diagrams/source-code-tree-overview]] - PG 12 source code tree overview diagram.
 
