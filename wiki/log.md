@@ -534,3 +534,11 @@ For version-agnostic work, omit the version segment:
 - Cited `raw/postgres-12/src/backend/storage/buffer/bufmgr.c:1095-1167` (BufferAlloc dirty victim handling), `bufmgr.c:2051-2336` (BgBufferSync algorithm), `freelist.c:200-358` (StrategyGetBuffer victim selection).
 
 - Updated `wiki/v12/index.md` and `wiki/index.md`.
+
+## [2026-05-04] review v12 | production-io-overhead-measurement-protocol-track-io-timing
+
+- Verified all source citations against `raw/postgres-12@45b88269`: GUC at `guc.c:1402` (PGC_SUSET ✓), read timing `bufmgr.c:894-905` (ReadBuffer_common ✓), write timing `bufmgr.c:2752-2770` (FlushBuffer ✓), `pg_stat_statements` blk_read/write_time at `pg_stat_statements.c:1291-1292` ✓, `pgstatfuncs.c:1569` ✓.
+- Fixed broken SQL: `pg_stat_database` query had `blks_read + blks_hit - blks_read` (= blks_hit) as write denominator — removed `avg_write_ms_per_block` (no blks_written in pg_stat_database), added comment directing to pg_stat_bgwriter.
+- Converted all Source References from plain-text/line-number to Obsidian `[[raw/postgres-12/...#symbol]]` format per AGENTS.md mandate.
+- Moved unsourced per-call overhead numbers (~1-2μs, ~700-1500ns) out of factual claims; moved to Open Questions with note about pg_test_timing.
+- Set `verified_by_agent: claude-sonnet-4-6 2026-05-04T00:00:00Z`.

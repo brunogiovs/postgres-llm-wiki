@@ -3,7 +3,7 @@ type: question
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
 verified: false
-verified_by_agent: not yet
+verified_by_agent: claude-sonnet-4-6 2026-05-04T00:00:00Z
 ---
 
 # Protocol to Measure I/O Overhead on Production Database Using track_io_timing in PostgreSQL 12
@@ -22,16 +22,16 @@ Enable `track_io_timing = on` temporarily during a representative workload windo
 
 `track_io_timing` (`boolean` GUC, default `off`, `src/backend/utils/misc/guc.c:1402`) enables wall-clock timing of buffer I/O operations via `smgrread`/`smgrwrite` in `FlushBuffer` and `ReadBuffer_common` (`src/backend/storage/buffer/bufmgr.c`). When enabled:
 
-- **Read timing**: `INSTR_TIME_SET_CURRENT(io_start)` before `smgrread`, compute `io_time` after, accumulate in `pgBufferUsage.blk_read_time` (`bufmgr.c:894-905`).
-- **Write timing**: Similar for `smgrwrite` in `FlushBuffer`, accumulate in `pgBufferUsage.blk_write_time` (`bufmgr.c:2752-2770`).
-- **Overhead**: ~1-2μs per I/O operation (2 timing calls), negligible for most workloads but measurable at high I/O rates.
-- **Metrics exposure**: `pg_stat_statements` captures per-statement I/O time deltas; `pg_stat_database` aggregates system-wide.
+- **Read timing**: `INSTR_TIME_SET_CURRENT(io_start)` before `smgrread`, compute `io_time` after, accumulate in `pgBufferUsage.blk_read_time` ([[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#ReadBuffer_common|bufmgr.c#ReadBuffer_common]]:894-905).
+- **Write timing**: Similar for `smgrwrite` in `FlushBuffer`, accumulate in `pgBufferUsage.blk_write_time` ([[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#FlushBuffer|bufmgr.c#FlushBuffer]]:2752-2770).
+- **Overhead**: Two `INSTR_TIME_SET_CURRENT` calls per I/O operation; wall-clock cost depends on platform timer resolution — see `## Open Questions`.
+- **Metrics exposure**: `pg_stat_statements` captures per-statement I/O time deltas ([[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.c#pgss_store|pg_stat_statements.c#pgss_store]]:1291-1292); `pg_stat_database` aggregates system-wide ([[raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c#pg_stat_get_db_blk_read_time|pgstatfuncs.c#pg_stat_get_db_blk_read_time]]).
 
 ### Measurement Protocol
 
 #### Step 1: Pre-Measurement Assessment
 
-- **Estimate baseline overhead**: Run `pg_test_timing` on production hardware to measure timing call overhead (~700-1500ns bare metal, higher in VMs).
+- **Estimate baseline overhead**: Run `pg_test_timing` on production hardware to measure per-call timing overhead before enabling cluster-wide.
 - **Identify measurement window**: Choose low-traffic period (e.g., off-peak hours) for 1-4 hour measurement window.
 - **Backup current settings**: Record current `pg_stat_statements` configuration and data retention settings.
 
@@ -82,11 +82,12 @@ LIMIT 20;
 
 ```sql
 -- Total I/O time and blocks
+-- Note: pg_stat_database has no blks_written column; avg_read_ms_per_block uses blks_read (disk reads only).
+-- For write block counts, join pg_stat_bgwriter.
 SELECT datname,
        blk_read_time, blk_write_time,
        blks_read, blks_hit,
-       round(blk_read_time::numeric / nullif(blks_read, 0), 3) AS avg_read_ms_per_block,
-       round(blk_write_time::numeric / nullif(blks_read + blks_hit - blks_read, 0), 3) AS avg_write_ms_per_block
+       round(blk_read_time::numeric / nullif(blks_read, 0), 3) AS avg_read_ms_per_block
 FROM pg_stat_database
 WHERE datname NOT IN ('template0', 'template1')
 ORDER BY (blk_read_time + blk_write_time) DESC;
@@ -119,7 +120,7 @@ WHERE blk_read_time > 0 OR blk_write_time > 0;
 - Compare `avg_read_ms_per_block` across databases/tables to identify hot spots.
 
 **Quantify timing overhead**:
-- Expected overhead: `(total_buffer_ios) * (1.5μs)` where `total_buffer_ios = blks_read + blks_written`.
+- Use `pg_test_timing` output to estimate per-call cost; multiply by `(blks_read + blks_written)` for total overhead.
 - Compare query `total_time` with/without timing (approximate by running subset before/after).
 
 #### Step 6: Cleanup and Disable
@@ -165,14 +166,15 @@ queryid | query | calls | blk_read_time | blk_write_time | avg_read_ms_per_call 
 
 ## Source References
 
-- `raw/postgres-12/src/backend/utils/misc/guc.c:1402` (track_io_timing GUC).
-- `raw/postgres-12/src/backend/storage/buffer/bufmgr.c:894-905` (read timing).
-- `raw/postgres-12/src/backend/storage/buffer/bufmgr.c:2752-2770` (write timing).
-- `raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.c` (statement-level metrics).
-- `raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c` (database metrics).
+- [[raw/postgres-12/src/backend/utils/misc/guc.c#track_io_timing]] — GUC definition, `PGC_SUSET`, line 1402.
+- [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#ReadBuffer_common]] — read I/O timing block, lines 894-905.
+- [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#FlushBuffer]] — write I/O timing block, lines 2752-2770.
+- [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.c#pgss_store]] — per-statement `blk_read_time`/`blk_write_time` accumulation, lines 1291-1292.
+- [[raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c#pg_stat_get_db_blk_read_time]] — database-wide I/O time exposure, lines 1569-1601.
 
 ## Open Questions
 
 - Optimal measurement window duration for different workload types?
 - Impact of track_io_timing on WAL I/O timing?
 - Correlation with OS-level I/O metrics for validation?
+- Exact per-call overhead of `INSTR_TIME_SET_CURRENT` on bare metal vs. VM (depends on `clock_gettime` syscall cost; `pg_test_timing` measures this but no authoritative range is documented in source).
