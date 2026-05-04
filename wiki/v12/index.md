@@ -10,7 +10,7 @@
 
 ## Coverage
 
-Questions: [[v12/questions/can-non-prepared-statements-use-generic-plans]], [[v12/questions/data-checksums-implementation]], [[v12/questions/key-metrics-usage-operational-status]], [[v12/questions/pg-test-timing-track-io-timing-overhead]], [[v12/questions/query-disk-io-with-warm-cache]], [[v12/questions/plan-cache-mode-production-impact]], [[v12/questions/detect-slow-random-io-disk-metrics]], [[v12/questions/track-io-timing-blk-write-time-dirty-victim-select]], [[v12/questions/dirty-victim-select-mitigation]], [[v12/questions/bgwriter-tuning-scenarios]].
+Questions: [[v12/questions/can-non-prepared-statements-use-generic-plans]], [[v12/questions/data-checksums-implementation]], [[v12/questions/key-metrics-usage-operational-status]], [[v12/questions/pg-test-timing-track-io-timing-overhead]], [[v12/questions/query-disk-io-with-warm-cache]], [[v12/questions/plan-cache-mode-production-impact]], [[v12/questions/detect-slow-random-io-disk-metrics]], [[v12/questions/track-io-timing-blk-write-time-dirty-victim-select]], [[v12/questions/dirty-victim-select-mitigation]], [[v12/questions/bgwriter-tuning-scenarios]], [[v12/questions/production-io-overhead-measurement-protocol-track-io-timing]].
 
 ## Subsystems
 
@@ -56,6 +56,8 @@ No source file map pages have been created yet.
 - [[v12/questions/dirty-victim-select-mitigation]] - How to mitigate "dirty victim" synchronous writes during SELECT queries in PostgreSQL 12?
 
 - [[v12/questions/bgwriter-tuning-scenarios]] - Recommended bgwriter settings for various tuning scenarios in PostgreSQL 12.
+
+- [[v12/questions/production-io-overhead-measurement-protocol-track-io-timing]] - Protocol to measure I/O overhead on production database using track_io_timing in PostgreSQL 12.
 
 
 ## Open Questions

@@ -69,6 +69,8 @@ This is the global catalog for the PostgreSQL engine wiki.
 - [[v12/questions/dirty-victim-select-mitigation]] - PG 12: How to mitigate "dirty victim" synchronous writes during SELECT queries.
 - [[v12/questions/bgwriter-tuning-scenarios]] - Recommended bgwriter settings for various tuning scenarios in PostgreSQL 12.
 
+- [[v12/questions/production-io-overhead-measurement-protocol-track-io-timing]] - Protocol to measure I/O overhead on production database using track_io_timing in PostgreSQL 12.
+
 #### Diagrams
 - [[v12/diagrams/source-code-tree-overview]] - PG 12 source code tree overview diagram.
 

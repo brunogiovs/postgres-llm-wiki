@@ -1,0 +1,178 @@
+---
+type: question
+version: 12
+pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
+verified: false
+verified_by_agent: not yet
+---
+
+# Protocol to Measure I/O Overhead on Production Database Using track_io_timing in PostgreSQL 12
+
+## Question
+
+In PostgreSQL 12, propose a protocol to measure I/O overhead on a production database using `track_io_timing`.
+
+## Short Answer
+
+Enable `track_io_timing = on` temporarily during a representative workload window, collect I/O timing metrics from `pg_stat_statements` and `pg_stat_database`, then analyze per-operation I/O latency and total overhead. Disable after measurement to avoid production impact. Protocol includes baseline measurement, controlled enablement, data collection, and post-analysis cleanup.
+
+## Detailed Answer
+
+### Background: track_io_timing in PostgreSQL 12
+
+`track_io_timing` (`boolean` GUC, default `off`, `src/backend/utils/misc/guc.c:1402`) enables wall-clock timing of buffer I/O operations via `smgrread`/`smgrwrite` in `FlushBuffer` and `ReadBuffer_common` (`src/backend/storage/buffer/bufmgr.c`). When enabled:
+
+- **Read timing**: `INSTR_TIME_SET_CURRENT(io_start)` before `smgrread`, compute `io_time` after, accumulate in `pgBufferUsage.blk_read_time` (`bufmgr.c:894-905`).
+- **Write timing**: Similar for `smgrwrite` in `FlushBuffer`, accumulate in `pgBufferUsage.blk_write_time` (`bufmgr.c:2752-2770`).
+- **Overhead**: ~1-2μs per I/O operation (2 timing calls), negligible for most workloads but measurable at high I/O rates.
+- **Metrics exposure**: `pg_stat_statements` captures per-statement I/O time deltas; `pg_stat_database` aggregates system-wide.
+
+### Measurement Protocol
+
+#### Step 1: Pre-Measurement Assessment
+
+- **Estimate baseline overhead**: Run `pg_test_timing` on production hardware to measure timing call overhead (~700-1500ns bare metal, higher in VMs).
+- **Identify measurement window**: Choose low-traffic period (e.g., off-peak hours) for 1-4 hour measurement window.
+- **Backup current settings**: Record current `pg_stat_statements` configuration and data retention settings.
+
+#### Step 2: Enable I/O Timing
+
+```sql
+-- Enable I/O timing (requires superuser, affects entire cluster)
+ALTER SYSTEM SET track_io_timing = on;
+SELECT pg_reload_conf();
+
+-- Verify
+SHOW track_io_timing;
+```
+
+**Safety notes**:
+- `track_io_timing` is `PGC_SUSET` (superuser-settable, session-level default).
+- Overhead: ~1-2μs per buffer I/O; acceptable for short-term measurement.
+- No restart required; `pg_reload_conf()` applies cluster-wide.
+
+#### Step 3: Run Representative Workload
+
+- Execute production-like queries during measurement window.
+- Include mix of:
+  - Read-heavy queries (SELECT with large scans).
+  - Write-heavy operations (INSERT/UPDATE/DELETE).
+  - Mixed OLTP/OLAP patterns.
+- Monitor system load to ensure representative but not overloaded.
+
+#### Step 4: Collect I/O Metrics
+
+**Per-statement I/O timing**:
+
+```sql
+-- Top I/O-intensive statements
+SELECT queryid, query, calls,
+       blk_read_time, blk_write_time,
+       total_time, mean_time,
+       round(blk_read_time::numeric / nullif(calls, 0), 3) AS avg_read_ms_per_call,
+       round(blk_write_time::numeric / nullif(calls, 0), 3) AS avg_write_ms_per_call,
+       round((blk_read_time + blk_write_time)::numeric / nullif(total_time, 0) * 100, 2) AS io_percent_of_total
+FROM pg_stat_statements
+WHERE blk_read_time > 0 OR blk_write_time > 0
+ORDER BY (blk_read_time + blk_write_time) DESC
+LIMIT 20;
+```
+
+**Database-wide I/O summary**:
+
+```sql
+-- Total I/O time and blocks
+SELECT datname,
+       blk_read_time, blk_write_time,
+       blks_read, blks_hit,
+       round(blk_read_time::numeric / nullif(blks_read, 0), 3) AS avg_read_ms_per_block,
+       round(blk_write_time::numeric / nullif(blks_read + blks_hit - blks_read, 0), 3) AS avg_write_ms_per_block
+FROM pg_stat_database
+WHERE datname NOT IN ('template0', 'template1')
+ORDER BY (blk_read_time + blk_write_time) DESC;
+```
+
+**Real-time monitoring** (during measurement):
+
+```sql
+-- I/O timing per second (run in loop)
+SELECT now(), 
+       sum(blk_read_time) AS total_read_ms,
+       sum(blk_write_time) AS total_write_ms,
+       sum(calls) AS total_calls
+FROM pg_stat_statements
+WHERE blk_read_time > 0 OR blk_write_time > 0;
+```
+
+#### Step 5: Analyze Results
+
+**Calculate I/O overhead metrics**:
+
+- **Per-operation latency**: `avg_read_ms_per_block` / `avg_write_ms_per_block` from queries above.
+- **I/O time as % of query time**: `io_percent_of_total` from statement analysis.
+- **Cache efficiency**: `(blks_hit / (blks_read + blks_hit)) * 100` from `pg_stat_database`.
+- **Dirty victim pressure**: High `blk_write_time` on SELECT statements indicates synchronous buffer flushing.
+
+**Identify bottlenecks**:
+- Queries with high `io_percent_of_total` (>50%) are I/O-bound.
+- High `avg_read_ms_per_block` (>10ms) indicates slow random I/O.
+- Compare `avg_read_ms_per_block` across databases/tables to identify hot spots.
+
+**Quantify timing overhead**:
+- Expected overhead: `(total_buffer_ios) * (1.5μs)` where `total_buffer_ios = blks_read + blks_written`.
+- Compare query `total_time` with/without timing (approximate by running subset before/after).
+
+#### Step 6: Cleanup and Disable
+
+```sql
+-- Disable I/O timing
+ALTER SYSTEM SET track_io_timing = off;
+SELECT pg_reload_conf();
+
+-- Reset statistics if needed
+SELECT pg_stat_statements_reset();
+SELECT pg_stat_reset();
+```
+
+**Post-measurement analysis**:
+- Archive collected metrics for trend analysis.
+- Correlate with OS metrics (`iostat`, `iotop`) for validation.
+- Use findings to optimize (e.g., increase `shared_buffers`, tune `bgwriter_*` settings).
+
+### Safety Considerations
+
+- **Production impact**: Enable only during controlled windows; overhead scales with I/O rate.
+- **Monitoring**: Watch for increased CPU usage during measurement.
+- **Data retention**: `pg_stat_statements` retains data until reset; plan for storage impact.
+- **Alternatives**: For continuous monitoring, consider sampling (enable/disable periodically) rather than always-on.
+
+### Example Output Analysis
+
+```
+queryid | query | calls | blk_read_time | blk_write_time | avg_read_ms_per_call | avg_write_ms_per_call | io_percent_of_total
+--------+-------+-------+---------------+----------------+----------------------+----------------------+-------------------
+ 12345  | SELECT * FROM large_table | 100 | 5000 | 200 | 50.0 | 2.0 | 75.2
+```
+
+**Interpretation**: This SELECT spends 75% of execution time on I/O (50ms read + 2ms write per call), indicating I/O bottleneck.
+
+## Cross-Links
+
+- [[v12/questions/pg-test-timing-track-io-timing-overhead]] - track_io_timing overhead measurement.
+- [[v12/questions/detect-slow-random-io-disk-metrics]] - I/O metrics and slow disk detection.
+- [[v12/questions/track-io-timing-blk-write-time-dirty-victim-select]] - blk_write_time behavior.
+- [[v12/index]]
+
+## Source References
+
+- `raw/postgres-12/src/backend/utils/misc/guc.c:1402` (track_io_timing GUC).
+- `raw/postgres-12/src/backend/storage/buffer/bufmgr.c:894-905` (read timing).
+- `raw/postgres-12/src/backend/storage/buffer/bufmgr.c:2752-2770` (write timing).
+- `raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.c` (statement-level metrics).
+- `raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c` (database metrics).
+
+## Open Questions
+
+- Optimal measurement window duration for different workload types?
+- Impact of track_io_timing on WAL I/O timing?
+- Correlation with OS-level I/O metrics for validation?

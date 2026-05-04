@@ -16,6 +16,14 @@ Use this prefix shape:
 - Cited `raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c`, `raw/postgres-12/src/backend/utils/misc/guc.c:1402`, `raw/postgres-12/src/backend/storage/buffer/bufmgr.c:2752-2769`.
 - Updated `wiki/v12/index.md` and `wiki/index.md`.
 
+## [2026-05-04] answer v12 | production-io-overhead-measurement-protocol-track-io-timing
+
+- Created `wiki/v12/questions/production-io-overhead-measurement-protocol-track-io-timing.md` proposing a protocol to measure I/O overhead on production database using `track_io_timing`.
+- Protocol: Enable `track_io_timing=on` temporarily, collect metrics from `pg_stat_statements` and `pg_stat_database`, analyze per-operation I/O latency and total overhead.
+- Includes safety considerations, SQL queries for data collection, and post-analysis cleanup.
+- Cited `raw/postgres-12/src/backend/utils/misc/guc.c:1402`, `raw/postgres-12/src/backend/storage/buffer/bufmgr.c:894-905,2752-2770`.
+- Updated `wiki/v12/index.md` and `wiki/index.md`.
+
 ## [2026-05-03] answer v12 | data-checksums-implementation
 
 - Created `wiki/v12/questions/data-checksums-implementation.md` answering: PG 12 data checksums implementation, overhead, storage location, additional storage usage, pg_checksums --enable operation, and expected fraction of database data modified (~0.024%).
