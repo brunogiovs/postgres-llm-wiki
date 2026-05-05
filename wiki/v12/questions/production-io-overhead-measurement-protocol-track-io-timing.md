@@ -3,7 +3,7 @@ type: question
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
 verified: false
-verified_by_agent: claude-opus-4-7 2026-05-05T00:00:00Z
+verified_by_agent: claude-opus-4-7 2026-05-05T01:00:00Z
 ---
 
 # Protocol to Measure I/O Overhead on Production Database Using track_io_timing in PostgreSQL 12
@@ -34,6 +34,47 @@ Enable `track_io_timing = on` temporarily during a representative workload windo
 - **Estimate baseline overhead**: Run [[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c|pg_test_timing.c]] on production hardware to measure per-call timing overhead before enabling cluster-wide.
 - **Identify measurement window**: Choose low-traffic period (e.g., off-peak hours) for 1-4 hour measurement window.
 - **Backup current settings**: Record current `pg_stat_statements` configuration and data retention settings.
+
+##### Analyzing `pg_test_timing` Output
+
+`pg_test_timing` runs `INSTR_TIME_SET_CURRENT` in a tight loop for the requested duration (`-d`, default 3 s) and prints two artefacts ([[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c#test_timing|pg_test_timing.c#test_timing]]:110-168, [[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c#output|pg_test_timing.c#output]]:170-203):
+
+1. **Per-loop time including overhead** (nanoseconds). Total elapsed wall-clock time divided by the number of loop iterations ([[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c#test_timing|pg_test_timing.c#test_timing]]:164-165). Each iteration makes **one** `INSTR_TIME_SET_CURRENT` call at [[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c#test_timing|pg_test_timing.c#test_timing]]:133 plus a few ns of arithmetic and a histogram increment ([[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c#test_timing|pg_test_timing.c#test_timing]]:127-158), so the per-loop number is essentially the per-call timer cost. Treat it as a tight upper bound on a single `INSTR_TIME_SET_CURRENT`.
+2. **Histogram of timing durations**, bucketed by power-of-2 microseconds ([[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c|pg_test_timing.c]]:21,153). The `< us` column is the bucket upper bound — bucket `1` holds diffs of 0 µs (`< 1 us`), bucket `2` holds 1 µs, bucket `4` holds 2-3 µs, bucket `8` holds 4-7 µs, etc. Each sample is the µs gap between two consecutive timer reads. On a fast clocksource the loop body finishes well inside one µs tick so most diffs are 0 (the `1` bucket); on a slow clocksource the loop itself spans a µs tick, pushing samples into the `2` bucket and beyond.
+
+Example output from the upstream documentation on a TSC-backed Intel i7-860 ([[raw/postgres-12/doc/src/sgml/ref/pgtesttiming.sgml|pgtesttiming.sgml]]:97-107):
+
+```
+Per loop time including overhead: 35.96 ns
+Histogram of timing durations:
+  < us   % of total      count
+     1     96.40465   80435604
+     2      3.59518    2999652
+     4      0.00015        126
+     8      0.00002         13
+    16      0.00000          2
+```
+
+**Reading a healthy result**:
+- Per-loop time well under 100 ns and >90 % of samples in the `< 1 us` bucket means a fast clocksource (TSC). `track_io_timing` overhead per buffer I/O is then dominated by the two `INSTR_TIME_SET_CURRENT` calls bracketing `smgrread` / `smgrwrite` — i.e. roughly `2 × per-loop-ns`, typically below 100 ns per buffer and swamped by even SSD-class disk latency.
+- A near-empty long tail (negligible counts in `≥ 4 us` buckets) signals a stable clocksource with no scheduling jitter spikes during the run.
+
+**Red flags that argue against enabling `track_io_timing` cluster-wide**:
+- Per-loop time of several hundred ns or more, with the `2 us` bucket (or larger) dominating, indicates a slow clocksource — the upstream doc shows `acpi_pm` at 722.92 ns/loop with 72 % in the `2 us` bucket ([[raw/postgres-12/doc/src/sgml/ref/pgtesttiming.sgml|pgtesttiming.sgml]]:155-168). At ~2 × 723 ns ≈ 1.45 µs per buffer I/O, the timing overhead can materially inflate `blk_read_time` / `blk_write_time` whenever the underlying I/O is fast (the same doc notes this configuration would inflate `EXPLAIN ANALYZE` totals "significantly", [[raw/postgres-12/doc/src/sgml/ref/pgtesttiming.sgml|pgtesttiming.sgml]]:171-179).
+- Non-trivial counts in the `≥ 8 us` buckets indicate scheduling preemption or virtualisation artefacts (common on noisy VMs); per-call overhead becomes high-variance, so the measured `blk_read_time` will be noisier than the mean alone suggests.
+- The tool aborts with `Detected clock going backwards in time` if any consecutive pair of reads is non-monotonic ([[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c#test_timing|pg_test_timing.c#test_timing]]:137-143). A backwards-going clock invalidates `track_io_timing` deltas — fix the clocksource (typically by avoiding TSC across cores with skew, or pinning the VM to a stable hypervisor timer) before running this protocol.
+
+**Estimating measurement-window overhead from the output**:
+
+Each timed buffer I/O makes two `INSTR_TIME_SET_CURRENT` calls — one before `smgrread` / `smgrwrite` and one after ([[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#ReadBuffer_common|bufmgr.c#ReadBuffer_common]]:894-905, [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#FlushBuffer|bufmgr.c#FlushBuffer]]:2752-2770). Using the per-loop time as an upper bound for one call:
+
+```
+total_overhead_ns ≈ 2 × per_loop_ns × (blks_read + blks_written)
+```
+
+Project the I/O block count from a recent `pg_stat_database` / `pg_stat_bgwriter` sample (or extrapolate from a pre-enable baseline). If the projected total overhead exceeds a few percent of the workload's CPU budget over the measurement window, prefer sampling (enable on a single session for representative queries) over cluster-wide enablement.
+
+The upstream doc cross-checks the per-loop number against `EXPLAIN ANALYZE`: a 100k-row `SELECT COUNT(*)` ran in 9.8 ms versus 16.6 ms with `EXPLAIN ANALYZE`, giving 68 ns of timing overhead per row — about 2× the 35.96 ns per-loop number, which lines up with `EXPLAIN ANALYZE` issuing two `INSTR_TIME_SET_CURRENT` calls per row against pg_test_timing's one ([[raw/postgres-12/doc/src/sgml/ref/pgtesttiming.sgml|pgtesttiming.sgml]]:119-143). `track_io_timing` has the same two-call structure per buffer I/O ([[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#ReadBuffer_common|bufmgr.c#ReadBuffer_common]]:894-905), so the `2 × per_loop_ns` factor in the formula above is empirically grounded.
 
 #### Step 2: Enable I/O Timing
 
@@ -209,7 +250,10 @@ queryid | query | calls | blk_read_time | blk_write_time | avg_read_ms_per_call 
 - [[raw/postgres-12/src/backend/storage/smgr/smgr.c#smgrread]] — storage manager read entry point, line 587.
 - [[raw/postgres-12/src/backend/storage/smgr/smgr.c#smgrwrite]] — storage manager write entry point, line 609.
 - [[raw/postgres-12/src/backend/executor/instrument.c#pgBufferUsage]] — global `BufferUsage` accumulator, line 20.
-- [[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c]] — standalone tool that measures per-call `INSTR_TIME_SET_CURRENT` overhead.
+- [[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c]] — standalone tool that measures per-call `INSTR_TIME_SET_CURRENT` overhead. Histogram array declared at line 21, increment at line 153.
+- [[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c#test_timing]] — measurement loop, lines 110-168. Per-loop printf at lines 164-165; monotonicity check at lines 137-143.
+- [[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c#output]] — histogram printer, lines 170-203. Bucket label is the upper bound (`1l << i`).
+- [[raw/postgres-12/doc/src/sgml/ref/pgtesttiming.sgml]] — upstream `pg_test_timing` reference page. TSC sample output at lines 97-107; `acpi_pm` slow-clocksource sample at lines 155-168; `acpi_pm` `EXPLAIN ANALYZE` impact note at lines 171-179; TSC `EXPLAIN ANALYZE` cross-check at lines 119-143.
 
 ## Open Questions
 
