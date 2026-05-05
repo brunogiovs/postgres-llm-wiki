@@ -590,4 +590,20 @@ For version-agnostic work, omit the version segment:
 - Added inline `/* wiki_<intent> */` tags after the leading verb of every SET / SELECT / ALTER SYSTEM / SHOW statement across all five production SQL blocks (enable, top I/O statements, db-wide summary, real-time sample, disable, and both destructive resets). Kept the existing `-- wiki: …` headers as supplementary human-readable context.
 - Tags chosen: `wiki_enable_track_io_timing` (+ `_reload`), `wiki_verify_track_io_timing`, `wiki_top_io_statements`, `wiki_db_io_summary`, `wiki_io_realtime_sample`, `wiki_disable_track_io_timing` (+ `_reload`), `wiki_pgss_reset`, `wiki_pg_stat_reset`.
 - Did not bump `verified_by_agent` — instructed not to mark verified.
+
+## [2026-05-05] review v12 | production-io-overhead-measurement-protocol-track-io-timing
+
+- Re-verified every behavioural claim against `raw/postgres-12@45b88269`: `track_io_timing` GUC at `guc.c:1402` (`PGC_SUSET`, default `false`) ✓; `ReadBuffer_common` read-timing block at `bufmgr.c:894-905` (function declared at line 703) ✓; `FlushBuffer` write-timing block at `bufmgr.c:2752-2770` (function declared at line 2671) ✓; `pgss_store` blk_read_time / blk_write_time accumulation at `pg_stat_statements.c:1291-1292` ✓; `pg_stat_get_db_blk_read_time` at `pgstatfuncs.c:1568-1582` and `pg_stat_get_db_blk_write_time` at `pgstatfuncs.c:1584-1598` ✓; `pg_stat_database` view at `system_views.sql:856-887` (no `blks_written` column) ✓; `pg_stat_bgwriter` view at `system_views.sql:935-947` ✓; `INSTR_TIME_SET_CURRENT` definitions at `instr_time.h:92` (`clock_gettime`), `:156` (`gettimeofday`), `:220` (`QueryPerformanceCounter`) ✓; `smgrread` at `smgr.c:587`, `smgrwrite` at `smgr.c:609` ✓; `pgBufferUsage` global at `instrument.c:20` ✓.
+- Confirmed SQL snippet column names against pg_stat_statements 1.4/1.7 SQL definitions (`queryid`, `query`, `calls`, `total_time`, `mean_time`, `blk_read_time`, `blk_write_time` all present in PG 12).
+- Re-checked AGENTS.md compliance: front-matter order ✓, every production statement carries an inline `/* snake_case_tag */` after the leading verb ✓, every snippet sets session-scoped `statement_timeout` / `lock_timeout` ✓, GUC context mapping note for `PGC_SUSET` is correct ✓, all source references in Obsidian `[[raw/postgres-12/...#symbol]]` form ✓.
+- Set `verified_by_agent: claude-opus-4-7 2026-05-05T00:00:00Z`.
+
+## [2026-05-05] fix v12 | production-io-overhead-measurement-protocol-track-io-timing
+
+- Caught broken SQL on a follow-up SQL audit of the same page: the `io_percent_of_total` expression in the Top I/O statements query, `round((blk_read_time + blk_write_time)::numeric / nullif(total_time, 0) * 100, 2)`, would fail at runtime with `function round(double precision, integer) does not exist`.
+- Root cause traced to PG 12 type rules: `pg_stat_statements.total_time` is `float8` (`pg_stat_statements--1.4.sql:18`), and `numeric → float8` is an implicit cast (`pg_cast.dat:79-80`) but `float8 → numeric` is assignment-only (`pg_cast.dat:69-70`). So `numeric / float8` resolves to `float8 / float8 → float8`, then `round(float8, 2)` has no candidate (`pg_proc.dat:4131-4135` only defines `round(numeric, int4)` and `round(float8)`).
+- Fix: cast `total_time` to numeric inside `nullif`: `nullif(total_time::numeric, 0)`. Now numeric/numeric stays numeric end-to-end and `round(numeric, 2)` matches.
+- Re-confirmed every other SQL block: enable/disable control plane, `pg_stat_database` summary (`blks_read` is bigint → numeric implicit cast OK), real-time sample, and destructive resets are all syntactically and semantically valid in PG 12.
+- Kept `verified_by_agent: claude-opus-4-7 2026-05-05T00:00:00Z` (corrected by this same agent on the same day).
+
 ## [2026-05-04] answer v12 | cte-join-inheritance-partitioned-table-300-partitions-settings-overhead

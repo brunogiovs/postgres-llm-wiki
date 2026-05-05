@@ -32,6 +32,8 @@ This repository is an LLM-maintained wiki for PostgreSQL engine internals. The a
 
 Whenever a wiki page proposes SQL intended to be executed against a production database (diagnostic queries, maintenance commands, one-off fixes, migrations, `ALTER`/`UPDATE`/`DELETE`, etc.):
 
+- Every SQL statement in a report must be verified and correct before the page is filed. Check syntax against the version's grammar and check that referenced catalogs, columns, functions, and GUCs exist in the pinned `raw/postgres-NN/` checkout for the page's version. Do not include SQL that has not been validated; if a snippet cannot be verified, move it under `## Open Questions` rather than presenting it as runnable.
+
 - Embed an inline block-comment tag inside the statement (immediately after the leading verb) that identifies the snippet's purpose so it can be traced from `pg_stat_activity`, logs, or `auto_explain` output. Use `/* snake_case_tag */` form — a short descriptive identifier, not free prose — so query-normalization tools and log greps preserve it. Example:
 
   ```sql

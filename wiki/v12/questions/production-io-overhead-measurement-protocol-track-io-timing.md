@@ -3,7 +3,7 @@ type: question
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
 verified: false
-verified_by_agent: not yet
+verified_by_agent: claude-opus-4-7 2026-05-05T00:00:00Z
 ---
 
 # Protocol to Measure I/O Overhead on Production Database Using track_io_timing in PostgreSQL 12
@@ -79,7 +79,7 @@ SELECT /* wiki_top_io_statements */ queryid, query, calls,
        total_time, mean_time,
        round(blk_read_time::numeric / nullif(calls, 0), 3) AS avg_read_ms_per_call,
        round(blk_write_time::numeric / nullif(calls, 0), 3) AS avg_write_ms_per_call,
-       round((blk_read_time + blk_write_time)::numeric / nullif(total_time, 0) * 100, 2) AS io_percent_of_total
+       round((blk_read_time + blk_write_time)::numeric / nullif(total_time::numeric, 0) * 100, 2) AS io_percent_of_total
 FROM pg_stat_statements
 WHERE blk_read_time > 0 OR blk_write_time > 0
 ORDER BY (blk_read_time + blk_write_time) DESC
