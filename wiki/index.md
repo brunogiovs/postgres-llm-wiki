@@ -21,8 +21,8 @@ This is the global catalog for the PostgreSQL engine wiki.
 
 - [[v12/index]] - Legacy version landing page. Source checkout pinned to `REL_12_STABLE` commit `45b88269a353ad93744772791feb6d01bc7e1e42`; project-context pack generated under `.wiki-runtime/context/postgres-12/`.
 
-#### Diagrams
-- [[v12/diagrams/source-code-tree-overview]] - PG 12 source code tree overview diagram.
+#### Questions
+- [[v12/questions/measure-io-overhead-with-track-io-timing]] - Procedure for measuring shared-buffer-manager I/O overhead in production with `track_io_timing`.
 
 ## Maintenance Tooling
 
