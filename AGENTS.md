@@ -226,17 +226,31 @@ Use the project-local scripts first:
 scripts/recent_log --limit 20
 scripts/wiki_lint
 scripts/source_lookup --symbol ExecutorRun
-scripts/source_lookup --path src/backend/executor/execMain.c
+scripts/source_lookup --symbol 'Executor(Run|Start)' --regex --limit 20
+scripts/source_lookup --path src/backend/executor/execMain.c --start 1 --limit 80
+scripts/source_lookup --log src/backend/executor/execMain.c --limit 20
 scripts/source_deps --version 18 --includes src/backend/executor/execMain.c
-scripts/source_deps --version 18 --included-by executor/executor.h
-scripts/source_deps --version 18 --compile-unit src/backend/executor/execMain.c
+scripts/source_deps --version 18 --includes src/backend/executor/execMain.c --format json --limit 0
+scripts/source_deps --version 18 --included-by executor/executor.h --limit 50
+scripts/source_deps --version 18 --compile-unit src/backend/executor/execMain.c --full-command
+scripts/source_deps --version 18 --transitive-includes src/backend/executor/execMain.c --depth 2 --limit 100
 scripts/test_source_tools
+scripts/source_context --version 18 --dry-run
+scripts/source_context --version 18 --refresh --skip-callgraphs
+scripts/source_context --all --skip-callgraphs
 scripts/version_diff --from 18 --to 17 --path src/backend/executor/execMain.c
 scripts/source_update --list
 scripts/source_update --version 18
+scripts/source_update --version 18 --branch REL_18_STABLE --commit <sha>
 ```
 
-`scripts/source_lookup` and `scripts/source_deps` default to the primary version in `wiki/versions.md`. `scripts/source_deps` reads `.wiki-runtime/context/postgres-NN/include-deps.txt` and `compile_commands.json`; regenerate the context pack with `scripts/source_context` if those artifacts are missing or stale. `scripts/test_source_tools` builds a synthetic temporary wiki/source/context environment and runs end-to-end checks for `source_lookup` and `source_deps`. `scripts/version_diff` requires both source checkouts to exist under `raw/postgres-NN/`. `scripts/source_update` clones or updates a checkout to the commit pinned in `wiki/versions.md`; pass `--branch` and `--commit` to override.
+`scripts/source_lookup` defaults to the primary version in `wiki/versions.md`. Use `--symbol` for fixed-string search, add `--regex` for regular expressions, use `--path` with `--start` / `--limit` to print a source slice, and use `--log` to show git history for a path in the checkout.
+
+`scripts/source_deps` also defaults to the primary version. It reads `.wiki-runtime/context/postgres-NN/include-deps.txt` and, when present, `compile_commands.json`. Use `--includes` for direct include edges, `--included-by` for reverse include users, `--compile-unit` for compiler flags/defines/include directories, and `--transitive-includes` with `--depth` for bounded include traversal. Add `--format json` for machine-readable output, `--limit 0` for unlimited rows, and `--full-command` to print the compiler command in text output for `--compile-unit`. JSON compile-unit output always includes the full compile database entries. If a textual context pack has no compiler database, `--compile-unit` reports that gap; regenerate with `scripts/source_context` when compile flags are needed.
+
+`scripts/source_context` generates `.wiki-runtime/context/postgres-NN/` packs. Use `--version NN` for one version, `--all` for every supported version, `--refresh` to clear existing generated context/build output first, `--skip-callgraphs` to avoid cflow/doxygen callgraph work, and `--dry-run` to show target paths without writing. When no compiler database can be produced, it can still generate include dependencies by textual scanning of tracked `.c` / `.h` files; those packs support include queries but not compile-unit queries.
+
+`scripts/test_source_tools` builds a synthetic temporary wiki/source/context environment and runs end-to-end checks for `source_lookup`, `source_deps`, and the `source_context` producer/consumer contract. `scripts/version_diff` requires both source checkouts to exist under `raw/postgres-NN/`. `scripts/source_update` clones or updates a checkout to the commit pinned in `wiki/versions.md`; use `--list` for checkout status and pass `--branch` / `--commit` to override the manifest values.
 
 ## Version Control
 

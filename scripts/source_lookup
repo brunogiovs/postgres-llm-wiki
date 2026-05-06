@@ -48,8 +48,9 @@ def search_symbol(root: Path, symbol: str, limit: int, regex: bool) -> int:
         lines = proc.stdout.splitlines()
     elif (root / ".git").exists() and shutil.which("git"):
         cmd = ["git", "-C", str(root), "grep", "-n"]
-        if not regex:
-            cmd.append("-F")
+        # `git grep` defaults to POSIX BRE; use ERE under --regex so that the
+        # alternation/repetition syntax matches what ripgrep accepts as a baseline.
+        cmd.append("-E" if regex else "-F")
         cmd.extend(["--", symbol])
         proc = subprocess.run(cmd, text=True, capture_output=True)
         if proc.returncode > 1:
@@ -58,7 +59,14 @@ def search_symbol(root: Path, symbol: str, limit: int, regex: bool) -> int:
         lines = proc.stdout.splitlines()
     else:
         lines = []
-        pattern = re.compile(symbol) if regex else None
+        if regex:
+            try:
+                pattern = re.compile(symbol)
+            except re.error as exc:
+                print(f"error: invalid regex {symbol!r}: {exc}", file=sys.stderr)
+                return 2
+        else:
+            pattern = None
         for path in root.rglob("*"):
             if ".git" in path.parts or not path.is_file():
                 continue

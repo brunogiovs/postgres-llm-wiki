@@ -19,6 +19,46 @@ SECRET_VALUE_RE = re.compile(
     r"(sk-[A-Za-z0-9_-]{8,}|ghp_[A-Za-z0-9_]{8,}|github_pat_[A-Za-z0-9_]{8,}|hf_[A-Za-z0-9_]{8,})"
 )
 
+INCLUDE_DIRECTIVE_RE = re.compile(r"^\s*#\s*include\s+[<\"]([^>\"]+)[>\"]")
+COMPILER_INCLUDE_DIR_FLAGS = frozenset({"-I", "-iquote", "-isystem", "-idirafter"})
+
+
+def render_repo_path(path: Path | str) -> str:
+    raw = path if isinstance(path, Path) else Path(path)
+    try:
+        return raw.resolve().relative_to(REPO_ROOT).as_posix()
+    except (OSError, ValueError):
+        return str(path)
+
+
+def parse_compiler_include_dirs(args: Iterable[str]) -> list[str]:
+    args_list = list(args)
+    include_dirs: list[str] = []
+    index = 0
+    while index < len(args_list):
+        arg = args_list[index]
+        if arg in COMPILER_INCLUDE_DIR_FLAGS and index + 1 < len(args_list):
+            include_dirs.append(args_list[index + 1])
+            index += 2
+            continue
+        if arg.startswith("-I") and len(arg) > 2:
+            include_dirs.append(arg[2:])
+        index += 1
+    return include_dirs
+
+
+def read_include_directives(path: Path) -> list[str]:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    includes: list[str] = []
+    for line in text.splitlines():
+        match = INCLUDE_DIRECTIVE_RE.match(line)
+        if match:
+            includes.append(match.group(1))
+    return includes
+
 
 def ensure_private_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)

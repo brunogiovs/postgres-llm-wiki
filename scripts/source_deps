@@ -25,11 +25,22 @@ from typing import Iterable
 
 sys.dont_write_bytecode = True
 
-from wiki_tooling import REPO_ROOT, RUNTIME_ROOT, append_tool_log, die, load_versions, primary_version, source_checkout
+from wiki_tooling import (
+    REPO_ROOT,
+    RUNTIME_ROOT,
+    append_tool_log,
+    die,
+    load_versions,
+    parse_compiler_include_dirs,
+    primary_version,
+    read_include_directives,
+    render_repo_path,
+    source_checkout,
+)
 
 
-INCLUDE_RE = re.compile(r"^\s*#\s*include\s+[<\"]([^>\"]+)[>\"]")
 INCLUDE_DIR_RE = re.compile(r"^-\s+`(.+)`\s*$")
+render_path = render_repo_path
 
 
 @dataclass(frozen=True)
@@ -46,14 +57,7 @@ class Context:
     include_dirs: list[Path]
     edges_by_source: dict[str, list[str]]
     compile_entries_by_file: dict[str, list[dict[str, object]]]
-
-
-def render_path(path: Path | str) -> str:
-    raw = Path(path) if not isinstance(path, Path) else path
-    try:
-        return raw.resolve().relative_to(REPO_ROOT).as_posix()
-    except (OSError, ValueError):
-        return str(path)
+    compile_db_available: bool
 
 
 def path_from_context(text: str) -> Path:
@@ -73,34 +77,6 @@ def unique_paths(paths: Iterable[Path]) -> list[Path]:
         seen.add(key)
         result.append(path.resolve())
     return result
-
-
-def parse_include_dirs(args: list[str]) -> list[str]:
-    include_dirs: list[str] = []
-    index = 0
-    joined_flags = {"-I", "-iquote", "-isystem", "-idirafter"}
-    while index < len(args):
-        arg = args[index]
-        if arg in joined_flags and index + 1 < len(args):
-            include_dirs.append(args[index + 1])
-            index += 2
-            continue
-        if arg.startswith("-I") and len(arg) > 2:
-            include_dirs.append(arg[2:])
-        index += 1
-    return include_dirs
-
-
-def textual_include_edges(path: Path) -> list[str]:
-    includes: list[str] = []
-    try:
-        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            match = INCLUDE_RE.match(line)
-            if match:
-                includes.append(match.group(1))
-    except OSError:
-        return []
-    return includes
 
 
 def entry_directory(entry: dict[str, object]) -> Path:
@@ -136,7 +112,7 @@ def entry_args(entry: dict[str, object]) -> list[str]:
 def entry_include_dirs(entry: dict[str, object]) -> list[Path]:
     directory = entry_directory(entry)
     paths: list[Path] = []
-    for include_dir in parse_include_dirs(entry_args(entry)):
+    for include_dir in parse_compiler_include_dirs(entry_args(entry)):
         path = Path(include_dir)
         if path.is_absolute():
             paths.append(path.resolve())
@@ -196,15 +172,19 @@ def load_include_context(version: str, context_dir: Path) -> tuple[list[Path], d
             source_label = render_path(source_path)
             edges_by_source.setdefault(source_label, []).append(include)
 
-    if not edges_by_source:
-        die(f"unsupported or empty include-deps format in {render_path(path)}")
     return unique_paths(include_dirs), edges_by_source
 
 
-def load_compile_entries(version: str, context_dir: Path) -> dict[str, list[dict[str, object]]]:
+def load_compile_entries(version: str, context_dir: Path) -> tuple[dict[str, list[dict[str, object]]], bool]:
+    """Return (entries by file, compile_db_available).
+
+    A pack generated via the textual fallback has no compile_commands.json;
+    treat that as "queries that don't need the compile DB still work" rather
+    than refusing to load.  --compile-unit raises a targeted error itself.
+    """
     path = context_dir / "compile_commands.json"
     if not path.is_file():
-        die(f"missing compiler database: {render_path(path)}; run scripts/source_context --version {version}")
+        return {}, False
     try:
         entries = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -220,7 +200,7 @@ def load_compile_entries(version: str, context_dir: Path) -> dict[str, list[dict
         if file_path is None:
             continue
         by_file.setdefault(render_path(file_path), []).append(entry)
-    return by_file
+    return by_file, True
 
 
 def load_context(version: str) -> Context:
@@ -230,7 +210,7 @@ def load_context(version: str) -> Context:
     if not manifest.is_file():
         die(f"missing context manifest: {render_path(manifest)}; run scripts/source_context --version {version}")
     include_dirs, edges_by_source = load_include_context(version, context_dir)
-    compile_entries = load_compile_entries(version, context_dir)
+    compile_entries, compile_db_available = load_compile_entries(version, context_dir)
     return Context(
         version=version,
         source=source,
@@ -238,6 +218,7 @@ def load_context(version: str) -> Context:
         include_dirs=include_dirs,
         edges_by_source=edges_by_source,
         compile_entries_by_file=compile_entries,
+        compile_db_available=compile_db_available,
     )
 
 
@@ -291,7 +272,7 @@ def direct_includes(ctx: Context, source_label: str) -> tuple[list[str], str]:
 
     path = (REPO_ROOT / source_label).resolve()
     if path.is_file() and allowed_project_file(ctx, path):
-        return textual_include_edges(path), "source scan"
+        return read_include_directives(path), "source scan"
     return [], "not found"
 
 
@@ -405,19 +386,28 @@ def edge_matches_target(
     return resolved == render_path(target_path)
 
 
-def print_included_by(ctx: Context, query: str, limit: int) -> int:
+def included_by_matches(ctx: Context, query: str) -> tuple[list[IncludeEdge], Path | None]:
     target_path = maybe_resolve_input_file(ctx, query)
     target_texts = include_text_candidates(ctx, query, target_path)
-
     matches: list[IncludeEdge] = []
     for source, includes in ctx.edges_by_source.items():
         for include in includes:
             edge = IncludeEdge(source=source, include=include)
             if edge_matches_target(ctx, edge, target_texts, target_path, query):
                 matches.append(edge)
+    return matches, target_path
 
+
+def included_by_ranking(matches: list[IncludeEdge]) -> tuple[Counter[str], list[str]]:
     counts = Counter(edge.source for edge in matches)
-    sources = sorted(counts)
+    # Most include directives first; alphabetical as a stable tiebreaker.
+    sources = sorted(counts, key=lambda source: (-counts[source], source))
+    return counts, sources
+
+
+def print_included_by(ctx: Context, query: str, limit: int) -> int:
+    matches, target_path = included_by_matches(ctx, query)
+    counts, sources = included_by_ranking(matches)
     if limit > 0:
         shown = sources[:limit]
         truncated = len(sources) - len(shown)
@@ -538,9 +528,18 @@ def main(argv: list[str] | None = None) -> int:
     action.add_argument("--compile-unit", metavar="PATH", help="show compile_commands.json context for a source file")
     action.add_argument("--transitive-includes", metavar="PATH", help="show bounded transitive include edges")
     parser.add_argument("--depth", type=int, default=2, help="maximum depth for --transitive-includes")
-    parser.add_argument("--limit", type=int, default=100, help="maximum rows to print; 0 means unlimited")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=100,
+        help="maximum rows to print or include in JSON output; 0 means unlimited",
+    )
     parser.add_argument("--format", choices=("text", "json"), default="text", help="output format")
-    parser.add_argument("--full-command", action="store_true", help="include the full compiler command for --compile-unit")
+    parser.add_argument(
+        "--full-command",
+        action="store_true",
+        help="include the full compiler command for --compile-unit text output (JSON output always includes it)",
+    )
     args = parser.parse_args(argv)
 
     append_tool_log("source_deps", sys.argv[1:])
@@ -554,38 +553,48 @@ def main(argv: list[str] | None = None) -> int:
         includes, origin = direct_includes(ctx, source_label)
         rows = edge_rows(ctx, source_label, includes, search_dirs_for_file(ctx, source_label))
         if args.format == "json":
-            return json_output({"version": ctx.version, "source": source_label, "edge_source": origin, "includes": rows})
+            truncated = args.limit > 0 and len(rows) > args.limit
+            shown = rows[: args.limit] if truncated else rows
+            return json_output(
+                {
+                    "version": ctx.version,
+                    "source": source_label,
+                    "edge_source": origin,
+                    "truncated": truncated,
+                    "includes": shown,
+                }
+            )
         return print_direct(ctx, source_label, rows, origin, args.limit)
 
     if args.included_by:
         if args.format == "json":
-            target_path = maybe_resolve_input_file(ctx, args.included_by)
-            target_texts = include_text_candidates(ctx, args.included_by, target_path)
-            matches = [
-                edge
-                for source, includes in ctx.edges_by_source.items()
-                for edge in (IncludeEdge(source=source, include=include) for include in includes)
-                if edge_matches_target(ctx, edge, target_texts, target_path, args.included_by)
-            ]
-            counts = Counter(edge.source for edge in matches)
-            sources = sorted(counts)
-            if args.limit > 0:
-                sources = sources[: args.limit]
+            matches, target_path = included_by_matches(ctx, args.included_by)
+            counts, sources = included_by_ranking(matches)
+            truncated = args.limit > 0 and len(sources) > args.limit
+            shown = sources[: args.limit] if truncated else sources
             return json_output(
                 {
                     "version": ctx.version,
                     "target": args.included_by,
                     "resolved_target": render_path(target_path) if target_path is not None else None,
-                    "sources": [{"source": source, "include_directives": counts[source]} for source in sources],
+                    "matched_sources": len(sources),
+                    "truncated": truncated,
+                    "sources": [{"source": source, "include_directives": counts[source]} for source in shown],
                 }
             )
         return print_included_by(ctx, args.included_by, args.limit)
 
     if args.compile_unit:
+        if not ctx.compile_db_available:
+            die(
+                "compile_commands.json is not present in this context pack; "
+                f"regenerate with scripts/source_context --version {args.version} once meson/bear is available"
+            )
         source_label = selected_source_label(ctx, args.compile_unit)
         entries = ctx.compile_entries_by_file.get(source_label, [])
         if args.format == "json":
-            return json_output({"version": ctx.version, "source": source_label, "compile_entries": entries})
+            json_output({"version": ctx.version, "source": source_label, "compile_entries": entries})
+            return 0 if entries else 1
         return print_compile_unit(ctx, source_label, entries, args.full_command)
 
     if args.transitive_includes:

@@ -17,7 +17,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import shlex
 import shutil
 import subprocess
@@ -36,8 +35,11 @@ from wiki_tooling import (
     die,
     ensure_private_dir,
     load_versions,
+    parse_compiler_include_dirs,
     primary_version,
+    read_include_directives,
     redact_args,
+    render_repo_path,
     source_checkout,
     write_private_text,
 )
@@ -123,12 +125,7 @@ class PackRun:
         return artifact
 
 
-def render_path(path: Path | str) -> str:
-    raw = Path(path) if not isinstance(path, Path) else path
-    try:
-        return raw.resolve().relative_to(REPO_ROOT).as_posix()
-    except (OSError, ValueError):
-        return str(path)
+render_path = render_repo_path
 
 
 def normalise_arg(arg: str) -> str:
@@ -424,6 +421,8 @@ def generate_compile_database(run: PackRun) -> None:
             failures.append("meson setup did not produce compile_commands.json")
 
     if not generated and not bear_missing and (run.source / "configure").is_file() and shutil.which("make"):
+        # Bear wraps a full PostgreSQL build to capture the compile DB; this is
+        # a complete configure + parallel make, hence the 600s/1800s timeouts.
         ensure_private_dir(run.build_dir)
         prefix = run.build_dir / "install"
         configure = os.path.relpath(run.source / "configure", run.build_dir)
@@ -458,34 +457,6 @@ def generate_compile_database(run: PackRun) -> None:
         reasons.append("no supported build entry point was found")
     detail = "; ".join(reasons or ["host build did not produce a compiler database"])
     run.add_artifact("compile_commands.json", target, "deferred", detail, failures)
-
-
-def parse_include_dirs(command: list[str]) -> list[str]:
-    include_dirs: list[str] = []
-    index = 0
-    while index < len(command):
-        arg = command[index]
-        if arg == "-I" and index + 1 < len(command):
-            include_dirs.append(command[index + 1])
-            index += 2
-            continue
-        if arg.startswith("-I") and len(arg) > 2:
-            include_dirs.append(arg[2:])
-        index += 1
-    return include_dirs
-
-
-def textual_include_edges(path: Path) -> list[str]:
-    pattern = re.compile(r"^\s*#\s*include\s+[<\"]([^>\"]+)[>\"]")
-    edges: list[str] = []
-    try:
-        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            match = pattern.match(line)
-            if match:
-                edges.append(match.group(1))
-    except OSError:
-        pass
-    return edges
 
 
 def generate_include_deps_from_compile_db(run: PackRun, compile_db: Path, target: Path) -> bool:
@@ -525,12 +496,12 @@ def generate_include_deps_from_compile_db(run: PackRun, compile_db: Path, target
         directory = entry_directory(entry)
         args = entry.get("arguments")
         if isinstance(args, list):
-            raw_include_dirs = parse_include_dirs([str(arg) for arg in args])
+            raw_include_dirs = parse_compiler_include_dirs(str(arg) for arg in args)
             include_dirs.update(normalise_include_dir(directory, path) for path in raw_include_dirs)
             continue
         command = entry.get("command")
         if isinstance(command, str):
-            raw_include_dirs = parse_include_dirs(shlex.split(command))
+            raw_include_dirs = parse_compiler_include_dirs(shlex.split(command))
             include_dirs.update(normalise_include_dir(directory, path) for path in raw_include_dirs)
 
     lines = [
@@ -545,7 +516,7 @@ def generate_include_deps_from_compile_db(run: PackRun, compile_db: Path, target
     lines.extend(["", "## Direct Include Edges", ""])
 
     for path in sorted(files):
-        includes = textual_include_edges(path)
+        includes = read_include_directives(path)
         if not includes:
             continue
         source_label = normalise_arg(str(path))
@@ -557,48 +528,82 @@ def generate_include_deps_from_compile_db(run: PackRun, compile_db: Path, target
     return True
 
 
-def generate_include_deps_with_compiler(run: PackRun, target: Path) -> tuple[bool, list[str]]:
+def list_source_files(run: PackRun) -> tuple[list[str], list[str]]:
+    """Enumerate tracked .c/.h files in the checkout, falling back to rglob."""
     failures: list[str] = []
-    compiler = next((tool for tool in ("cc", "gcc", "clang") if shutil.which(tool)), None)
-    if not compiler:
-        return False, ["no C compiler found"]
-
-    # A PostgreSQL dependency pass needs configured headers such as pg_config.h.
-    # Without them, the preprocessor emits platform-selection #error blocks; in
-    # that case it is more useful to defer explicitly than to write noisy output.
-    generated_headers = [
-        run.build_dir / "src/include/pg_config.h",
-        run.source / "src/include/pg_config.h",
-    ]
-    if not any(path.is_file() for path in generated_headers):
-        return False, ["compiler fallback needs generated pg_config.h headers; compile database was unavailable"]
-
     proc = run_command(run, ["git", "-C", render_path(run.source), "ls-files", "*.c", "*.h"], cwd=REPO_ROOT)
-    if proc is None or proc.returncode != 0:
-        return False, ["git ls-files for C/header inputs failed"]
-
-    files = sorted(line.strip() for line in proc.stdout.splitlines() if line.strip())
-    if not files:
-        return False, ["no tracked C or header files found"]
-
-    response = run.build_dir / "include-deps.rsp"
-    ensure_private_dir(run.build_dir)
-    args = [
-        "-MM",
-        "-MG",
-        "-I",
-        render_path(run.source / "src/include"),
-        "-I",
-        render_path(run.build_dir / "src/include"),
-        *[render_path(run.source / file_name) for file_name in files],
-    ]
-    write_runtime_text(response, "\n".join(shlex.quote(arg) for arg in args) + "\n")
-    proc = run_command(run, [compiler, f"@{render_path(response)}"], cwd=REPO_ROOT, timeout=300)
     if proc is not None and proc.returncode == 0:
-        write_runtime_text(target, proc.stdout)
-        return True, failures
-    failures.append("compiler dependency fallback failed")
-    return False, failures
+        files = sorted(line.strip() for line in proc.stdout.splitlines() if line.strip())
+        if files:
+            return files, failures
+        failures.append("git ls-files returned no C or header files")
+    elif proc is not None:
+        failures.append("git ls-files for C/header inputs failed")
+    else:
+        failures.append("git unavailable for C/header enumeration")
+
+    rglob_files: list[str] = []
+    try:
+        for suffix in ("*.c", "*.h"):
+            for path in run.source.rglob(suffix):
+                if not path.is_file():
+                    continue
+                if any(part in TREE_IGNORE for part in path.relative_to(run.source).parts):
+                    continue
+                rglob_files.append(path.relative_to(run.source).as_posix())
+    except OSError as exc:
+        failures.append(f"rglob fallback failed: {exc}")
+        return [], failures
+
+    return sorted(set(rglob_files)), failures
+
+
+def generate_include_deps_textual(run: PackRun, target: Path) -> tuple[bool, list[str]]:
+    """Scan #include directives directly from the checkout's .c/.h files.
+
+    Used when no compile_commands.json is available.  The output mirrors the
+    structured format produced from the compile database so source_deps can
+    consume either path uniformly.  Without a compile DB we cannot recover
+    authoritative include search paths, so we record the conventional
+    PostgreSQL roots (`src/include`, generated headers under the build dir).
+    """
+    rel_files, failures = list_source_files(run)
+    if not rel_files:
+        return False, failures or ["no C or header files found for textual scan"]
+
+    fallback_dirs: list[str] = []
+    for candidate in (run.source / "src/include", run.build_dir / "src/include"):
+        if candidate.is_dir():
+            fallback_dirs.append(render_path(candidate))
+
+    lines = [
+        f"# Include Dependencies for PostgreSQL {run.version}",
+        "",
+        "Derived from a textual scan of tracked .c/.h files (no compile_commands.json available).",
+        "",
+        "## Build Include Directories",
+        "",
+    ]
+    for directory in sorted(set(fallback_dirs)):
+        lines.append(f"- `{directory}`")
+    lines.extend(["", "## Direct Include Edges", ""])
+
+    edges_written = 0
+    for rel_file in rel_files:
+        path = run.source / rel_file
+        includes = read_include_directives(path)
+        if not includes:
+            continue
+        source_label = render_path(path)
+        for include in includes:
+            lines.append(f"{source_label}: {include}")
+            edges_written += 1
+
+    lines.append("")
+    write_runtime_text(target, "\n".join(lines))
+    if edges_written == 0:
+        failures.append("textual scan found no #include directives")
+    return True, failures
 
 
 def generate_include_deps(run: PackRun) -> None:
@@ -615,13 +620,14 @@ def generate_include_deps(run: PackRun) -> None:
         )
         return
 
-    generated, compiler_failures = generate_include_deps_with_compiler(run, target)
-    failures.extend(compiler_failures)
+    generated, fallback_failures = generate_include_deps_textual(run, target)
+    failures.extend(fallback_failures)
     if generated:
-        run.add_artifact("include-deps.txt", target, "generated", "generated with compiler -MM/-MG fallback")
+        detail = "generated by textual scan of tracked .c/.h files (no compile_commands.json)"
+        run.add_artifact("include-deps.txt", target, "generated", detail, fallback_failures)
         return
 
-    run.add_artifact("include-deps.txt", target, "deferred", "; ".join(failures), failures)
+    run.add_artifact("include-deps.txt", target, "deferred", "; ".join(failures) or "no inputs available", failures)
 
 
 def generate_callgraphs(run: PackRun, skip: bool) -> None:
