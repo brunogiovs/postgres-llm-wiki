@@ -2,6 +2,11 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-06] remove v12 | Corruption log entries with data checksums disabled
+
+- Removed `wiki/v12/questions/corruption-log-entries.md` per user request.
+- Updated `wiki/index.md` and `wiki/v12/index.md` to remove links.
+
 ## [2026-05-06] filed v12 | Enable I/O timing measurements on production
 
 - Filed `wiki/v12/questions/enable-io-timing-measurements-production.md` with a PostgreSQL 12 production procedure for enabling `track_io_timing`, including `pg_test_timing` preflight, `ALTER SYSTEM` + `pg_reload_conf()` rollout, session-only fallback, tagged SQL sampling, `pg_stat_database` deltas, optional `pg_stat_statements`, and `EXPLAIN (ANALYZE, BUFFERS, TIMING OFF)` drill-down guidance.
