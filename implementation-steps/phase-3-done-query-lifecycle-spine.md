@@ -1,14 +1,16 @@
-# Phase 3 Done: Query Lifecycle Spine
+# Phase 3 Done: Query Lifecycle Source Context
 
 ## Status
 
-Done on 2026-04-30.
+Done on 2026-05-06. The original subsystem-page spine was retired. Query-lifecycle source navigation now lives in generated context packs under `.wiki-runtime/context/postgres-NN/`.
 
 ## Goal
 
-Build the first subsystem pages around PostgreSQL's query lifecycle.
+Seed the generated source-context packs with query-lifecycle entry points so agents can orient on parse, analyze, rewrite, plan, and execute paths without creating standalone source-trace documents.
 
-## Target Subsystems
+Behavioral claims still require direct citations into the matching `raw/postgres-NN/` checkout.
+
+## Target Source Areas
 
 1. Parser
 2. Analyzer
@@ -19,38 +21,39 @@ Build the first subsystem pages around PostgreSQL's query lifecycle.
 ## Inputs
 
 - `wiki/versions.md`
-- Primary version landing page, such as `wiki/v17/index.md`
-- Pinned PostgreSQL source checkout, such as `raw/postgres-17/`
-- Page templates from `templates/`
+- Primary version landing page, such as `wiki/v18/index.md`
+- Pinned PostgreSQL source checkout, such as `raw/postgres-18/`
+- Generated source-context pack under `.wiki-runtime/context/postgres-NN/`
+- `scripts/source_context`
 
-## Tasks Per Subsystem
+## Tasks Per Source Area
 
-1. Read `wiki/versions.md` and identify the primary version.
-2. Read `wiki/vNN/index.md` to understand current coverage.
-3. Search the relevant PostgreSQL source area with `rg` or `git grep`.
-4. Identify the subsystem's major source files, headers, entry points, and core structs.
-5. Create or update `wiki/vNN/subsystems/<subsystem>.md`.
-6. Add source references for every behavioral claim.
-7. Add cross-links to related wiki pages where useful.
-8. Add Open Questions for uncertain behavior.
-9. Update `wiki/vNN/index.md`.
-10. Update `wiki/index.md`.
-11. Append an ingest entry to `wiki/log.md`.
+1. Read `wiki/versions.md` and identify the target version.
+2. Read `wiki/vNN/index.md` to confirm source pin and context-pack status.
+3. Read `.wiki-runtime/context/postgres-NN/manifest.md` and relevant context artifacts.
+4. Use `tree-L4.txt`, `compile_commands.json`, `include-deps.txt`, and `callgraphs/` to orient on source files, headers, compile context, and likely call edges.
+5. Search the matching PostgreSQL source area under `raw/postgres-NN/` with `rg` or `git grep` before making claims.
+6. If the generated context is stale or missing a needed source root, regenerate or extend `.wiki-runtime/context/postgres-NN/` with `scripts/source_context`.
+7. File durable findings only as question pages when the user asks for an answer worth preserving.
+8. Update `wiki/vNN/index.md`, `wiki/index.md`, and `wiki/versions.md` only when coverage or context-pack status changes.
+9. Append a context or maintenance entry to `wiki/log.md`.
 
 ## Local Model Guidance
 
-On the 16GB GPU setup, do not ask the model to ingest an entire subsystem directory in one pass. Slice the work:
+On the 16GB GPU setup, do not ask the model to ingest an entire source area in one pass. Slice the work:
 
+- one generated context artifact at a time
 - one key source file at a time
 - one entry point at a time
-- one subsystem page section at a time
+- one filed question at a time
 
-Use the wiki page itself as accumulated working memory.
+Use generated context as source navigation, not as behavioral proof.
 
-Use only project-local source and indexes:
+Use only project-local source and context:
 
 - Source must come from `raw/postgres-NN/`.
-- Generated symbol/search indexes must come from `.wiki-runtime/indexes/`.
+- Generated source context must come from `.wiki-runtime/context/postgres-NN/`.
+- Generated symbol/search indexes, if used, must come from `.wiki-runtime/indexes/`.
 - Temporary notes or extracted snippets should go under `.wiki-runtime/tmp/` if they are not durable wiki content.
 - Do not depend on global ctags, global search indexes, or source checkouts outside this project.
 
@@ -64,28 +67,22 @@ git -C raw/postgres-NN grep "ExecutorRun"
 git -C raw/postgres-NN grep "standard_planner"
 ```
 
-## Required Subsystem Page Sections
+## Context-Pack Requirements
 
-```md
-# Subsystem Name
+The query-lifecycle source context should include, when tool support allows:
 
-## Role
+- `tree-L4.txt` for source-tree orientation.
+- `compile_commands.json` for compilation units, include paths, defines, and generated-header context.
+- `include-deps.txt` for direct include relationships.
+- focused callgraphs under `callgraphs/` for roots such as `PostgresMain`, `exec_simple_query`, `standard_planner`, and `ExecutorRun`.
 
-## Major Entry Points
-
-## Core Data Structures
-
-## Differences Across Supported Versions
-
-## Source References
-
-## Open Questions
-```
+Do not create standalone code-path or source-trace pages. If a call-path view is useful, add it to the generated context pack.
 
 ## Definition Of Done
 
-- The primary version has subsystem pages for parser, analyzer, rewriter, planner, and executor.
-- Each subsystem page cites source paths and symbols.
-- `wiki/vNN/index.md` links to each subsystem page.
-- `wiki/index.md` lists each subsystem page.
-- `wiki/log.md` records each subsystem ingest.
+- The primary version has a generated `.wiki-runtime/context/postgres-NN/manifest.md`.
+- Query-lifecycle source orientation is available through generated context artifacts rather than subsystem or code-path pages.
+- Any deferred context artifacts are recorded in the manifest and version landing page.
+- Durable answers are filed as question pages only when needed.
+- `wiki/log.md` records context generation or maintenance.
+- `scripts/wiki_lint` runs after any wiki-facing edits.

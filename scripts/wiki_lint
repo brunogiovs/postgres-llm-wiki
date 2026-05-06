@@ -24,8 +24,8 @@ from wiki_tooling import (
 )
 
 
-MANAGED_VERSION_DIRS = ("subsystems", "files", "questions")
-SOURCE_REQUIRED_TYPES = {"subsystem", "file", "question"}
+MANAGED_VERSION_DIRS = ("questions",)
+SOURCE_REQUIRED_TYPES = {"question"}
 ROOT_EXEMPT_SLUGS = {"index", "overview", "versions", "log"}
 
 

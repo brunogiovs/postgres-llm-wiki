@@ -6,7 +6,7 @@ Done on 2026-04-30.
 
 ## Goal
 
-Add one or more PostgreSQL major versions to the wiki, each with a pinned source checkout and a version-local landing page.
+Add one or more PostgreSQL major versions to the wiki, each with a pinned source checkout, generated source-context pack, and version-local landing page.
 
 ## Recommended MVP
 
@@ -40,9 +40,12 @@ raw/
 wiki/
   vNN/
     index.md
-    subsystems/
-    files/
-    questions/
+    questions/              # created only when filed answers need it
+
+.wiki-runtime/
+  context/
+    postgres-NN/
+      manifest.md
 ```
 
 ## Tasks
@@ -51,11 +54,12 @@ wiki/
 2. Pin it to the chosen commit.
 3. Update `wiki/versions.md` with the version row.
 4. Create `wiki/vNN/index.md`.
-5. Create empty version-local directories.
-6. If this is the primary version, ensure no other version is marked `primary`.
-7. If adding an active version after pages already exist, perform an active-version verification pass.
-8. Update `wiki/index.md`.
-9. Append an `add-version` entry to `wiki/log.md`.
+5. Generate `.wiki-runtime/context/postgres-NN/` with `scripts/source_context`.
+6. Create `wiki/vNN/questions/` only when a filed answer needs it.
+7. If this is the primary version, ensure no other version is marked `primary`.
+8. If adding an active version after pages already exist, perform an active-version verification pass.
+9. Update `wiki/index.md`.
+10. Append an `add-version` or `context` entry to `wiki/log.md`.
 
 ## Project-Local Dependency Rules
 
@@ -79,11 +83,13 @@ wiki/
 
 ## Coverage
 
-No source-backed pages yet.
+Generated source-context pack: `.wiki-runtime/context/postgres-NN/manifest.md`
 
-## Subsystems
+## Project Context
 
-## Files
+- Manifest: `.wiki-runtime/context/postgres-NN/manifest.md`
+- Generated artifacts:
+- Deferred artifacts:
 
 ## Questions
 
@@ -102,7 +108,8 @@ When adding an active version after source-backed pages already exist:
 ## Definition Of Done
 
 - `raw/postgres-NN/` exists and is pinned.
+- `.wiki-runtime/context/postgres-NN/manifest.md` exists or a deferral is recorded.
 - `wiki/versions.md` links to `[[vNN/index]]`.
 - `wiki/vNN/index.md` exists and records the source pin.
-- Version-local directories exist.
+- Version-local question directory exists only when durable filed answers need it.
 - `wiki/log.md` records the version addition.

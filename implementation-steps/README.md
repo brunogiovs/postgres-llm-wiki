@@ -8,7 +8,7 @@ Use these files as the execution checklist when building the PostgreSQL engine L
 
 1. [Phase 1 Done: Wiki Scaffold](phase-1-done-wiki-scaffold.md)
 2. [Phase 2 Done: Bootstrap Supported Versions](phase-2-done-bootstrap-supported-versions.md)
-3. [Phase 3 Done: Query Lifecycle Spine](phase-3-done-query-lifecycle-spine.md)
+3. [Phase 3 Done: Query Lifecycle Source Context](phase-3-done-query-lifecycle-spine.md)
 4. [Phase 6 Done: Maintenance Tooling](phase-6-done-maintenance-tooling.md)
 5. [Phase 7 Done: Per-Version Project Context Packs](phase-7-done-per-version-project-context-packs.md)
 
@@ -36,6 +36,8 @@ Also update this index and add a `## Status` section to the completed phase file
 - Store all wiki-specific dependencies, caches, model/runtime state, indexes, logs, and temporary files inside this project directory.
 - Maintain generated per-version project-context packs under `.wiki-runtime/context/postgres-NN/` for every supported PostgreSQL version.
 - Make source-backed pages only after checking the pinned PostgreSQL source.
-- Prefer narrow, verifiable source traces over broad unsourced summaries.
+- Use generated source-context packs for source orientation, include tracing, compile context, and call-path discovery.
+- Do not create standalone code-path or source-trace document families; extend or regenerate `.wiki-runtime/context/postgres-NN/` instead.
+- Prefer narrow, verifiable filed answers over broad unsourced summaries.
 - Update `wiki/index.md`, `wiki/log.md`, and the relevant version landing page after every meaningful wiki change.
 - On a 16GB NVIDIA GPU, keep local agent tasks small and source-grounded.

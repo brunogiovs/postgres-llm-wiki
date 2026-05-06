@@ -121,15 +121,16 @@ Rules for agents:
 ## Wiki Structure
 
 - Keep version-specific pages under `wiki/vNN/`.
-- Use Obsidian-style links, such as `[[versions]]` and `[[v17/subsystems/executor]]`.
+- Use Obsidian-style links, such as `[[versions]]` and `[[v17/index]]`.
 - Include the version segment for links into per-version directories.
 - A page is born when the work justifies it. Do not create empty content stubs.
 
 ## Operating Mode
 
-- Trace one subsystem slice or question at a time.
+- Trace one source slice or question at a time using the matching generated source context and raw source checkout.
 - Prefer `rg`, `git grep`, and short source excerpts over loading entire directories into context.
-- Do not ingest a large subsystem in one pass unless the model is Opus-class or the user explicitly instructs a full-pass ingest.
+- Do not create standalone call-chain or source-trace document families. Extend or regenerate `.wiki-runtime/context/postgres-NN/` instead.
+- Do not ingest a large source area in one pass unless the model is Opus-class or the user explicitly instructs a full-pass ingest.
 - Treat generated pages as drafts until their source references are checked.
 - Active-version verification means re-checking page claims against the live `raw/postgres-NN/` checkout rather than relying on the agent's prior context. Use it sparingly.
 - Defer active-version verification on `wiki/vNN/index.md` when it exceeds the local context or latency budget.
@@ -165,17 +166,19 @@ For version-agnostic work:
 2. Pin the checkout to an exact commit.
 3. Add the version to `wiki/versions.md`.
 4. Create `wiki/vNN/index.md`.
-5. Create `wiki/vNN/subsystems/`, `wiki/vNN/files/`, and `wiki/vNN/questions/`.
-6. Update `wiki/index.md`.
-7. Append to `wiki/log.md`.
+5. Generate the source-context pack under `.wiki-runtime/context/postgres-NN/` using `scripts/source_context`.
+6. Create `wiki/vNN/questions/` only when a filed answer needs it.
+7. Update `wiki/index.md`.
+8. Append to `wiki/log.md`.
 
-### Ingest A Subsystem
+### Refresh Source Context
 
 1. Read `wiki/versions.md` and select the primary version unless the user specified another.
 2. Read `wiki/vNN/index.md`.
-3. Search relevant source files under `raw/postgres-NN/`.
-4. Create or update `wiki/vNN/subsystems/<name>.md`.
-5. Update `wiki/vNN/index.md`, `wiki/index.md`, and `wiki/log.md`.
+3. Read `.wiki-runtime/context/postgres-NN/manifest.md` to check the current pack status and gaps.
+4. Regenerate or extend `.wiki-runtime/context/postgres-NN/` with `scripts/source_context` when source navigation is stale or insufficient.
+5. Search relevant source files under `raw/postgres-NN/` to verify any claims that will be written.
+6. Update `wiki/vNN/index.md`, `wiki/index.md`, `wiki/versions.md` when coverage status changes, and `wiki/log.md`.
 
 ### Answer And File
 

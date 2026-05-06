@@ -10,15 +10,16 @@ Phase 7 project-context packs are generated for every supported PostgreSQL versi
 
 PostgreSQL 18 is the current primary version. Use [[versions]] as the main version index, then enter the PG 18 wiki through [[v18/index]].
 
-## Architecture Map
+## Source Navigation
 
-The first useful spine of the wiki will follow the query lifecycle:
+Use the generated PostgreSQL 18 source-context pack for source orientation and call-path discovery:
 
-1. [[v18/subsystems/parser]]
-2. [[v18/subsystems/analyzer]]
-3. [[v18/subsystems/rewriter]]
-4. [[v18/subsystems/planner]]
-5. [[v18/subsystems/executor]]
+- `.wiki-runtime/context/postgres-18/tree-L4.txt`
+- `.wiki-runtime/context/postgres-18/compile_commands.json`
+- `.wiki-runtime/context/postgres-18/include-deps.txt`
+- `.wiki-runtime/context/postgres-18/callgraphs/`
+
+Behavioral claims still need citations to matching raw source files or symbols under `raw/postgres-18/`.
 
 ## Source Checkouts
 
@@ -37,6 +38,7 @@ The first useful spine of the wiki will follow the query lifecycle:
 ## Operating Principles
 
 - Trace source code before summarizing behavior.
-- Prefer narrow, source-backed subsystem and question pages over broad unsourced summaries.
+- Use generated source-context packs for source navigation and call-path discovery; extend or regenerate them instead of creating standalone call-chain page families.
+- Prefer narrow, source-backed question pages over broad unsourced summaries.
 - Keep version-local content under `wiki/vNN/`.
 - Keep runtime dependencies and generated state under `.wiki-runtime/`.

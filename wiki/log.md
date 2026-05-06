@@ -8,6 +8,10 @@ Use this prefix shape:
 ## [YYYY-MM-DD] <kind> v<NN> | <subject>
 ```
 
+## [2026-05-05] maintenance | deleted all code-paths documents
+
+- Deleted all files in `wiki/v12/code-paths/` and `wiki/v18/code-paths/`
+
 ## [2026-05-05] maintenance | deleted all shared and subsystems documents
 
 - Deleted all files in `wiki/shared/` and `wiki/v18/subsystems/`
@@ -80,30 +84,6 @@ For version-agnostic work, omit the version segment:
 - Created `wiki/v18/index.md`.
 - Created empty version-local directories for subsystems, concepts, code paths, files, and questions.
 - Updated `wiki/versions.md`, `wiki/index.md`, and `wiki/overview.md`.
-
-## [2026-04-30] trace v18 | simple-select-query
-
-- Created `wiki/v18/code-paths/simple-select-query.md`.
-- Traced simple Query protocol through `exec_simple_query`, `pg_parse_query`, `pg_analyze_and_rewrite_fixedparams`, `pg_plan_queries`, `PortalStart`, `PortalRunSelect`, `ExecutorRun`, and `ExecutePlan`.
-- Linked the path from parser, analyzer, rewriter, planner, and executor subsystem pages.
-
-## [2026-04-30] trace v18 | insert-path
-
-- Created `wiki/v18/code-paths/insert-path.md`.
-- Traced simple `INSERT ... VALUES` through `transformInsertStmt`, `preprocess_targetlist`, `create_modifytable_path`, `create_modifytable_plan`, `PortalRunMulti`, `ProcessQuery`, `ExecModifyTable`, and `ExecInsert`.
-- Linked the path from parser, analyzer, rewriter, planner, and executor subsystem pages.
-
-## [2026-04-30] trace v18 | update-path
-
-- Created `wiki/v18/code-paths/update-path.md`.
-- Traced simple `UPDATE` through `transformUpdateStmt`, `transformUpdateTargetList`, row-identity target-list preprocessing, `ModifyTable` planning, `ExecModifyTable`, and `ExecUpdate`.
-- Linked the path from parser, analyzer, rewriter, planner, and executor subsystem pages.
-
-## [2026-04-30] trace v18 | delete-path
-
-- Created `wiki/v18/code-paths/delete-path.md`.
-- Traced simple `DELETE` through `transformDeleteStmt`, row-identity target-list preprocessing, `ModifyTable` planning, `ExecModifyTable`, and `ExecDelete`.
-- Linked the path from parser, analyzer, rewriter, planner, and executor subsystem pages.
 
 ## [2026-04-30] concept v18 | query-tree
 
@@ -288,12 +268,12 @@ For version-agnostic work, omit the version segment:
 
 ## [2026-05-02] cleanup v18 | pruned duplicate plan_cache_mode question pages
 
-- Deleted three low-quality duplicates of [[v18/questions/plan-cache-mode-production-impact]]:
+- Deleted three low-quality duplicates of `v18/questions/plan-cache-mode-production-impact`:
   - `wiki/v18/questions/plan_cache_mode-production-analysis.md`
   - `wiki/v18/questions/plan_cache-mode-decision-tree.md`
   - `wiki/v18/questions/plan_cache-mode-memory-usage-tables-comparison.md`
 - Defects in the deleted pages: missing `type: question` / `verified` frontmatter; inconsistent slug shapes (`plan_cache_mode-` vs `plan_cache-mode-`); citations pointing to GitHub URLs instead of `raw/postgres-18/`; references to a non-existent `pg_stat_statements_cache_plan_stats` view; fabricated C structs (`MemoryContextNodeBitmapData`, `_HashTable`, fake `Rte`); unverified PG 18 version-change claims; numerical estimates ("5-8× larger", "~640-960 KB per custom plan") with no source backing.
-- Removed the obsolete duplicate-pages note from the `Open Questions` section of [[v18/questions/plan-cache-mode-production-impact]].
+- Removed the obsolete duplicate-pages note from the `Open Questions` section of `v18/questions/plan-cache-mode-production-impact`.
 - Updated [[v18/index]] question list to drop the three deleted entries. [[index]] already pointed only at the canonical page.
 
 ## [2026-05-02] revise v18 | query-disk-io-with-warm-cache per-planning-phase summary
@@ -315,7 +295,7 @@ For version-agnostic work, omit the version segment:
 
 ## [2026-05-02] revise v18 | rewrote insert-row-disk-writes for citation discipline
 
-- Rewrote [[v18/questions/insert-row-disk-writes]] to align with AGENTS.md citation discipline and the style of the rest of `wiki/v18/questions/`.
+- Rewrote `v18/questions/insert-row-disk-writes` to align with AGENTS.md citation discipline and the style of the rest of `wiki/v18/questions/`.
 - Corrected the call chain: `ExecInsert` → `table_tuple_insert` (TAM dispatch at `nodeModifyTable.c:1234`) → `heapam_tuple_insert` (`heapam_handler.c:244`) → `heap_insert` (`heapam.c:2080`). The previous version skipped the TAM layer and named `heapam_handler.c:255,278` as the source of `heap_insert` itself.
 - Replaced fabricated symbol `XLogHeapInsert(rel, buffer, tuple)` with the actual inline emission inside `heap_insert`: `XLogBeginInsert` / `XLogRegisterData` / `XLogRegisterBuffer` / `XLogRegisterBufData` / `XLogInsert(RM_HEAP_ID, …)` at `heapam.c:2231`.
 - Reordered the heap_insert step list to match the source: `heap_prepare_insert` → `RelationGetBufferForTuple` → `RelationPutHeapTuple`/`PageAddItem` → `MarkBufferDirty` → WAL emission → `END_CRIT_SECTION`/`UnlockReleaseBuffer` → `pgstat_count_heap_insert`. Cited verified line numbers `heapam.c:2155`, `:2231`, `:2236`, `:2238`, `:2251`.
@@ -341,7 +321,7 @@ For version-agnostic work, omit the version segment:
 
 ## [2026-05-03] revise v12 | plan-cache-mode-production-impact auto-mode revalidation detail
 
-- Added "Auto Mode: Revalidation Overhead And Timing" section to [[v12/questions/plan-cache-mode-production-impact]] covering: GetCachedPlan entry points (`postgres.c:1876` Bind, `prepare.c:246` ExecuteQuery, `prepare.c:663` ExplainExecuteQuery, `spi.c:1389,1822,2215`), steady-state cheap-path cost (two lock sweeps via `AcquirePlannerLocks`/`AcquireExecutorLocks`, sinval drain through `AcceptInvalidationMessages`, search_path/RLS compares, race rechecks at `plancache.c:616,842`), invalidation-path cost (`pg_analyze_and_rewrite[_params]` + `extract_query_dependencies` for plansource invalidation; full `pg_plan_queries` + wart recheck at `plancache.c:1200` for plan invalidation; preservation of `generic_cost`/`total_custom_cost`/`num_custom_plans` per `plancache.c:768-775` comment), and a sequence diagram showing the revalidation block sits between message dispatch and `ExecutorStart` (so cost is invisible to EXPLAIN ANALYZE but visible in client Bind/Execute latency).
+- Added "Auto Mode: Revalidation Overhead And Timing" section to `v12/questions/plan-cache-mode-production-impact` covering: GetCachedPlan entry points (`postgres.c:1876` Bind, `prepare.c:246` ExecuteQuery, `prepare.c:663` ExplainExecuteQuery, `spi.c:1389,1822,2215`), steady-state cheap-path cost (two lock sweeps via `AcquirePlannerLocks`/`AcquireExecutorLocks`, sinval drain through `AcceptInvalidationMessages`, search_path/RLS compares, race rechecks at `plancache.c:616,842`), invalidation-path cost (`pg_analyze_and_rewrite[_params]` + `extract_query_dependencies` for plansource invalidation; full `pg_plan_queries` + wart recheck at `plancache.c:1200` for plan invalidation; preservation of `generic_cost`/`total_custom_cost`/`num_custom_plans` per `plancache.c:768-775` comment), and a sequence diagram showing the revalidation block sits between message dispatch and `ExecutorStart` (so cost is invisible to EXPLAIN ANALYZE but visible in client Bind/Execute latency).
 - All new citations verified against `raw/postgres-12@45b88269a3`.
 - `scripts/wiki_lint`: 0 errors, 1 unrelated pre-existing warning.
 - Updated the page's `## Question` section to record the follow-up ask (auto-mode revalidation overhead and timing in the query execution cycle) so the page stands on its own without the chat context.
@@ -457,3 +437,16 @@ For version-agnostic work, omit the version segment:
 
 - Updated `AGENTS.md` with a `Using Source Context Packs` section that explains how agents should use `.wiki-runtime/context/postgres-NN/manifest.md`, `tree-L4.txt`, `build-config/`, `compile_commands.json`, `include-deps.txt`, `callgraphs/`, and `external-deps.txt`.
 - Clarified that context-pack artifacts can guide source navigation, build/include/dependency understanding, and call-path discovery, while behavioral claims still require citations to matching `raw/postgres-NN/` files or symbols.
+
+## [2026-05-06] maintenance | removed code-path document type
+
+- Removed the remaining code-path document template so agents cannot create new `type: code-path` pages.
+- Updated `AGENTS.md` and `wiki/overview.md` so source navigation flows through generated context packs rather than standalone call-chain page families.
+- Preserved the generated source-context packs under `.wiki-runtime/context/postgres-NN/` as the only source-trace navigation layer.
+
+## [2026-05-06] update | implementation steps source-context model
+
+- Updated `implementation-steps/README.md`, Phase 1, Phase 2, Phase 3, and Phase 7 so implementation guidance treats `.wiki-runtime/context/postgres-NN/` as the source-navigation layer.
+- Updated `postgresql-engine-wiki-plan.md` to replace subsystem-page ingest guidance with source-context refresh guidance and current question-page front matter.
+- Removed live version-index references to empty subsystem/file-map coverage; generated context packs now carry source orientation and call-path discovery.
+- Removed source-map templates and tightened `scripts/wiki_lint` managed-page checks to question pages.

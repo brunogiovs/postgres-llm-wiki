@@ -2,13 +2,15 @@
 
 ## Status
 
-Done. `scripts/source_context` exists, both supported versions have generated minimum context packs under `.wiki-runtime/context/postgres-NN/`, and deferred heavyweight artifacts are recorded in each manifest and version landing page.
+Done. `scripts/source_context` exists, both supported versions have generated context packs under `.wiki-runtime/context/postgres-NN/`, including compiler databases, include dependency extracts, external dependency inventories, and focused callgraphs.
 
 ## Goal
 
 Create and maintain reproducible project-context packs for every supported PostgreSQL version so agents can orient themselves before tracing source-backed claims.
 
 The pack is generated context, not evidence by itself. Behavioral claims still require direct citations into the matching `raw/postgres-NN/` checkout.
+
+Generated context packs are the source-navigation layer for call-path discovery. Do not create standalone code-path or source-trace documents; extend or regenerate `.wiki-runtime/context/postgres-NN/` instead.
 
 ## Inputs
 
@@ -184,6 +186,8 @@ The minimum successful pack is:
 
 If compiler database, include-dependency, or callgraph generation cannot complete, do not abort. Record the deferred artifact in the manifest and add a matching `## Open Questions` entry to the relevant `wiki/vNN/index.md`.
 
+Do not replace deferred graph artifacts with manually maintained trace pages. Regenerate the context pack when tool support becomes available.
+
 ## Version Run
 
 Run the context pack for every currently supported version:
@@ -227,4 +231,5 @@ Do not commit generated context packs unless the repository policy changes.
 - Re-running `scripts/source_context --version NN` on an unchanged pin is idempotent: artifacts and manifest content are textually equivalent aside from the timestamp.
 - Heavy generated artifacts stay under `.wiki-runtime/` and remain ignored by git (`.gitignore` covers `.wiki-runtime/build/` and `.wiki-runtime/context/`).
 - Version landing pages link to the manifest when the pack is generated, and list deferred artifacts under Open Questions when the pack is incomplete.
+- Source-navigation needs are satisfied by generated context artifacts, not standalone code-path/source-trace documents.
 - `scripts/wiki_lint` runs after any wiki-facing edits.

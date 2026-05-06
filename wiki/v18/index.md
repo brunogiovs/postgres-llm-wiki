@@ -17,7 +17,3 @@ A generated project-context pack exists under `.wiki-runtime/context/postgres-18
 - Manifest: `.wiki-runtime/context/postgres-18/manifest.md`
 - Generated artifacts: `.wiki-runtime/context/postgres-18/tree-L4.txt`, `.wiki-runtime/context/postgres-18/build-config/`, `.wiki-runtime/context/postgres-18/external-deps.txt`, `.wiki-runtime/context/postgres-18/compile_commands.json`, `.wiki-runtime/context/postgres-18/include-deps.txt`, and `.wiki-runtime/context/postgres-18/callgraphs/`
 - Deferred artifacts: none
-
-## Files
-
-No source file map pages have been created yet.

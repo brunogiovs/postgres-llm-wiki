@@ -41,8 +41,6 @@ wiki/
   diagrams/
 
 templates/
-  subsystem.md
-  file.md
   question.md
 
 AGENTS.md
@@ -61,7 +59,7 @@ Do not create per-version directories yet. Those are created during Phase 2 when
 5. Create `wiki/log.md` as an append-only activity log.
 6. Create `wiki/overview.md` as the cross-version architecture entry point.
 7. Create `wiki/versions.md` as the main version index.
-8. Create page templates with the front matter defined in the plan.
+8. Create page templates for durable filed answers with the front matter defined in the plan.
 9. Create `AGENTS.md` with the maintenance rules from the plan.
 10. Add the local-model operating profile to `AGENTS.md`.
 11. Add the project-local dependency policy to `AGENTS.md`.
@@ -95,9 +93,10 @@ This page indexes the PostgreSQL versions covered by the wiki.
 
 ## Local Model Rules To Include In `AGENTS.md`
 
-- Trace one subsystem slice or question at a time.
+- Trace one source slice or question at a time using generated source-context packs and the pinned raw source checkout.
 - Prefer `rg`, `git grep`, and short source excerpts over loading entire directories.
-- Do not ingest a large subsystem in one pass with the 16GB local model.
+- Do not ingest a large source area in one pass with the 16GB local model.
+- Do not create standalone code-path or source-trace document families.
 - Treat generated pages as drafts until source references are checked.
 - Defer active-version verification explicitly when it exceeds local context or latency budget.
 - Escalate hard traces to a stronger model when the local model cannot keep the call chain straight.
@@ -133,5 +132,5 @@ export TMPDIR="$WIKI_RUNTIME/tmp"
 - `.wiki-runtime/` exists and is reserved for project-local dependencies and generated runtime state.
 - `wiki/versions.md` is present and ready to index PostgreSQL versions.
 - `AGENTS.md` contains source citation, version awareness, bookkeeping, local-model rules, and project-local dependency rules.
-- Templates exist for every page type.
+- Templates exist for durable filed-answer pages; source navigation is provided by generated context packs rather than standalone trace templates.
 - `wiki/log.md` records the scaffold creation.

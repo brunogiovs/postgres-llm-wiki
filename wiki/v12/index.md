@@ -18,13 +18,5 @@ Questions: none. A generated project-context pack exists under `.wiki-runtime/co
 - Generated artifacts: `.wiki-runtime/context/postgres-12/tree-L4.txt`, `.wiki-runtime/context/postgres-12/build-config/`, `.wiki-runtime/context/postgres-12/external-deps.txt`, `.wiki-runtime/context/postgres-12/compile_commands.json`, `.wiki-runtime/context/postgres-12/include-deps.txt`, and `.wiki-runtime/context/postgres-12/callgraphs/`
 - Deferred artifacts: none
 
-## Subsystems
-
-No PostgreSQL 12-specific subsystem pages have been created yet.
-
-## Files
-
-No source file map pages have been created yet.
-
 ## Diagrams
 - [[diagrams/source-code-tree-overview]] - Source code tree overview diagram.
