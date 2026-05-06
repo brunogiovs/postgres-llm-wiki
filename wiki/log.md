@@ -8,75 +8,28 @@ Use this prefix shape:
 ## [YYYY-MM-DD] <kind> v<NN> | <subject>
 ```
 
-## [2026-05-04] answer v12 | genetic-query-optimizer
+## [2026-05-05] maintenance | deleted all shared and subsystems documents
 
-- Created `wiki/v12/questions/genetic-query-optimizer.md` answering how the genetic query optimizer works in PostgreSQL 12, its pros/cons, and how to detect if it's causing overhead.
-- GEQO uses genetic algorithms to optimize join order for complex queries (>=12 relations by default).
-- Covers algorithm mechanics, GUC parameters, activation conditions, performance trade-offs, detection methods, and mitigation strategies.
-- Cited `raw/postgres-12/src/backend/optimizer/geqo/geqo_main.c#geqo`, `raw/postgres-12/src/backend/optimizer/geqo/geqo_eval.c#geqo_eval`, `raw/postgres-12/src/include/optimizer/geqo.h`, `raw/postgres-12/src/backend/optimizer/path/allpaths.c#make_rel_from_joinlist`.
-- Updated `wiki/v12/index.md` and `wiki/index.md`.
+- Deleted all files in `wiki/shared/` and `wiki/v18/subsystems/`
+- Updated `wiki/index.md` and `wiki/v18/index.md` to remove shared and subsystems references
 
-## [2026-05-03] answer v12 | pg-test-timing-track-io-timing-overhead
+## [2026-05-05] maintenance | deleted all question pages
 
-- Created `wiki/v12/questions/pg-test-timing-track-io-timing-overhead.md` answering what `pg_test_timing` does and `track_io_timing` overhead on modern hardware/virtual systems (AWS/Azure).
-- `pg_test_timing`: Measures wall-clock timing call overhead (~700ns) and monotonicity.
-- `track_io_timing`: ~1-2μs per I/O operation; minimal on bare metal, slightly higher in VMs due to hypervisor.
-- Cited `raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c`, `raw/postgres-12/src/backend/utils/misc/guc.c:1402`, `raw/postgres-12/src/backend/storage/buffer/bufmgr.c:2752-2769`.
-- Updated `wiki/v12/index.md` and `wiki/index.md`.
+- Deleted all files in `wiki/v12/questions/` and `wiki/v18/questions/`
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/v18/index.md` to remove question sections
 
-## [2026-05-04] answer v12 | production-io-overhead-measurement-protocol-track-io-timing
+## [2026-05-05] maintenance v12 | removed erroneous question pages
 
-- Created `wiki/v12/questions/production-io-overhead-measurement-protocol-track-io-timing.md` proposing a protocol to measure I/O overhead on production database using `track_io_timing`.
-- Protocol: Enable `track_io_timing=on` temporarily, collect metrics from `pg_stat_statements` and `pg_stat_database`, analyze per-operation I/O latency and total overhead.
-- Includes safety considerations, SQL queries for data collection, and post-analysis cleanup.
-- Cited `raw/postgres-12/src/backend/utils/misc/guc.c:1402`, `raw/postgres-12/src/backend/storage/buffer/bufmgr.c:894-905,2752-2770`.
-- Updated `wiki/v12/index.md` and `wiki/index.md`.
-
-## [2026-05-04] answer v12 | partition-planner-settings
-
-- Created `wiki/v12/questions/partition-planner-settings.md` answering PostgreSQL 12 query planner settings for partition tables, summarized by inheritance and declarative partitioning.
-- Inheritance partitioning: Uses `constraint_exclusion` (default `partition`) for pruning based on CHECK constraints.
-- Declarative partitioning: Uses `enable_partition_pruning` (default `on`), `enable_partitionwise_join` (default `off`), `enable_partitionwise_aggregate` (default `off`).
-- All settings are session-scoped, no restart required.
-- Cited `raw/postgres-12/src/backend/utils/misc/guc.c` for all GUC definitions.
-- Updated `wiki/v12/index.md` and `wiki/index.md`.
-
-## [2026-05-03] answer v12 | data-checksums-implementation
-
-- Created `wiki/v12/questions/data-checksums-implementation.md` answering: PG 12 data checksums implementation, overhead, storage location, additional storage usage, pg_checksums --enable operation, and expected fraction of database data modified (~0.024%).
-
-- Cited `raw/postgres-12/src/include/storage/checksum_impl.h#pg_checksum_page` (FNV-1a checksum algorithm), `raw/postgres-12/src/backend/storage/page/bufpage.c#PageIsVerified` (verification), `raw/postgres-12/src/include/storage/bufpage.h` (PageHeaderData.pd_checksum), `raw/postgres-12/src/bin/pg_checksums/pg_checksums.c#scan_file` (enable process).
-
-- Updated `wiki/v12/index.md` and `wiki/index.md`.
-
-## [2026-05-03] answer v12 | key metrics for usage and operational status
-
-- Created `wiki/v12/questions/key-metrics-usage-operational-status.md` answering key metrics to categorize database usage and operational status in PostgreSQL 12.
-- Covered connection metrics (pg_stat_activity), database performance (pg_stat_database cache hit ratio, I/O timing), background writer activity (pg_stat_bgwriter), table/index usage patterns, lock contention, and operational health assessment.
-- Cited system view definitions `raw/postgres-12/src/backend/catalog/system_views.sql` and statistics functions `raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c`.
-- Updated `wiki/v12/index.md` and `wiki/index.md`.
-
-## [2026-05-03] answer v12 | bgwriter tuning scenarios
-
-- Created `wiki/v12/questions/bgwriter-tuning-scenarios.md` answering recommended bgwriter settings for 8 tuning scenarios in PostgreSQL 12 (checkpoint I/O spikes, maxwritten_clean limits, backend writing, bursty workloads, idle systems, low-power environments, kernel page cache pressure, high-write OLTP).
-
-- Cited bgwriter GUC definitions `raw/postgres-12/src/backend/utils/misc/guc.c#2728-2756,3352-3359` and algorithm `raw/postgres-12/src/backend/storage/buffer/bufmgr.c#2052-2336`.
-
-- Updated `wiki/v12/index.md` and `wiki/index.md`.
+- Removed `wiki/v12/questions/cte-join-inheritance-partitioned-table-300-partitions-settings-overhead.md` (missing ## Source References, broken links)
+- Removed `wiki/v12/questions/data-checksums-implementation.md` (missing ## Source References)
+- Removed `wiki/v12/questions/partition-planner-settings.md` (missing ## Source References)
+- Updated `wiki/v12/index.md` and `wiki/index.md` to remove references
 
 ## [2026-05-03] update v12 | source code tree diagram replaced with ASCII tree
 
 - Replaced Mermaid mindmap diagram in `wiki/v12/diagrams/source-code-tree-overview.md` with Unicode/ASCII tree representation per agents.md requirements.
 - Verified directory structure against `raw/postgres-12@45b88269a353ad93744772791feb6d01bc7e1e42`.
 - Updated `verified_by_agent` timestamp.
-
-## [2026-05-03] answer v12 | can non-prepared statements use generic plans
-
-- Created `wiki/v12/questions/can-non-prepared-statements-use-generic-plans.md` answering: Yes, non-prepared SELECT statements can use generic plans in PostgreSQL 12. Generic plans are cached query execution plans independent of parameter values, used for both prepared and non-prepared statements.
-
-- Verified against `raw/postgres-12@45b88269a353ad93744772791feb6d01bc7e1e42`: `plancache.c:choose_custom_plan()` prefers generic plans for queries with no parameters (`boundParams == NULL`), `GetCachedPlan()` orchestrates plan caching, simple queries in `postgres.c:exec_simple_query()` call `GetCachedPlan(psrc, NULL, false, NULL)`.
-
-- Updated `wiki/v12/index.md` and `wiki/index.md`.
 
 ## [2026-05-03] update | AGENTS.md citation discipline clarified
 
@@ -127,31 +80,6 @@ For version-agnostic work, omit the version segment:
 - Created `wiki/v18/index.md`.
 - Created empty version-local directories for subsystems, concepts, code paths, files, and questions.
 - Updated `wiki/versions.md`, `wiki/index.md`, and `wiki/overview.md`.
-
-## [2026-04-30] ingest v18 | parser subsystem
-
-- Created `wiki/v18/subsystems/parser.md`.
-- Verified entry points against `raw/postgres-18/src/backend/tcop/postgres.c:pg_parse_query`, `raw/postgres-18/src/backend/parser/parser.c:raw_parser`, and `raw/postgres-18/src/include/parser/parser.h`.
-
-## [2026-04-30] ingest v18 | analyzer subsystem
-
-- Created `wiki/v18/subsystems/analyzer.md`.
-- Verified entry points against `raw/postgres-18/src/backend/tcop/postgres.c:pg_analyze_and_rewrite_fixedparams`, `raw/postgres-18/src/backend/parser/analyze.c:parse_analyze_fixedparams`, and `raw/postgres-18/src/include/parser/analyze.h`.
-
-## [2026-04-30] ingest v18 | rewriter subsystem
-
-- Created `wiki/v18/subsystems/rewriter.md`.
-- Verified entry points against `raw/postgres-18/src/backend/tcop/postgres.c:pg_rewrite_query`, `raw/postgres-18/src/backend/rewrite/rewriteHandler.c:QueryRewrite`, and `raw/postgres-18/src/include/rewrite/rewriteHandler.h`.
-
-## [2026-04-30] ingest v18 | planner subsystem
-
-- Created `wiki/v18/subsystems/planner.md`.
-- Verified entry points against `raw/postgres-18/src/backend/tcop/postgres.c:pg_plan_query`, `raw/postgres-18/src/backend/optimizer/plan/planner.c:planner`, and `raw/postgres-18/src/backend/optimizer/README`.
-
-## [2026-04-30] ingest v18 | executor subsystem
-
-- Created `wiki/v18/subsystems/executor.md`.
-- Verified entry points against `raw/postgres-18/src/backend/executor/execMain.c`, `raw/postgres-18/src/backend/executor/execProcnode.c:ExecInitNode`, `raw/postgres-18/src/include/executor/executor.h:ExecProcNode`, and `raw/postgres-18/src/backend/executor/README`.
 
 ## [2026-04-30] trace v18 | simple-select-query
 
@@ -345,11 +273,6 @@ For version-agnostic work, omit the version segment:
 - Added `scripts/dashboard unserve` plus `HERMES_DASHBOARD_TAILSCALE_*` environment overrides for Serve/Funnel mode, HTTPS port, path, target, and stop cleanup.
 - Updated `scripts/stop_all` and `operator.md` to use the dashboard wrapper instead of calling `hermes dashboard` directly.
 
-## [2026-05-02] answer v18 | insert-row-disk-writes
-
-- Created `wiki/v18/questions/insert-row-disk-writes.md` tracing disk writes on simple row insert txn: WAL sync at commit (XLogFlush in CommitTransaction@xact.c:2228/1502) only; heap/index async via bgwriter/checkpointer; cites heap_insert@heapam_handler.c:255/278, ExecInsert@nodeModifyTable.c; mermaid + excalidraw JSON seq diagrams; cross-links [[v18/code-paths/insert-path]].
-- Updated `wiki/v18/index.md` and `wiki/index.md` question lists.
-
 ## [2026-05-02] tooling | model config alignment and unused model prune
 
 - Renamed every Hermes auxiliary model id from `Qwen3.5-9B-Q8_0` to `pgwiki-local` in `.wiki-runtime/hermes/config.yaml` so the config matches the alias the running llama-server actually advertises.
@@ -390,17 +313,6 @@ For version-agnostic work, omit the version segment:
 - Added a quick-reference matrix grading each statement on each disk-I/O category and a slow-random-disk impact ranking (`COPY FROM`/`CREATE INDEX`/`VACUUM` highest, DML next, `SELECT` only when pruning or buffer pool is dirty, pre-execution lowest).
 - `scripts/wiki_lint --warnings-as-errors`: 0 errors, 1 unrelated pre-existing warning (`wiki/shared/output/README.md` orphan).
 
-## [2026-05-02] answer v18 | query-disk-io-with-warm-cache
-
-- Created `wiki/v18/questions/query-disk-io-with-warm-cache.md` answering: pre-execution and execution disk I/O paths in PG 18 and how a slow random-I/O disk hurts even when shared buffers and OS page cache are fully warm.
-- Pre-execution: catalog buffer reads on cache miss (relcache, syscache, statistics) all short-circuit at `BufferAlloc` when warm; plan-cache revalidation reacquires planner locks but issues no synchronous writes.
-- Execution-time categories: (1) commit-time WAL fsync via `XLogFlush` → `issue_xlog_fsync`, (2) WAL buffer wraparound via `AdvanceXLInsertBuffer`/`XLogWrite`, (3) dirty victim writeback in `GetVictimBuffer` → `FlushBuffer`, (4) relation extension via `mdzeroextend`, (5) per-backend temp-file spills via `BufFile`/`tuplesort`/`tuplestore`/`nodeHashjoin`/`nodeAgg`.
-- Highlighted hint-bit dirty-buffer pressure, SLRU read/write for CLOG/MultiXact/SubTrans/CommitTs, VM/FSM updates, and `SyncRepWaitForLSN` under synchronous replication.
-- Cited `xact.c:1499-1502`, `xlog.c:XLogFlush`, `xlog.c:issue_xlog_fsync:8744`, `xlog.c:AdvanceXLInsertBuffer:1988-2070`, `bufmgr.c:GetVictimBuffer`, `bufmgr.c:FlushBuffer`, `bufmgr.c:ExtendBufferedRelBy`, `hio.c:RelationGetBufferForTuple`, `md.c:register_dirty_segment:1499-1517`, `slru.c:SimpleLruWritePage`, `clog.c:TransactionIdGetStatus`, `buffile.c:OpenTemporaryFile`/`BufFileWrite`, `syncrep.c:SyncRepWaitForLSN`.
-- Added mermaid sequence diagram showing the warm-cache-but-still-blocked paths.
-- Linked to [[v18/questions/insert-row-disk-writes]], [[v18/code-paths/select-disk-io]], [[v18/code-paths/simple-select-query]], [[v18/questions/prepared-statement-replanning]], [[shared/autovacuum-evolution]].
-- Updated `wiki/v18/index.md` and `wiki/index.md` question lists.
-
 ## [2026-05-02] revise v18 | rewrote insert-row-disk-writes for citation discipline
 
 - Rewrote [[v18/questions/insert-row-disk-writes]] to align with AGENTS.md citation discipline and the style of the rest of `wiki/v18/questions/`.
@@ -419,20 +331,6 @@ For version-agnostic work, omit the version segment:
 - Added v12 row to `wiki/versions.md` supported versions table.
 - Added `[[v12/index]]` section to `wiki/index.md`.
 
-## [2026-05-02] answer v12 | query-disk-io-with-warm-cache
-
-- Created `wiki/v12/questions/query-disk-io-with-warm-cache.md` answering: pre-execution and execution disk I/O paths in PG 12.2 and how a slow random-I/O disk hurts even when shared buffers and OS page cache are fully warm.
-
-- Pre-execution: catalog buffer reads short-circuit at `BufferAlloc`; plan-cache revalidation locks no writes.
-
-- Execution: commit WAL fsync (`xact.c:1371`), WAL wrap (`xlog.c:AdvanceXLInsertBuffer`), dirty victim (`bufmgr.c:FlushBuffer`), extension (`mdzeroextend`), temp spills (`BufFile`).
-
-- Added per-statement summary (SELECT, INSERT, UPDATE, DELETE, etc.) and per-planning-phase summary.
-
-- Cited `raw/postgres-12/src/backend/access/transam/xact.c:1371`, `raw/postgres-12/src/backend/storage/buffer/bufmgr.c:2672`, etc.
-
-- Updated `wiki/v12/index.md` and `wiki/index.md`.
-
 ## [2026-05-03] expand v12 | source code tree overview
 
 - Expanded key features and functionalities for each source tree directory in `wiki/v12/diagrams/source-code-tree-overview.md` with additional citations from READMEs and key source files/symbols.
@@ -440,47 +338,6 @@ For version-agnostic work, omit the version segment:
 - Updated `verified_by_agent: Cline 2026-05-03T12:40:00Z`.
 
 - `scripts/wiki_lint`: 0 errors, 10 warnings (unrelated front matter order/orphan).
-
-## [2026-05-02] review v12 | query-disk-io-with-warm-cache
-
-- Verified citations against `raw/postgres-12@45b88269a353ad93744772791feb6d01bc7e1e42`: `xact.c:1371` `XLogFlush(XactLastRecEnd)`, `xlog.c:2086` `AdvanceXLInsertBuffer` def, `bufmgr.c:2672` `FlushBuffer` def, etc.
-
-- Fixed source refs `xlog.c:2798` → `xlog.c:2086`.
-
-- Removed open questions (all lines verified).
-
-
-## [2026-05-02] answer v12 | plan-cache-mode-production-impact
-
-- Created \`wiki/v12/questions/plan-cache-mode-production-impact.md\` with PG 12 analysis of plan_cache_mode production impacts, best modes per scenario, pros/cons, slow random I/O disk section.
-
-- Verified/cited \`raw/postgres-12/src/backend/utils/cache/plancache.c:choose_custom_plan\`, \`plancache.h:PlanCacheMode\`, \`guc.c:plan_cache_mode_options\`, \`plancat.c:get_relation_info\`.
-
-- Updated \`wiki/v12/index.md\` (coverage, questions), \`wiki/index.md\`.
-
-## [2026-05-02] answer v12 | detect-slow-random-io-disk-metrics
-
-- Created \`wiki/v12/questions/detect-slow-random-io-disk-metrics.md\` answering PG 12 slow random disk I/O detection via pg_stat_database.blk_read_time/blks_read ratio, pg_stat_statements blk_read_time, pg_stat_activity IO:DataFileRead waits, cache hit ratio, pg_stat_user_tables idx_scan inference.
-
-- Cited \`raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c\`, \`contrib/pg_stat_statements/pg_stat_statements.c\`, \`src/backend/storage/buffer/bufmgr.c\`, \`src/backend/postmaster/pgstat.c:DataFileRead\`.
-
-- Updated \`wiki/v12/index.md\` (coverage, questions list).
-
-## [2026-05-02] answer v12 | track-io-timing-blk-write-time-dirty-victim-select
-
-- Created \`wiki/v12/questions/track-io-timing-blk-write-time-dirty-victim-select.md\` answering: PG 12 SELECT execution, does `track_io_timing=on` `blk_write_time` capture "dirty victim" time (synchronous evictions yes via `FlushBuffer`).
-
-- Cited \`raw/postgres-12/src/backend/storage/buffer/bufmgr.c:2764-2769\` (`track_io_timing` / `smgrwrite` / `pgBufferUsage.blk_write_time += io_time`), \`contrib/pg_stat_statements/pg_stat_statements.c:1051-1052,1292\` (`pgBufferUsage` delta).
-
-- Updated \`wiki/v12/index.md\` (coverage, questions), \`wiki/index.md\` (v12 questions list).
-
-## [2026-05-03] review v12 | plan-cache-mode-production-impact
-
-- Reviewed [[v12/questions/plan-cache-mode-production-impact]] against `raw/postgres-12@45b88269a3` (REL_12_2).
-- Fixed decision tree step 3: replaced `!StmtPlanRequiresRevalidation → generic` (helper does not exist in PG 12; introduced post-12) with the actual v12 macro `IsTransactionStmtPlan` at `plancache.c:82,1028`. Added explicit `plancache.c` line numbers for steps 1-9.
-- Fixed `plancat.c` path in two places: `optimizer/plan/plancat.c` → `optimizer/util/plancat.c` (Where The Setting Is Read, Source References).
-- Verified other claims against v12 source: `choose_custom_plan`/`GetCachedPlan`/`cached_plan_cost`/`BuildCachedPlan`/`RevalidateCachedQuery` in `plancache.c`; `PlanCacheMode` enum in `plancache.h:26-32`; `plan_cache_mode_options` in `guc.c:429-432` with PGC_USERSET at `guc.c:4504-4512`; `pg_prepared_statements` view (5 cols, no counters) in `system_views.sql:332`; `DISCARD PLANS` → `ResetPlanCache` in `discard.c:40,75`; EXPLAIN EXECUTE `$1` vs literal in `prepare.sgml`.
-- `scripts/wiki_lint`: 0 errors, 1 unrelated pre-existing warning (`wiki/shared/output/README.md` orphan).
 
 ## [2026-05-03] revise v12 | plan-cache-mode-production-impact auto-mode revalidation detail
 
@@ -544,60 +401,6 @@ For version-agnostic work, omit the version segment:
 - wiki_lint: 0 errors.
 
 
-## [2026-05-03] answer v12 | dirty-victim-select-mitigation
-
-- Created `wiki/v12/questions/dirty-victim-select-mitigation.md` answering: PG 12 mitigation strategies for "dirty victim" synchronous writes during SELECT queries (tune bgwriter_lru_maxpages, bgwriter_lru_multiplier, checkpoint_completion_target, shared_buffers).
-
-- Cited `raw/postgres-12/src/backend/storage/buffer/bufmgr.c:1095-1167` (BufferAlloc dirty victim handling), `bufmgr.c:2051-2336` (BgBufferSync algorithm), `freelist.c:200-358` (StrategyGetBuffer victim selection).
-
-- Updated `wiki/v12/index.md` and `wiki/index.md`.
-
-## [2026-05-04] review v12 | production-io-overhead-measurement-protocol-track-io-timing
-
-- Verified all source citations against `raw/postgres-12@45b88269`: GUC at `guc.c:1402` (PGC_SUSET ✓), read timing `bufmgr.c:894-905` (ReadBuffer_common ✓), write timing `bufmgr.c:2752-2770` (FlushBuffer ✓), `pg_stat_statements` blk_read/write_time at `pg_stat_statements.c:1291-1292` ✓, `pgstatfuncs.c:1569` ✓.
-- Fixed broken SQL: `pg_stat_database` query had `blks_read + blks_hit - blks_read` (= blks_hit) as write denominator — removed `avg_write_ms_per_block` (no blks_written in pg_stat_database), added comment directing to pg_stat_bgwriter.
-- Converted all Source References from plain-text/line-number to Obsidian `[[raw/postgres-12/...#symbol]]` format per AGENTS.md mandate.
-- Moved unsourced per-call overhead numbers (~1-2μs, ~700-1500ns) out of factual claims; moved to Open Questions with note about pg_test_timing.
-- Set `verified_by_agent: claude-sonnet-4-6 2026-05-04T00:00:00Z`.
-
-## [2026-05-04] review v12 | production-io-overhead-measurement-protocol-track-io-timing
-
-- Re-verified all source citations against `raw/postgres-12@45b88269`: `track_io_timing` GUC at `guc.c:1402` (PGC_SUSET, default off) ✓; read timing block in `ReadBuffer_common` at `bufmgr.c:894-905` (function starts 704) ✓; write timing block in `FlushBuffer` at `bufmgr.c:2752-2770` (function starts 2672) ✓; `pgss_store` blk_read_time/blk_write_time at `pg_stat_statements.c:1291-1292` ✓; `pg_stat_get_db_blk_read_time` at `pgstatfuncs.c:1568-1582`, `pg_stat_get_db_blk_write_time` at `pgstatfuncs.c:1584-1598` ✓; `pg_stat_database` view at `system_views.sql:856-882` confirms no `blks_written` column ✓.
-- Converted inline plain-text guc.c reference (line 23) to Obsidian `[[raw/postgres-12/...#track_io_timing]]` format per AGENTS.md citation discipline.
-- Fixed misleading PGC_SUSET safety note: "session-level default" was wrong; PGC_SUSET means runtime-settable by superuser at any context (postgresql.conf, ALTER SYSTEM, SET), default is `off`.
-- Removed unsourced "~1-2μs per buffer I/O" overhead claim from safety notes (no source-backed range; deferred to Open Questions and `pg_test_timing`).
-- Tightened Source References pgstatfuncs entry: was lines 1569-1601 (overshot into bgwriter function); now split into separate read (1568-1582) and write (1584-1598) entries; added `system_views.sql:856-882` reference for `pg_stat_database` schema.
-- Updated `verified_by_agent: claude-opus-4-7 2026-05-04T12:00:00Z`.
-
-## [2026-05-04] review v12 | production-io-overhead-measurement-protocol-track-io-timing
-
-- Tightened citation discipline per AGENTS.md §Citation Discipline: every code symbol mentioned in prose now has a `[[raw/postgres-12/...#symbol]]` link.
-- Added citations for `INSTR_TIME_SET_CURRENT` ([[raw/postgres-12/src/include/portability/instr_time.h#INSTR_TIME_SET_CURRENT|instr_time.h]]:92/156/220), `smgrread`/`smgrwrite` ([[raw/postgres-12/src/backend/storage/smgr/smgr.c|smgr.c]]:587/609), `pgBufferUsage` ([[raw/postgres-12/src/backend/executor/instrument.c|instrument.c]]:20), `pg_test_timing` ([[raw/postgres-12/src/bin/pg_test_timing/pg_test_timing.c|pg_test_timing.c]]), and `pg_stat_bgwriter` ([[raw/postgres-12/src/backend/catalog/system_views.sql|system_views.sql]]:935).
-- Extended Source References list with the five new symbol entries.
-- Did not bump `verified_by_agent` — citation additions only, no claim changes.
-
-## [2026-05-04] review v12 | production-io-overhead-measurement-protocol-track-io-timing
-
-- Brought all five production SQL snippets into compliance with AGENTS.md §Production SQL Snippets: prepended `-- wiki: v12/questions/production-io-overhead-measurement-protocol-track-io-timing — <intent>` traceability comments and added `SET statement_timeout` / `SET lock_timeout` sized to each snippet (10s/2s for control-plane `ALTER SYSTEM`; 30s/5s for read-only diagnostics; 5s/2s for the polled real-time sample).
-- Stated explicitly that `SET` timeouts are session-scoped per AGENTS.md guidance.
-- Tightened the GUC context note: clarified that `PGC_SUSET` maps to "session/transaction scope" — superuser `SET` takes effect immediately with no reload, while `ALTER SYSTEM` + `pg_reload_conf()` is only required to push the new default into other live sessions.
-- Split Step 6 cleanup: kept disable (`ALTER SYSTEM SET track_io_timing = off`) as routine, separated `pg_stat_statements_reset()` and `pg_stat_reset()` into a clearly-marked optional/destructive block with a warning that they wipe cluster-wide counters other consumers may rely on.
-- Did not bump `verified_by_agent` — instructed not to mark verified.
-
-## [2026-05-04] review v12 | production-io-overhead-measurement-protocol-track-io-timing
-
-- Re-read AGENTS.md and noticed §Production SQL Snippets had been updated to require an inline `/* snake_case_tag */` after the leading verb of every production-bound statement, with explicit note that a leading `--` line comment is not sufficient on its own (pg_stat_statements normalization can strip it).
-- Added inline `/* wiki_<intent> */` tags after the leading verb of every SET / SELECT / ALTER SYSTEM / SHOW statement across all five production SQL blocks (enable, top I/O statements, db-wide summary, real-time sample, disable, and both destructive resets). Kept the existing `-- wiki: …` headers as supplementary human-readable context.
-- Tags chosen: `wiki_enable_track_io_timing` (+ `_reload`), `wiki_verify_track_io_timing`, `wiki_top_io_statements`, `wiki_db_io_summary`, `wiki_io_realtime_sample`, `wiki_disable_track_io_timing` (+ `_reload`), `wiki_pgss_reset`, `wiki_pg_stat_reset`.
-- Did not bump `verified_by_agent` — instructed not to mark verified.
-
-## [2026-05-05] review v12 | production-io-overhead-measurement-protocol-track-io-timing
-
-- Re-verified every behavioural claim against `raw/postgres-12@45b88269`: `track_io_timing` GUC at `guc.c:1402` (`PGC_SUSET`, default `false`) ✓; `ReadBuffer_common` read-timing block at `bufmgr.c:894-905` (function declared at line 703) ✓; `FlushBuffer` write-timing block at `bufmgr.c:2752-2770` (function declared at line 2671) ✓; `pgss_store` blk_read_time / blk_write_time accumulation at `pg_stat_statements.c:1291-1292` ✓; `pg_stat_get_db_blk_read_time` at `pgstatfuncs.c:1568-1582` and `pg_stat_get_db_blk_write_time` at `pgstatfuncs.c:1584-1598` ✓; `pg_stat_database` view at `system_views.sql:856-887` (no `blks_written` column) ✓; `pg_stat_bgwriter` view at `system_views.sql:935-947` ✓; `INSTR_TIME_SET_CURRENT` definitions at `instr_time.h:92` (`clock_gettime`), `:156` (`gettimeofday`), `:220` (`QueryPerformanceCounter`) ✓; `smgrread` at `smgr.c:587`, `smgrwrite` at `smgr.c:609` ✓; `pgBufferUsage` global at `instrument.c:20` ✓.
-- Confirmed SQL snippet column names against pg_stat_statements 1.4/1.7 SQL definitions (`queryid`, `query`, `calls`, `total_time`, `mean_time`, `blk_read_time`, `blk_write_time` all present in PG 12).
-- Re-checked AGENTS.md compliance: front-matter order ✓, every production statement carries an inline `/* snake_case_tag */` after the leading verb ✓, every snippet sets session-scoped `statement_timeout` / `lock_timeout` ✓, GUC context mapping note for `PGC_SUSET` is correct ✓, all source references in Obsidian `[[raw/postgres-12/...#symbol]]` form ✓.
-- Set `verified_by_agent: claude-opus-4-7 2026-05-05T00:00:00Z`.
-
 ## [2026-05-05] fix v12 | production-io-overhead-measurement-protocol-track-io-timing
 
 - Caught broken SQL on a follow-up SQL audit of the same page: the `io_percent_of_total` expression in the Top I/O statements query, `round((blk_read_time + blk_write_time)::numeric / nullif(total_time, 0) * 100, 2)`, would fail at runtime with `function round(double precision, integer) does not exist`.
@@ -612,20 +415,6 @@ For version-agnostic work, omit the version segment:
 - Verified every new claim against `raw/postgres-12@45b88269`: histogram declaration at `pg_test_timing.c:21`, increment at `:153`, per-loop printf at `test_timing:164-165`, monotonicity check at `test_timing:137-143`, `output()` histogram printer at `:170-203` (bucket label is `1l << i`, i.e. the upper bound). Cross-checked `pgtesttiming.sgml` for the TSC (`:97-107`), acpi_pm (`:155-168`), and `EXPLAIN ANALYZE` (`:119-143`) examples cited.
 - Extended Source References with three new entries: `pg_test_timing.c#test_timing`, `pg_test_timing.c#output`, and `doc/src/sgml/ref/pgtesttiming.sgml`. Existing `pg_test_timing.c` entry annotated with the histogram lines.
 - Kept `verified_by_agent: claude-opus-4-7 2026-05-05T00:00:00Z` — same agent re-verified, new content sourced from the same pinned checkout, no behavioural claims on prior content changed.
-
-## [2026-05-05] review v12 | production-io-overhead-measurement-protocol-track-io-timing
-
-- Re-reviewed the just-added `pg_test_timing` analysis subsection and caught five issues; fixed all five.
-- (1) **Wrong call count in pg_test_timing loop body**: claimed "*two* `INSTR_TIME_SET_CURRENT` calls plus the bookkeeping between them" — the loop body at `pg_test_timing.c:127-158` makes only **one** call (line 133). The diff measures the gap between the current and previous iteration's single call. Rewrote the bullet to say "one `INSTR_TIME_SET_CURRENT` call plus a few ns of arithmetic and a histogram increment" and pointed at line 133 specifically.
-- (2) **Wrong per-call vs per-loop ratio**: claimed per-call is "often roughly half" of per-loop. The upstream doc's empirical 2× ratio between `EXPLAIN ANALYZE` per-row (68 ns, 2 calls) and pg_test_timing per-loop (35.96 ns, 1 call) implies per-call ≈ per-loop, not 0.5×. Changed to "the per-loop number is essentially the per-call timer cost. Treat it as a tight upper bound on a single `INSTR_TIME_SET_CURRENT`."
-- (3) **Misleading resolution-vs-cost framing**: claimed "the histogram measures *resolution*, not per-call cost" — too absolute. On a slow clocksource the loop's per-call cost is what spans a µs tick and pushes samples into bucket `2`+. Reworded to: "On a fast clocksource the loop body finishes well inside one µs tick so most diffs are 0 (the `1` bucket); on a slow clocksource the loop itself spans a µs tick, pushing samples into the `2` bucket and beyond." Also tightened the bucket-range description (bucket `4` holds diffs of 2-3 µs, bucket `8` holds 4-7 µs — the bit-shift loop at `:146-150` makes this exact, not approximate).
-- (4) **Unsourced latency comparison**: dropped "comparable to or larger than a page-cache-hit read" (no citation backed the OS-page-cache latency claim). Replaced with a pointer to upstream `pgtesttiming.sgml:171-179` which itself notes the slow-clocksource configuration "would inflate `EXPLAIN ANALYZE` totals significantly" — same shape of claim, now sourced.
-- (5) **Wrong reason for the `EXPLAIN ANALYZE` 2×**: claimed "the executor does more than a bare timer call per row." Actually the 2× ratio is exactly because `EXPLAIN ANALYZE` instrumentation issues *two* `INSTR_TIME_SET_CURRENT` calls per row vs pg_test_timing's *one* per loop. Rewrote the closing paragraph to lay out the 9.8 ms vs 16.6 ms / 68 ns / 35.96 ns numbers explicitly and to make the 1-call-vs-2-calls explanation explicit. Also added a back-reference to `bufmgr.c#ReadBuffer_common` to show track_io_timing's two-call structure.
-- Spot-verified the page's pre-existing citations against `raw/postgres-12@45b88269` as part of the comprehensive re-review: `track_io_timing` GUC at `guc.c:1402` (`PGC_SUSET`, default `false`) ✓; `ReadBuffer_common` timing block at `bufmgr.c:894-905` (two `INSTR_TIME_SET_CURRENT` bracketing `smgrread`) ✓; `FlushBuffer` timing block at `bufmgr.c:2752-2770` (two calls bracketing `smgrwrite`) ✓.
-- Extended the `pgtesttiming.sgml` Source-References entry to include the `:171-179` line range now cited.
-- Bumped `verified_by_agent` to `claude-opus-4-7 2026-05-05T01:00:00Z` (same agent, post-correction re-verification).
-
-## [2026-05-04] answer v12 | cte-join-inheritance-partitioned-table-300-partitions-settings-overhead
 
 ## [2026-05-06] update | per-version project context plan
 
