@@ -15,8 +15,8 @@ Questions: [[v12/questions/can-non-prepared-statements-use-generic-plans]], [[v1
 ## Project Context
 
 - Manifest: `.wiki-runtime/context/postgres-12/manifest.md`
-- Generated artifacts: `.wiki-runtime/context/postgres-12/tree-L4.txt`, `.wiki-runtime/context/postgres-12/build-config/`, and `.wiki-runtime/context/postgres-12/external-deps.txt`
-- Deferred artifacts: `.wiki-runtime/context/postgres-12/compile_commands.json`, `.wiki-runtime/context/postgres-12/include-deps.txt`, and `.wiki-runtime/context/postgres-12/callgraphs/`
+- Generated artifacts: `.wiki-runtime/context/postgres-12/tree-L4.txt`, `.wiki-runtime/context/postgres-12/build-config/`, `.wiki-runtime/context/postgres-12/external-deps.txt`, `.wiki-runtime/context/postgres-12/compile_commands.json`, `.wiki-runtime/context/postgres-12/include-deps.txt`, and `.wiki-runtime/context/postgres-12/callgraphs/`
+- Deferred artifacts: none
 
 ## Subsystems
 
@@ -56,10 +56,3 @@ No source file map pages have been created yet.
 - [[v12/questions/cte-join-inheritance-partitioned-table-300-partitions-settings-overhead]] - Settings and configurations that help or add overhead to a SELECT query using CTE to join to an inheritance-partitioned table with 300 partitions in PostgreSQL 12.
 
 - [[v12/questions/partition-planner-settings]] - PostgreSQL 12 query planner settings for partition tables, summarized by inheritance and declarative partitioning.
-
-
-## Open Questions
-
-- Project-context compiler database generation is deferred on this host because `bear` is missing.
-- Project-context include dependencies are deferred until a compiler database or configured PostgreSQL build headers are available.
-- Project-context call/reference graphs are deferred on this host because `cflow`, `doxygen`, and `dot` are missing.

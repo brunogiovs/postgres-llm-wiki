@@ -655,3 +655,16 @@ For version-agnostic work, omit the version segment:
 - Recorded deferred artifacts: `compile_commands.json` (`bear` missing), `include-deps.txt` (no compiler database or configured build headers), and `callgraphs/` (`cflow`, `doxygen`, and `dot` missing).
 - Updated `wiki/v12/index.md`, `wiki/index.md`, `wiki/overview.md`, `wiki/versions.md`, and the Phase 7 implementation-step status.
 - Ran `scripts/wiki_lint`: 10 existing v12 content errors remain, 0 warnings from the Phase 7 updates.
+
+## [2026-05-06] fix | source_context project context packs
+
+- Fixed `scripts/source_context` include-dependency extraction so compile database `file` paths resolve relative to each entry's `directory`, which restores PG 18 direct include edges from Meson-generated relative paths.
+- Fixed build-configuration capture for older PostgreSQL checkouts by treating `configure.ac` and `configure.in` as autoconf alternatives; PG 12 now copies `configure.in`.
+- Regenerated `.wiki-runtime/context/postgres-18/` and `.wiki-runtime/context/postgres-12/`; both manifests now report generated `compile_commands.json`, `include-deps.txt`, and focused `callgraphs/` with no deferred artifacts.
+- Updated `wiki/v18/index.md`, `wiki/v12/index.md`, `wiki/index.md`, `wiki/overview.md`, and `wiki/versions.md` to reflect the complete generated context packs.
+- Ran `scripts/wiki_lint`: 10 existing v12 content errors remain, 0 warnings from this repair.
+
+## [2026-05-06] update | agent source-context usage rules
+
+- Updated `AGENTS.md` with a `Using Source Context Packs` section that explains how agents should use `.wiki-runtime/context/postgres-NN/manifest.md`, `tree-L4.txt`, `build-config/`, `compile_commands.json`, `include-deps.txt`, `callgraphs/`, and `external-deps.txt`.
+- Clarified that context-pack artifacts can guide source navigation, build/include/dependency understanding, and call-path discovery, while behavioral claims still require citations to matching `raw/postgres-NN/` files or symbols.

@@ -6,7 +6,7 @@ It is source-backed: durable claims should cite PostgreSQL source files, functio
 
 ## Current Status
 
-Phase 7 project-context packs are initialized for every supported PostgreSQL version.
+Phase 7 project-context packs are generated for every supported PostgreSQL version, including compiler databases, include dependency extracts, and focused callgraphs.
 
 PostgreSQL 18 is the current primary version. Use [[versions]] as the main version index, then enter the PG 18 wiki through [[v18/index]].
 
@@ -22,8 +22,8 @@ The first useful spine of the wiki will follow the query lifecycle:
 
 ## Source Checkouts
 
-- PostgreSQL 18: `raw/postgres-18/`, branch `REL_18_STABLE`, pinned commit `6cb307251c5c6261286c1566496920976640108e`; context manifest `.wiki-runtime/context/postgres-18/manifest.md`.
-- PostgreSQL 12: `raw/postgres-12/`, branch `REL_12_STABLE`, pinned commit `45b88269a353ad93744772791feb6d01bc7e1e42`; context manifest `.wiki-runtime/context/postgres-12/manifest.md`.
+- PostgreSQL 18: `raw/postgres-18/`, branch `REL_18_STABLE`, pinned commit `6cb307251c5c6261286c1566496920976640108e`; context pack `.wiki-runtime/context/postgres-18/`.
+- PostgreSQL 12: `raw/postgres-12/`, branch `REL_12_STABLE`, pinned commit `45b88269a353ad93744772791feb6d01bc7e1e42`; context pack `.wiki-runtime/context/postgres-12/`.
 
 ## Maintenance Tooling
 

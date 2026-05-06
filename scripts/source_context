@@ -48,11 +48,13 @@ TREE_IGNORE_PATTERN = "build|target|.git|__pycache__|autom4te.cache|tmp_check"
 BUILD_CONFIG_INPUTS = (
     "Makefile",
     "configure",
-    "configure.ac",
     "GNUmakefile.in",
     "src/Makefile.global.in",
     "meson.build",
     "meson_options.txt",
+)
+BUILD_CONFIG_ALTERNATIVES = (
+    ("configure.ac", "configure.in"),
 )
 TOOL_VERSION_COMMANDS = {
     "git": ["git", "--version"],
@@ -300,6 +302,17 @@ def generate_build_config(run: PackRun) -> None:
         else:
             missing.append(rel)
 
+    for alternatives in BUILD_CONFIG_ALTERNATIVES:
+        found = False
+        for rel in alternatives:
+            src = run.source / rel
+            if src.is_file():
+                copy_runtime_file(src, target_dir / rel)
+                copied.append(rel)
+                found = True
+        if not found:
+            missing.append(" or ".join(alternatives))
+
     config_dir = run.source / "config"
     config_m4 = sorted(config_dir.glob("*.m4")) if config_dir.is_dir() else []
     for src in config_m4:
@@ -481,16 +494,44 @@ def generate_include_deps_from_compile_db(run: PackRun, compile_db: Path, target
     except (OSError, json.JSONDecodeError):
         return False
 
-    files = sorted({entry.get("file", "") for entry in entries if entry.get("file")})
+    def entry_directory(entry: dict[str, object]) -> Path:
+        raw_directory = entry.get("directory")
+        if isinstance(raw_directory, str) and raw_directory:
+            directory = Path(raw_directory)
+            if directory.is_absolute():
+                return directory
+            return REPO_ROOT / directory
+        return run.source
+
+    def resolve_entry_path(entry: dict[str, object], path_text: str) -> Path:
+        path = Path(path_text)
+        if path.is_absolute():
+            return path
+        return entry_directory(entry) / path
+
+    def normalise_include_dir(directory: Path, path_text: str) -> str:
+        path = Path(path_text)
+        if path.is_absolute():
+            return normalise_arg(path_text)
+        return normalise_arg(str(directory / path))
+
+    files: set[Path] = set()
     include_dirs: set[str] = set()
     for entry in entries:
+        file_name = entry.get("file")
+        if isinstance(file_name, str) and file_name:
+            files.add(resolve_entry_path(entry, file_name))
+
+        directory = entry_directory(entry)
         args = entry.get("arguments")
         if isinstance(args, list):
-            include_dirs.update(parse_include_dirs([str(arg) for arg in args]))
+            raw_include_dirs = parse_include_dirs([str(arg) for arg in args])
+            include_dirs.update(normalise_include_dir(directory, path) for path in raw_include_dirs)
             continue
         command = entry.get("command")
         if isinstance(command, str):
-            include_dirs.update(parse_include_dirs(shlex.split(command)))
+            raw_include_dirs = parse_include_dirs(shlex.split(command))
+            include_dirs.update(normalise_include_dir(directory, path) for path in raw_include_dirs)
 
     lines = [
         f"# Include Dependencies for PostgreSQL {run.version}",
@@ -500,13 +541,10 @@ def generate_include_deps_from_compile_db(run: PackRun, compile_db: Path, target
         "## Build Include Directories",
         "",
     ]
-    lines.extend(f"- `{normalise_arg(path)}`" for path in sorted(include_dirs))
+    lines.extend(f"- `{path}`" for path in sorted(include_dirs))
     lines.extend(["", "## Direct Include Edges", ""])
 
-    for file_name in files:
-        path = Path(file_name)
-        if not path.is_absolute():
-            path = run.source / file_name
+    for path in sorted(files):
         includes = textual_include_edges(path)
         if not includes:
             continue

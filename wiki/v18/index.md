@@ -15,8 +15,8 @@ Query lifecycle subsystem spine is initialized. Source-backed pages exist for pa
 ## Project Context
 
 - Manifest: `.wiki-runtime/context/postgres-18/manifest.md`
-- Generated artifacts: `.wiki-runtime/context/postgres-18/tree-L4.txt`, `.wiki-runtime/context/postgres-18/build-config/`, and `.wiki-runtime/context/postgres-18/external-deps.txt`
-- Deferred artifacts: `.wiki-runtime/context/postgres-18/compile_commands.json`, `.wiki-runtime/context/postgres-18/include-deps.txt`, and `.wiki-runtime/context/postgres-18/callgraphs/`
+- Generated artifacts: `.wiki-runtime/context/postgres-18/tree-L4.txt`, `.wiki-runtime/context/postgres-18/build-config/`, `.wiki-runtime/context/postgres-18/external-deps.txt`, `.wiki-runtime/context/postgres-18/compile_commands.json`, `.wiki-runtime/context/postgres-18/include-deps.txt`, and `.wiki-runtime/context/postgres-18/callgraphs/`
+- Deferred artifacts: none
 
 ## Subsystems
 
@@ -39,9 +39,3 @@ No source file map pages have been created yet.
 - [[v18/questions/plan-cache-mode-production-impact]] - Production impact of `plan_cache_mode` (`auto`, `force_generic_plan`, `force_custom_plan`), pros/cons per mode, and which to pick per scenario.
 - [[v18/questions/insert-row-disk-writes]] - PG 18 disk writes during row insert txn (WAL sync at commit only, data async).
 - [[v18/questions/query-disk-io-with-warm-cache]] - PG 18 pre-execution and execution disk I/O paths and how slow random I/O hurts even with warm shared buffers and OS page cache.
-
-## Open Questions
-
-- Project-context compiler database generation is deferred on this host because `meson` and `bear` are missing.
-- Project-context include dependencies are deferred until a compiler database or configured PostgreSQL build headers are available.
-- Project-context call/reference graphs are deferred on this host because `cflow`, `doxygen`, and `dot` are missing.

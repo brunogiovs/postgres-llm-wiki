@@ -8,7 +8,35 @@ This repository is an LLM-maintained wiki for PostgreSQL engine internals. The a
 - Read `wiki/index.md` before modifying or answering from the wiki.
 - Read the last ~20 entries of `wiki/log.md` to understand recent activity.
 - For version-specific work, read the relevant `wiki/vNN/index.md` before editing version-local pages.
-- Search the PostgreSQL source tree before making any technical claim.
+- For any question, answer, report, or generated document, read the matching `.wiki-runtime/context/postgres-NN/manifest.md` and the relevant context artifacts before drafting.
+- Search the matching PostgreSQL source tree and the matching `.wiki-runtime/context/postgres-NN/` pack before making any technical claim.
+
+## Evidence Scope
+
+For every question response, report, wiki page, diagram, or generated document, use only the target version's pinned source checkout under `raw/postgres-NN/` and its generated source context under `.wiki-runtime/context/postgres-NN/` as the factual evidence base.
+
+- Treat `wiki/versions.md`, `wiki/index.md`, `wiki/log.md`, and version landing pages as navigation and bookkeeping context, not as independent evidence for PostgreSQL behavior.
+- Do not use model memory, external websites, package documentation outside the repository, or uncited prior wiki prose as factual support for generated content.
+- Use `.wiki-runtime/context/postgres-NN/` artifacts for source-tree shape, build context, include dependencies, compile database entries, external dependency inventory, and generated call/reference context. When a behavioral claim depends on code, trace it back to the matching file or symbol under `raw/postgres-NN/` and cite that raw path.
+- If the matching `.wiki-runtime/context/postgres-NN/` pack is missing, stale against the pinned commit, or insufficient for the question, regenerate or extend the context pack before answering when feasible; otherwise put the gap under `## Open Questions` instead of filling it from another source.
+- Never answer about one PostgreSQL version using `raw/` files or `.wiki-runtime/` context from another version.
+
+## Using Source Context Packs
+
+For a target version `NN`, start with `.wiki-runtime/context/postgres-NN/manifest.md`. Confirm the source path, pinned commit, generation commands, tool status, artifact list, and any recorded gaps before relying on the pack.
+
+Use the context artifacts this way:
+
+- `tree-L4.txt` - bounded source-tree orientation for finding files and drawing directory trees. Do not treat it as evidence for behavior by itself.
+- `build-config/` and `build-config/inventory.md` - build-system context, copied configure/Meson/Makefile inputs, and generated-header/build assumptions.
+- `compile_commands.json` - per-file compilation units, compiler flags, include paths, defines, and build-directory context. Use it to identify the correct headers and generated files for a source file.
+- `include-deps.txt` - direct include relationships. Use it to trace structs, macros, declarations, and dependency direction before opening the matching `raw/postgres-NN/` files.
+- `callgraphs/*.cflow.txt` - focused call-path navigation for known entry points. Use these to find likely edges, then verify every behavioral claim in the matching raw source.
+- `external-deps.txt` - external library and tool inventory from the source/build configuration. Use it only for dependency context; do not infer PostgreSQL runtime behavior from it alone.
+
+Context-pack artifacts may support claims about source-tree shape, build inputs, compiler flags, include relationships, generated callgraph availability, and external dependency inventory. Runtime, planner, executor, storage, WAL, MVCC, SQL grammar, catalog, GUC, and user-visible behavior claims still require citations to matching files or symbols under `raw/postgres-NN/`.
+
+If a context artifact conflicts with the pinned raw source, the raw source wins. Record the context-pack discrepancy under `## Open Questions` or regenerate the pack with `scripts/source_context` before using the artifact.
 
 ## Citation Discipline
 
@@ -152,15 +180,18 @@ For version-agnostic work:
 ### Answer And File
 
 1. Assume the primary version unless the user specifies another.
-2. Search `wiki/versions.md`, the relevant version landing page, and `wiki/index.md`.
-3. Search source evidence under `raw/postgres-NN/`.
-4. Answer with citations.
-5. File durable answers as question pages or fold them into existing pages.
-6. Update indexes and log.
+2. Search `wiki/versions.md`, the relevant version landing page, and `wiki/index.md` for navigation and bookkeeping context only.
+3. Read `.wiki-runtime/context/postgres-NN/manifest.md` and relevant context artifacts for the target version.
+4. Search source evidence under `raw/postgres-NN/` and supporting generated context under `.wiki-runtime/context/postgres-NN/`.
+5. Answer with citations to the matching `raw/postgres-NN/` paths and symbols.
+6. File durable answers as question pages or fold them into existing pages.
+7. Update indexes and log.
 
 ### Report Generation And Review
 
 A report here means any answer or wiki page produced from a user prompt — most commonly a question page under `wiki/vNN/questions/` with a `## Question` section.
+
+Reports and generated documents must be written only from the target version's `raw/postgres-NN/` checkout and `.wiki-runtime/context/postgres-NN/` source context. Existing wiki pages may guide placement and prevent duplication, but they are not sufficient evidence for report claims.
 
 When the user asks for a modification, clarification, or follow-up during generation or review, fold it into the report's `## Question` section before updating the answer body — treat it as part of the question itself, not just guidance for the answer.
 
