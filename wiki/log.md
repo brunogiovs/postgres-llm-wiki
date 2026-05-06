@@ -4,8 +4,12 @@ Append one entry after every scaffold change, version lifecycle event, ingest, t
 
 ## [2026-05-05] maintenance v12 | removed unverified stray question page
 
-- Deleted `wiki/v12/questions/measure-io-overhead.md`. The file appeared untracked in the working tree during the `track_io_timing` question session and contained claims contradicting the pinned v12 source: it asserted `track_io_timing` does not exist in PG 12 (it does, declared `PGC_SUSET` at `raw/postgres-12/src/backend/utils/misc/guc.c#L1402`), cited `raw/postgres-12/src/include/utils/guc_tables.h` (a file that does not exist on this checkout), claimed `log_min_duration_statement` is `PGC_POSTMASTER` (it is `PGC_SUSET`), and linked to `wiki/v12/concepts/` pages that do not exist.
+- Deleted `wiki/v12/questions/measure-io-overhead.md`. The file appeared untracked in the working tree during the `track_io_timing` question session and contained claims contradicting the pinned v12 source: it asserted `track_io_timing` does not exist in PG 12 (it does, declared `PGC_SUSET` at `raw/postgres-12/src/backend/utils/misc/guc.c#L1402`), cited `raw/postgres-12/src/include/utils/guc_tables.h` (a file that does not exist on this checkout), claimed `log_min_duration_statement` is `PGC_SUSET` (it is `PGC_SUSET`), and linked to `wiki/v12/concepts/` pages that do not exist.
 - The verified replacement is [[v12/questions/measure-io-overhead-with-track-io-timing]], filed earlier today.
+
+## [2026-05-05] verify v12 | track_io_timing production measurement procedure
+
+- Set `verified_by_agent: Cline 2026-05-05T22:10:00Z` on [[v12/questions/measure-io-overhead-with-track-io-timing]] after re-checking all claims against the pinned `raw/postgres-12/` source.
 
 ## [2026-05-05] question v12 | track_io_timing production measurement procedure
 
