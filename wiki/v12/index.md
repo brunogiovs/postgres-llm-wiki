@@ -10,9 +10,7 @@
 
 ## Coverage
 
-Questions:
-
-- [[v12/questions/measure-io-overhead-with-track-io-timing]] - Procedure to measure shared-buffer-manager I/O overhead on a production v12 cluster using `track_io_timing`, `pg_stat_database`, `pg_stat_statements`, and `EXPLAIN (BUFFERS)`.
+No questions filed yet.
 
 A generated project-context pack exists under `.wiki-runtime/context/postgres-12/`.
 

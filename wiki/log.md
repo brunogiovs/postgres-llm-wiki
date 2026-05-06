@@ -2,6 +2,12 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-06] delete v12 | track_io_timing measurement question
+
+- Deleted `wiki/v12/questions/measure-io-overhead-with-track-io-timing.md` as requested.
+- Removed links from `wiki/index.md` and `wiki/v12/index.md`.
+- Updated coverage notes in `wiki/v12/index.md` and `wiki/versions.md`.
+
 ## [2026-05-06] tooling | source dependency context lookup
 
 - Added `scripts/source_deps`, a read-only helper over `.wiki-runtime/context/postgres-NN/include-deps.txt` and `compile_commands.json` for direct include lookup, reverse include users, compile-unit context, and bounded transitive include traversal.
