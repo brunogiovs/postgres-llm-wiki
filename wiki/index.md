@@ -28,10 +28,10 @@ This is the global catalog for the PostgreSQL engine wiki.
 
 - `scripts/recent_log` - recent wiki activity.
 - `scripts/wiki_lint` - wiki health checks.
-- `scripts/source_lookup` - project-local PostgreSQL source lookup.
-- `scripts/source_deps` - context-pack include/dependency lookup for direct includes, reverse include users, transitive include edges, and compile-unit flags.
+- `scripts/source_lookup` - project-local PostgreSQL source lookup; requires `--version NN`.
+- `scripts/source_deps` - context-pack include/dependency lookup for direct includes, reverse include users, transitive include edges, and compile-unit flags; requires `--version NN`.
 - `scripts/test_source_tools` - end-to-end synthetic fixture tests for `scripts/source_lookup` and `scripts/source_deps`.
-- `scripts/source_context` - regenerate per-version project-context packs under `.wiki-runtime/context/postgres-NN/`.
+- `scripts/source_context` - regenerate per-version project-context packs under `.wiki-runtime/context/postgres-NN/`; requires `--version NN` or explicit `--all`.
 - `scripts/version_diff` - source path comparison across project-local PostgreSQL checkouts.
 - `scripts/llama_server` - start, stop, status, and logs for the local llama.cpp OpenAI-compatible server.
 - `scripts/hermes_sessions` - list and clear project-local Hermes session files and database rows.

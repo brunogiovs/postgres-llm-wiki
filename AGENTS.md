@@ -118,6 +118,7 @@ Rules for agents:
 - Each supported version has a landing page at `wiki/vNN/index.md`.
 - Default new ingests and answers to the primary version unless the user specifies another.
 - If the user asks without naming a version, assume the primary version and state that assumption before answering.
+- Hard rule: every source-tool operation must use an explicit version scope. Use `--version NN` for single-version tools, `--from NN --to MM` for cross-version diffs, and `--all` only when intentionally operating on every supported version. Do not rely on primary-version defaults for source tools.
 - Never answer about one PostgreSQL version using citations from another version's checkout.
 - Question pages are pinned to a single version. Filing the same question against another version creates a new question page.
 
@@ -176,10 +177,10 @@ For version-agnostic work:
 
 ### Refresh Source Context
 
-1. Read `wiki/versions.md` and select the primary version unless the user specified another.
+1. Read `wiki/versions.md` and select the explicit target version, using the primary version only after stating that assumption when the user did not specify one.
 2. Read `wiki/vNN/index.md`.
 3. Read `.wiki-runtime/context/postgres-NN/manifest.md` to check the current pack status and gaps.
-4. Regenerate or extend `.wiki-runtime/context/postgres-NN/` with `scripts/source_context` when source navigation is stale or insufficient.
+4. Regenerate or extend `.wiki-runtime/context/postgres-NN/` with `scripts/source_context --version NN` when source navigation is stale or insufficient.
 5. Search relevant source files under `raw/postgres-NN/` to verify any claims that will be written.
 6. Update `wiki/vNN/index.md`, `wiki/index.md`, `wiki/versions.md` when coverage status changes, and `wiki/log.md`.
 
@@ -227,10 +228,10 @@ Use the project-local scripts first:
 ```bash
 scripts/recent_log --limit 20
 scripts/wiki_lint
-scripts/source_lookup --symbol ExecutorRun
-scripts/source_lookup --symbol 'Executor(Run|Start)' --regex --limit 20
-scripts/source_lookup --path src/backend/executor/execMain.c --start 1 --limit 80
-scripts/source_lookup --log src/backend/executor/execMain.c --limit 20
+scripts/source_lookup --version 18 --symbol ExecutorRun
+scripts/source_lookup --version 18 --symbol 'Executor(Run|Start)' --regex --limit 20
+scripts/source_lookup --version 18 --path src/backend/executor/execMain.c --start 1 --limit 80
+scripts/source_lookup --version 18 --log src/backend/executor/execMain.c --limit 20
 scripts/source_deps --version 18 --includes src/backend/executor/execMain.c
 scripts/source_deps --version 18 --includes src/backend/executor/execMain.c --format json --limit 0
 scripts/source_deps --version 18 --included-by executor/executor.h --limit 50
@@ -246,11 +247,11 @@ scripts/source_update --version 18
 scripts/source_update --version 18 --branch REL_18_STABLE --commit <sha>
 ```
 
-`scripts/source_lookup` defaults to the primary version in `wiki/versions.md`. Use `--symbol` for fixed-string search, add `--regex` for regular expressions, use `--path` with `--start` / `--limit` to print a source slice, and use `--log` to show git history for a path in the checkout.
+`scripts/source_lookup` requires `--version NN`. Use `--symbol` for fixed-string search, add `--regex` for regular expressions, use `--path` with `--start` / `--limit` to print a source slice, and use `--log` to show git history for a path in the checkout.
 
-`scripts/source_deps` also defaults to the primary version. It reads `.wiki-runtime/context/postgres-NN/include-deps.txt` and, when present, `compile_commands.json`. Use `--includes` for direct include edges, `--included-by` for reverse include users, `--compile-unit` for compiler flags/defines/include directories, and `--transitive-includes` with `--depth` for bounded include traversal. Add `--format json` for machine-readable output, `--limit 0` for unlimited rows, and `--full-command` to print the compiler command in text output for `--compile-unit`. JSON compile-unit output always includes the full compile database entries. If a textual context pack has no compiler database, `--compile-unit` reports that gap; regenerate with `scripts/source_context` when compile flags are needed.
+`scripts/source_deps` requires `--version NN`. It reads `.wiki-runtime/context/postgres-NN/include-deps.txt` and, when present, `compile_commands.json`. Use `--includes` for direct include edges, `--included-by` for reverse include users, `--compile-unit` for compiler flags/defines/include directories, and `--transitive-includes` with `--depth` for bounded include traversal. Add `--format json` for machine-readable output, `--limit 0` for unlimited rows, and `--full-command` to print the compiler command in text output for `--compile-unit`. JSON compile-unit output always includes the full compile database entries. If a textual context pack has no compiler database, `--compile-unit` reports that gap; regenerate with `scripts/source_context --version NN` when compile flags are needed.
 
-`scripts/source_context` generates `.wiki-runtime/context/postgres-NN/` packs. Use `--version NN` for one version, `--all` for every supported version, `--refresh` to clear existing generated context/build output first, `--skip-callgraphs` to avoid cflow/doxygen callgraph work, and `--dry-run` to show target paths without writing. When no compiler database can be produced, it can still generate include dependencies by textual scanning of tracked `.c` / `.h` files; those packs support include queries but not compile-unit queries.
+`scripts/source_context` generates `.wiki-runtime/context/postgres-NN/` packs and requires an explicit scope. Use `--version NN` for one version, `--all` for every supported version, `--refresh` to clear existing generated context/build output first, `--skip-callgraphs` to avoid cflow/doxygen callgraph work, and `--dry-run` to show target paths without writing. When no compiler database can be produced, it can still generate include dependencies by textual scanning of tracked `.c` / `.h` files; those packs support include queries but not compile-unit queries.
 
 `scripts/test_source_tools` builds a synthetic temporary wiki/source/context environment and runs end-to-end checks for `source_lookup`, `source_deps`, and the `source_context` producer/consumer contract. `scripts/version_diff` requires both source checkouts to exist under `raw/postgres-NN/`. `scripts/source_update` clones or updates a checkout to the commit pinned in `wiki/versions.md`; use `--list` for checkout status and pass `--branch` / `--commit` to override the manifest values.
 

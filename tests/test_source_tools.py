@@ -231,6 +231,25 @@ class SyntheticSourceToolsTest(unittest.TestCase):
         env["PATH"] = str(tool_dir)
         return env
 
+    def test_source_lookup_requires_explicit_supported_version(self) -> None:
+        missing = self._script("source_lookup", "--symbol", "SyntheticThing", check=False)
+        self.assertEqual(missing.returncode, 2)
+        self.assertIn("--version", missing.stderr)
+
+        unsupported = self._script("source_lookup", "--version", "100", "--symbol", "SyntheticThing", check=False)
+        self.assertEqual(unsupported.returncode, 2)
+        self.assertIn("unsupported PostgreSQL version: 100", unsupported.stderr)
+
+    def test_source_deps_requires_explicit_version(self) -> None:
+        missing = self._script(
+            "source_deps",
+            "--includes",
+            "src/backend/storage/buffer/bufmgr.c",
+            check=False,
+        )
+        self.assertEqual(missing.returncode, 2)
+        self.assertIn("--version", missing.stderr)
+
     def test_source_lookup_symbol_path_and_log(self) -> None:
         by_path = self._script(
             "source_lookup",
@@ -641,6 +660,11 @@ class SourceContextEndToEndTest(unittest.TestCase):
                 if len(cells) >= 3:
                     return cells[2]
         return ""
+
+    def test_source_context_requires_explicit_scope(self) -> None:
+        proc = self._script("source_context", "--skip-callgraphs", check=False)
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("--version", proc.stderr)
 
     def test_textual_fallback_writes_format_consumable_by_source_deps(self) -> None:
         self._script("source_context", "--version", "99", "--skip-callgraphs")

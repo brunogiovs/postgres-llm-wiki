@@ -42,7 +42,7 @@ Checks:
 Purpose:
 
 - Wrap `rg`, `git grep`, and `git log` for the selected PostgreSQL version.
-- Default to the primary version from `wiki/versions.md`.
+- Require an explicit `--version NN` argument; do not fall back to the primary version.
 - Make source lookup easy for the agent.
 - Use only source checkouts under `raw/postgres-NN/`.
 - Use project-local indexes when available.
@@ -114,7 +114,7 @@ These tools are especially important for the 16GB local model setup. They reduce
 
 - `scripts/recent_log` can show recent activity from `wiki/log.md`.
 - `scripts/wiki_lint` catches at least broken links, missing front matter, and missing source references.
-- `scripts/source_lookup` can search the primary PostgreSQL checkout.
+- `scripts/source_lookup --version NN` can search the selected PostgreSQL checkout.
 - `scripts/version_diff` can compare one path across two checkouts.
 - Generated indexes, caches, temporary files, and logs are written under `.wiki-runtime/`.
 - The lint workflow in `AGENTS.md` references the scripts.

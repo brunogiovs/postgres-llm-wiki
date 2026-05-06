@@ -32,7 +32,6 @@ from wiki_tooling import (
     die,
     load_versions,
     parse_compiler_include_dirs,
-    primary_version,
     read_include_directives,
     render_repo_path,
     source_checkout,
@@ -521,7 +520,7 @@ def selected_source_label(ctx: Context, value: str) -> str:
 def main(argv: list[str] | None = None) -> int:
     versions = load_versions()
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--version", default=primary_version(versions), help="PostgreSQL major version, defaults to primary")
+    parser.add_argument("--version", required=True, help="PostgreSQL major version")
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--includes", metavar="PATH", help="show direct includes for a source or header path")
     action.add_argument("--included-by", metavar="HEADER", help="show files that directly include a header text/path")

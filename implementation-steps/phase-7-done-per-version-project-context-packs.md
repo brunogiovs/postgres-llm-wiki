@@ -52,8 +52,8 @@ Implement `scripts/source_context` as a project-local Python script that follows
 
 Required behavior:
 
-- Reuse `wiki_tooling.py` helpers: `REPO_ROOT`, `RUNTIME_ROOT`, `load_versions`, `primary_version`, `source_checkout`, `append_tool_log`, and `die`.
-- Default to the primary version from `wiki/versions.md` when no version is provided.
+- Reuse `wiki_tooling.py` helpers: `REPO_ROOT`, `RUNTIME_ROOT`, `load_versions`, `source_checkout`, `append_tool_log`, and `die`.
+- Require an explicit scope: `--version NN` for one version or `--all` for every supported version.
 - Accept `--version NN`, `--all`, `--refresh`, `--skip-callgraphs`, and `--dry-run`.
 - Read only from `raw/postgres-NN/` and write generated output only under `.wiki-runtime/context/postgres-NN/` and `.wiki-runtime/build/postgres-NN/`.
 - Never treat optional tooling failure as a total script failure when the minimum pack can still be written.
@@ -62,7 +62,6 @@ Required behavior:
 Suggested command shapes:
 
 ```bash
-scripts/source_context
 scripts/source_context --version 18
 scripts/source_context --all
 scripts/source_context --version 12 --skip-callgraphs

@@ -12,7 +12,7 @@ PostgreSQL 18 is the current primary version. Use [[versions]] as the main versi
 
 ## Source Navigation
 
-Use the generated PostgreSQL 18 source-context pack for source orientation and call-path discovery:
+Use the generated PostgreSQL 18 source-context pack for source orientation and call-path discovery. Source-tool invocations must still name their version explicitly, such as `--version 18`, even when PostgreSQL 18 is the current primary version:
 
 - `.wiki-runtime/context/postgres-18/tree-L4.txt`
 - `.wiki-runtime/context/postgres-18/compile_commands.json`
@@ -30,8 +30,8 @@ Behavioral claims still need citations to matching raw source files or symbols u
 
 - `scripts/recent_log` - recent entries from `wiki/log.md`.
 - `scripts/wiki_lint` - broken links, metadata drift, source-reference checks, and orphan warnings.
-- `scripts/source_lookup` - source search and file lookup inside `raw/postgres-NN/`.
-- `scripts/source_context` - generated source tree, build configuration, dependency, and graph-orientation packs under `.wiki-runtime/context/postgres-NN/`.
+- `scripts/source_lookup` - source search and file lookup inside `raw/postgres-NN/`; requires `--version NN`.
+- `scripts/source_context` - generated source tree, build configuration, dependency, and graph-orientation packs under `.wiki-runtime/context/postgres-NN/`; requires `--version NN` or explicit `--all`.
 - `scripts/version_diff` - path diff across two project-local source checkouts.
 - `scripts/hermes_sessions` - list and clear project-local Hermes session files and database rows.
 

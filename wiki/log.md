@@ -2,6 +2,16 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-06] docs | project plan source-tool sync
+
+- Updated `postgresql-engine-wiki-plan.md` to reflect the implemented source-context packs, project-local source tooling, explicit source-tool version pins, synthetic tests, and current `AGENTS.md` maintenance rules.
+
+## [2026-05-06] tooling | explicit source-tool version pins
+
+- Made `scripts/source_lookup` and `scripts/source_deps` require `--version NN` instead of defaulting to the primary PostgreSQL version.
+- Made `scripts/source_context` require an explicit scope through `--version NN` or `--all`.
+- Added synthetic source-tool tests for omitted version pins and updated `AGENTS.md`, `wiki/index.md`, `wiki/overview.md`, and implementation notes to state the hard rule.
+
 ## [2026-05-06] tooling | unverified document title hints
 
 - Updated `AGENTS.md` so any unverified managed wiki document, including question pages, must show an `(unverified)` hint in its visible title and index or landing-page link text without adding extra question front-matter fields.

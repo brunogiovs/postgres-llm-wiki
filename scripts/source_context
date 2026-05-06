@@ -5,7 +5,6 @@ The generated pack is orientation material for agents.  It is not source
 evidence; wiki claims still need citations into raw/postgres-NN/.
 
 Usage:
-  scripts/source_context
   scripts/source_context --version 18
   scripts/source_context --all
   scripts/source_context --version 12 --skip-callgraphs
@@ -36,7 +35,6 @@ from wiki_tooling import (
     ensure_private_dir,
     load_versions,
     parse_compiler_include_dirs,
-    primary_version,
     read_include_directives,
     redact_args,
     render_repo_path,
@@ -790,17 +788,15 @@ def generate_pack(version: str, info: dict[str, str], args: argparse.Namespace) 
 def selected_versions(args: argparse.Namespace, versions: dict[str, dict[str, str]]) -> list[str]:
     if args.all:
         return sorted(versions, key=int, reverse=True)
-    if args.version:
-        if args.version not in versions:
-            die(f"unsupported PostgreSQL version: {args.version}")
-        return [args.version]
-    return [primary_version(versions)]
+    if args.version not in versions:
+        die(f"unsupported PostgreSQL version: {args.version}")
+    return [args.version]
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    scope = parser.add_mutually_exclusive_group()
-    scope.add_argument("--version", help="PostgreSQL major version to generate, defaulting to the primary version")
+    scope = parser.add_mutually_exclusive_group(required=True)
+    scope.add_argument("--version", help="PostgreSQL major version to generate")
     scope.add_argument("--all", action="store_true", help="generate context packs for every supported version")
     parser.add_argument("--refresh", action="store_true", help="clear existing generated context/build output first")
     parser.add_argument("--skip-callgraphs", action="store_true", help="do not attempt cflow/doxygen callgraph generation")

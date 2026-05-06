@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 
-from wiki_tooling import append_tool_log, load_versions, primary_version, safe_source_path, source_checkout
+from wiki_tooling import append_tool_log, die, load_versions, safe_source_path, source_checkout
 
 
 def print_file(path: Path, start: int, limit: int) -> int:
@@ -103,7 +103,7 @@ def show_log(root: Path, rel_path: str, limit: int) -> int:
 def main(argv: list[str] | None = None) -> int:
     versions = load_versions()
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--version", default=primary_version(versions), help="PostgreSQL major version, defaults to primary")
+    parser.add_argument("--version", required=True, help="PostgreSQL major version")
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--symbol", help="symbol or text to search for")
     mode.add_argument("--path", help="source path to display, relative to the checkout")
@@ -114,6 +114,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     append_tool_log("source_lookup", sys.argv[1:])
+    if args.version not in versions:
+        die(f"unsupported PostgreSQL version: {args.version}")
     root = source_checkout(args.version)
 
     if args.path:

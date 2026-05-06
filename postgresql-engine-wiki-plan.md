@@ -21,9 +21,9 @@ This is not a wiki generated from a PostgreSQL database. It is a wiki about how 
 - Do not ingest raw source code into prose indiscriminately; use generated source-context packs for navigation and synthesize around the questions they answer.
 - Do not assume behavior is stable across PostgreSQL versions without checking the pinned source version.
 
-## Proposed Repository Structure
+## Current Repository Structure
 
-The wiki tracks a fixed set of supported PostgreSQL versions and maintains content per version. Pages are born organically - directories are containers, not pre-declared trees.
+The wiki tracks a fixed set of supported PostgreSQL versions and maintains content per version. Pages are born organically - directories are containers, not pre-declared trees. The current supported versions are declared in `wiki/versions.md`; at the time of this plan sync they are PostgreSQL 18 as `primary` and PostgreSQL 12 as `legacy`.
 
 ```text
 .wiki-runtime/
@@ -40,10 +40,8 @@ The wiki tracks a fixed set of supported PostgreSQL versions and maintains conte
       external-deps.txt      # dependency and pkg-config/configure/meson findings
 
 raw/
-  postgres-17/              # PG 17 checkout, pinned commit on REL_17_STABLE
-  postgres-16/              # PG 16 checkout, pinned commit on REL_16_STABLE
-  postgres-15/              # PG 15 checkout, pinned commit on REL_15_STABLE
-  postgres-14/              # PG 14 checkout, pinned commit on REL_14_STABLE
+  postgres-18/              # PG 18 checkout, pinned commit on REL_18_STABLE
+  postgres-12/              # PG 12 checkout, pinned commit on REL_12_STABLE
   shared/
     docs/                   # papers, official doc snapshots
     mailing-list/           # saved -hackers threads
@@ -57,21 +55,25 @@ wiki/
   overview.md               # Cross-version architecture map
   versions.md               # Main version index and supported-versions contract
 
-  v17/
-    index.md                # Landing page for the PG 17 wiki
-    questions/              # Filed answers, pinned to v17
-  v16/
-    ...
-  v15/
-    ...
-  v14/
-    ...
-
-  diagrams/                 # Mermaid diagrams shared across versions or pages
+  v18/
+    index.md                # Landing page for the PG 18 wiki
+  v12/
+    index.md                # Landing page for the PG 12 wiki
+    questions/              # Filed answers, pinned to v12
   _archive/
     vNN/                    # Archived content of removed versions
 
 AGENTS.md                   # Wiki maintenance instructions for the LLM agent
+scripts/
+  recent_log                # Print recent activity from wiki/log.md
+  wiki_lint                 # Link, metadata, verification, and source-reference lint
+  source_lookup             # Version-pinned source lookup and source git history
+  source_deps               # Version-pinned include/dependency and compile-unit lookup
+  source_context            # Version-pinned context-pack generation
+  source_update             # Clone/update pinned PostgreSQL source checkouts
+  source_rebuild            # Rebuild a checkout at the latest release tag for a major
+  version_diff              # Diff one source path across two explicit versions
+  test_source_tools         # Synthetic end-to-end tests for source tooling
 ```
 
 What goes where:
@@ -82,6 +84,16 @@ What goes where:
 - **`.wiki-runtime/context/postgres-NN/`** — generated, reproducible per-version project context: source tree snapshots, build metadata, compiler database, dependency graphs, call graphs, and external dependency notes. This is the source-navigation layer. Heavy artifacts stay out of `wiki/`; the version landing page links to the manifest once the pack exists.
 
 Concrete starting pages and their seeding order are listed in the [Implementation Roadmap](#implementation-roadmap). Do not stub directories with empty files — pages should appear when the work that justifies them happens.
+
+## Current Implementation Snapshot
+
+The repository has moved beyond the original scaffold plan in these areas:
+
+- PostgreSQL 18 and PostgreSQL 12 are supported in `wiki/versions.md`, with pinned checkouts under `raw/postgres-18/` and `raw/postgres-12/`.
+- Both supported versions have generated project-context packs under `.wiki-runtime/context/postgres-NN/`, including manifests, bounded source trees, build configuration inventories, compiler databases, include dependency extracts, external dependency inventories, and focused callgraphs where available.
+- Source tooling is project-local and version-pinned. `scripts/source_lookup` and `scripts/source_deps` require `--version NN`; `scripts/source_context` requires `--version NN` or intentional `--all`; `scripts/version_diff` requires `--from NN --to MM`.
+- `scripts/test_source_tools` runs synthetic end-to-end tests that exercise lookup, dependency queries, context generation, fallback include scanning, compile database handling, and the explicit-version enforcement.
+- `AGENTS.md` is the active maintenance contract. It now includes source-context evidence rules, citation discipline, GUC-change handling, production SQL snippet requirements, human and agent verification fields, unverified title hints, report-generation rules, lint checks, and the hard source-tool version-pin rule.
 
 ## Version Strategy
 
@@ -100,10 +112,8 @@ This page indexes the PostgreSQL versions covered by the wiki.
 
 | Version | Status  | Wiki Home | Branch        | Pinned Commit | Coverage |
 |---------|---------|-----------|---------------|---------------|----------|
-| 17      | primary | [[v17/index]] | REL_17_STABLE | abc1234       | query lifecycle, executor |
-| 16      | active  | [[v16/index]] | REL_16_STABLE | def5678       | partial |
-| 15      | active  | [[v15/index]] | REL_15_STABLE | 9012abc       | partial |
-| 14      | legacy  | [[v14/index]] | REL_14_STABLE | 3456def       | archived-style coverage |
+| 18      | primary | [[v18/index]] | REL_18_STABLE | 6cb307...     | generated context pack |
+| 12      | legacy  | [[v12/index]] | REL_12_STABLE | 45b882...     | generated context pack; corruption-message catalog |
 
 ## Archived Versions
 
@@ -123,21 +133,21 @@ Pins are commit hashes, not floating tags, so point releases do not silently shi
 Each supported version also has a landing page at `wiki/vNN/index.md`. That page is the version-local table of contents:
 
 ```md
-# PostgreSQL 17
+# PostgreSQL 18
 
 ## Source Pin
 
-- Branch: `REL_17_STABLE`
-- Commit: `abc1234`
+- Branch: `REL_18_STABLE`
+- Commit: `6cb307251c5c6261286c1566496920976640108e`
 - Status: `primary`
 
 ## Coverage
 
-Generated source-context pack: `.wiki-runtime/context/postgres-17/manifest.md`
+Generated source-context pack: `.wiki-runtime/context/postgres-18/manifest.md`
 
 ## Project Context
 
-- Manifest: `.wiki-runtime/context/postgres-17/manifest.md`
+- Manifest: `.wiki-runtime/context/postgres-18/manifest.md`
 
 ## Open Questions
 
@@ -146,20 +156,39 @@ Generated source-context pack: `.wiki-runtime/context/postgres-17/manifest.md`
 
 ### Source References
 
-Every wiki page references its source from the matching `raw/postgres-NN/` checkout. Preferred reference forms:
+Every wiki page references its source from the matching `raw/postgres-NN/` checkout. Behavioral claims must cite the matching raw checkout, not another version's checkout and not uncited prior wiki prose.
 
-- Source file paths: `src/backend/executor/execMain.c`
-- Header file paths: `src/include/executor/executor.h`
-- Function or struct names: `ExecutorRun`, `MemoryContextData`
-- Documentation paths: `doc/src/sgml/*.sgml`
-- Commit hashes when discussing historical changes (these are version-independent and never drift)
-- Mailing-list thread links or saved excerpts when discussing design intent
+Preferred citation form:
+
+```md
+[[raw/postgres-NN/src/backend/executor/execMain.c#ExecutorRun]]
+```
+
+Compact aliases are allowed when they still preserve the raw path target:
+
+```md
+[[raw/postgres-NN/src/backend/executor/execMain.c#ExecutorRun|execMain.c#ExecutorRun]]
+```
+
+Use full file extensions in citations and cite every code reference, function, struct, macro, GUC definition, grammar/catalog location, documentation page, commit, or saved design discussion that backs a claim. Put uncertainty under `## Open Questions` instead of filling gaps from memory.
 
 ### Per-Version Project Context Pack
 
 Every supported PostgreSQL version should have a reproducible project-context pack generated from the matching pinned checkout. The pack is not a substitute for source citations; it is an orientation and indexing layer that helps agents navigate the checkout before tracing a claim.
 
 Store generated artifacts under `.wiki-runtime/context/postgres-NN/`, with any build outputs under `.wiki-runtime/build/postgres-NN/`. Record the exact source commit, command lines, tool versions, failures, and regeneration timestamp in `.wiki-runtime/context/postgres-NN/manifest.md`. If a tool is missing or a graph is too expensive, record that as a gap in the manifest and in `wiki/vNN/index.md` under Open Questions instead of pretending the context is complete.
+
+Implemented command contract:
+
+```bash
+scripts/source_context --version 18 --dry-run
+scripts/source_context --version 18 --refresh --skip-callgraphs
+scripts/source_context --all --skip-callgraphs
+```
+
+`scripts/source_context` requires an explicit scope: `--version NN` for one supported version or `--all` for every supported version. It probes tool availability, writes a manifest, captures a bounded tree, copies build-configuration inputs, inventories external dependencies, tries to generate or reuse `compile_commands.json`, derives `include-deps.txt`, and writes focused cflow/Doxygen callgraph artifacts when tooling permits. When no compiler database is available, it falls back to a textual scan of tracked `.c` and `.h` files so include-dependency queries remain useful even though compile-unit queries are deferred.
+
+Agents query context packs through `scripts/source_deps --version NN` before doing ad hoc include chasing. It supports direct includes, reverse include users, per-file compile-unit context, bounded transitive include edges, text/JSON output, row limits, and full compiler-command display.
 
 The context pack should include:
 
@@ -215,7 +244,7 @@ Unlike the article-shaped sources in the original LLM Wiki idea, PostgreSQL is a
 - **A mailing-list thread**: a saved thread in `raw/shared/mailing-list/` read to recover design intent.
 - **A commit or commit range**: a saved commit or `git log` range in `raw/shared/commits/` read to explain why something is the way it is.
 
-Each ingest defaults to the **primary** version and produces one log entry tagged with the version(s) touched. After producing durable question content on the primary, the agent does an active-version verification pass when active versions exist.
+Each ingest targets an explicit PostgreSQL version in its source-tool operations. If the user did not name a version, the agent may assume the **primary** version only after stating that assumption, then every source command still uses `--version NN` or the relevant explicit cross-version flags. Each ingest produces one log entry tagged with the version(s) touched. After producing durable question content on the primary, the agent does an active-version verification pass when active versions exist.
 
 ### Pin Bumps Within a Supported Version
 
@@ -241,8 +270,8 @@ Used by question pages under `wiki/vNN/`:
 ```yaml
 ---
 type: question
-version: 17
-pinned_commit: abc1234
+version: NN
+pinned_commit: abc123...
 verified: false
 verified_by_agent: not yet
 ---
@@ -252,6 +281,10 @@ verified_by_agent: not yet
 - `pinned_commit` — the exact source commit checked for this page. It must match `wiki/versions.md` unless the page explicitly records why it is stale.
 - `verified` — human verification status. New question pages start with `verified: false`.
 - `verified_by_agent` — agent verification status. New question pages start with `verified_by_agent: not yet` unless the agent has completed a full source review.
+
+Question front matter uses exactly this key order: `type`, `version`, `pinned_commit`, `verified`, `verified_by_agent`. Agents must not add extra question front-matter fields such as `filed`.
+
+`verified:` is human-controlled; agents never set, change, or remove it. `verified_by_agent:` may be set only after a comprehensive re-check of all page claims against the matching pinned source and context pack, using `<agent-model> <ISO-8601-datetime-UTC>`. Unverified managed wiki documents must show `(unverified)` in the visible title and in index or landing-page link text until either a human sets `verified: true` or an agent writes a valid `verified_by_agent:` timestamp after verification.
 
 If the same question deserves an answer for another version, that is a new question page in that version's directory, cross-linked to the original.
 
@@ -285,19 +318,32 @@ A question page stays pinned to a single version, even if its answer happens to 
 
 ## LLM Maintenance Rules (AGENTS.md)
 
-The repository must include an `AGENTS.md` file. This file is the schema — it is what makes the LLM a disciplined wiki maintainer rather than a chatty assistant. It should be drafted as part of Phase 1 and co-evolved with the wiki. A starting draft:
+`AGENTS.md` is the active maintenance contract for the repository. It is what makes the LLM a disciplined wiki maintainer rather than a chatty assistant, and it should be co-evolved with the wiki whenever tooling or evidence rules change. The current implemented rules include:
 
 ### Read before writing
 
+- Read `wiki/versions.md` first to identify supported PostgreSQL versions and the primary version.
 - Read `wiki/index.md` before modifying or answering from the wiki.
 - Read `wiki/log.md`'s last ~20 entries to understand recent activity.
+- For version-specific work, read the relevant `wiki/vNN/index.md` before editing version-local pages.
 - Read the matching `.wiki-runtime/context/postgres-NN/manifest.md` and relevant context artifacts before drafting a question response or generated document.
-- Search the PostgreSQL source tree before making any technical claim. Generated source-context artifacts can support source-shape and build-context claims, but behavioral claims require matching raw source citations. If a claim is not backed by the allowed evidence for that claim type, do not write it down.
+- Search the matching PostgreSQL source tree and matching `.wiki-runtime/context/postgres-NN/` pack before making any technical claim.
+
+### Evidence scope
+
+- Use only the target version's pinned source checkout under `raw/postgres-NN/` and generated source context under `.wiki-runtime/context/postgres-NN/` as factual evidence for generated reports, answers, diagrams, and wiki pages.
+- Treat `wiki/versions.md`, `wiki/index.md`, `wiki/log.md`, and version landing pages as navigation and bookkeeping context, not independent evidence for PostgreSQL behavior.
+- Do not use model memory, external websites, package documentation outside the repository, or uncited prior wiki prose as factual support.
+- Context-pack artifacts can support source-tree shape, build inputs, compiler flags, include relationships, generated callgraph availability, and external dependency inventory. Runtime, planner, executor, storage, WAL, MVCC, SQL grammar, catalog, GUC, and user-visible behavior claims still need citations to matching raw source.
+- If a context pack is missing, stale against the pinned commit, or insufficient for a question, regenerate or extend it when feasible; otherwise record the gap under `## Open Questions`.
 
 ### Citation discipline
 
-- Cite source paths and symbols for every behavioral claim. Format: `src/backend/executor/execMain.c:ExecutorRun`.
-- Always cite from the `raw/postgres-NN/` checkout matching the page's `version:`.
+- Cite source paths and symbols for every behavioral claim.
+- Mandatory citation shape: `[[raw/postgres-NN/src/backend/executor/execMain.c#ExecutorRun]]`.
+- For non-Markdown files, include the full file extension.
+- Cite from the `raw/postgres-NN/` checkout matching the page's `version:`.
+- Use aliases only when the target still contains the full raw path, such as `[[raw/postgres-NN/path/file.c#symbol|file.c#symbol]]`.
 - When uncertain, write the claim under `## Open Questions` rather than guessing intent.
 - Never paraphrase code in a way that adds behavior the code does not exhibit.
 
@@ -307,12 +353,14 @@ The repository must include an `AGENTS.md` file. This file is the schema — it 
 - When browsing the wiki, use `wiki/versions.md` as the entry point, then follow the relevant `wiki/vNN/index.md` landing page.
 - Default new ingests, traces, and answers to the **primary** version unless the user specifies another.
 - If the user asks a question without naming a version, assume the primary version and state that assumption before answering.
-- Never silently answer about one version using citations from another. If a page is verified for v17 only, do not extend it to v16 without re-checking the source.
+- Hard rule: every source-tool operation must use an explicit version scope. Use `--version NN` for single-version tools, `--from NN --to MM` for cross-version diffs, and `--all` only when intentionally operating on every supported version.
+- Do not rely on primary-version defaults for source tools.
+- Never silently answer about one version using citations from another. If a page is verified for one version only, do not extend it to another without re-checking the source.
 - Question pages are pinned to a single version. Filing the same question against another version creates a new question page, not an edit to the original.
 
 ### Wiki structure
 
-- Use Obsidian-style links: `[[v17/index]]`, `[[v17/questions/simple-select-query]]`. Include the version segment for links into per-version directories.
+- Use Obsidian-style links: `[[vNN/index]]`, `[[vNN/questions/simple-select-query]]`. Include the version segment for links into per-version directories.
 - Keep `wiki/versions.md` as the top-level version index and keep each `wiki/vNN/index.md` as the version-local table of contents.
 - A page is born when the work justifies it, not before. Do not create empty stubs.
 - Do not create standalone code-path or source-trace document families; extend `.wiki-runtime/context/postgres-NN/` instead.
@@ -322,15 +370,29 @@ The repository must include an `AGENTS.md` file. This file is the schema — it 
 - Run wiki tooling from the project root.
 - Store PostgreSQL source checkouts under `raw/postgres-NN/`.
 - Store generated source-context packs under `.wiki-runtime/context/postgres-NN/`.
+- Store generated build trees under `.wiki-runtime/build/postgres-NN/`.
 - Do not rely on global source indexes for normal operation.
 - If a system-level prerequisite is required, document it.
+
+### GUC and production SQL rules
+
+- Whenever a wiki page suggests changing a PostgreSQL GUC, state whether the change requires restart, reload, or session/transaction scope. Determine this from the GUC context in the matching version's source and cite it.
+- Production-bound SQL snippets must be syntactically and catalog-verified against the pinned version before filing.
+- Every production-bound SQL statement must include an inline block-comment tag immediately after the leading verb, such as `SELECT /* wiki_capture_plan_inputs */ ...`.
+- Production snippets should recommend reasonable session-scoped `statement_timeout` and `lock_timeout` values and remind readers to choose values appropriate for the workload.
+
+### Report generation and review
+
+- Reports and generated documents must use only the target version's raw checkout and source-context pack as evidence.
+- When the user modifies or clarifies a prompt during generation, fold that into the page's `## Question` section before revising the answer body.
+- Rewrite the `## Question` section coherently rather than appending transcript fragments.
 
 ### Bookkeeping (do these every time)
 
 - Update `wiki/index.md` whenever a page is created or substantially changed. Tag entries with their version(s).
 - Update `wiki/versions.md` whenever a supported version is added, removed, archived, re-pinned, or has a meaningful coverage change.
 - Update the relevant `wiki/vNN/index.md` whenever version-local pages are created or substantially changed.
-- Append an entry to `wiki/log.md` after each ingest, lint pass, filed answer, or version lifecycle event. Use the prefix `## [YYYY-MM-DD] <kind> v<NN> | <subject>` (e.g. `## [2026-04-30] answer v17 | simple-select-question`).
+- Append an entry to `wiki/log.md` after each scaffold change, ingest, lint pass, filed answer, or version lifecycle event. Use `## [YYYY-MM-DD] <kind> v<NN> | <subject>` for version-specific work and `## [YYYY-MM-DD] <kind> | <subject>` for version-agnostic work.
 - File durable answers as question pages under the investigated version's `questions/` directory when they should persist; do not let them disappear into chat history.
 - Never edit `raw/` except when explicitly adding new source material via the Add a Supported Version workflow.
 
@@ -361,7 +423,6 @@ wiki/index.md
 wiki/log.md
 wiki/overview.md
 wiki/versions.md
-wiki/diagrams/
 AGENTS.md
 ```
 
@@ -377,10 +438,10 @@ Inputs: version number, branch name, pinned commit, target status (`primary`, `a
 
 Agent flow:
 
-1. **Add the source.** Create `raw/postgres-NN/` as a checkout of the pinned commit on `REL_NN_STABLE`.
+1. **Add the source.** Create `raw/postgres-NN/` as a checkout of the pinned commit on `REL_NN_STABLE`, normally through `scripts/source_update --version NN`.
 2. **Update the version index.** Add a row to `wiki/versions.md`. If the new version is being made `primary`, demote the previous primary to `active` in the same edit.
 3. **Create the version landing page.** Create `wiki/vNN/index.md`. Create `wiki/vNN/questions/` only when a durable filed answer needs it. The landing page is real navigation, not a stub.
-4. **Generate the project-context pack.** Create or refresh `.wiki-runtime/context/postgres-NN/` from the pinned checkout. At minimum, capture the source tree, build configuration inventory, and manifest; add compiler database, include dependency graph, call graph, and external dependency inventory as tools permit.
+4. **Generate the project-context pack.** Create or refresh `.wiki-runtime/context/postgres-NN/` from the pinned checkout with `scripts/source_context --version NN`. At minimum, capture the source tree, build configuration inventory, and manifest; add compiler database, include dependency graph, call graph, and external dependency inventory as tools permit.
 5. **Backfill verification pass.**
    - For per-version pages, create a new `wiki/vNN/...` page only when the content has actually been checked or intentionally copied with clear source references for NN.
    - If the behavior diverges, write the divergence in the new version page and cross-link related versions.
@@ -432,12 +493,12 @@ Refresh source context for src/backend/executor.
 
 Agent flow:
 
-1. Read `wiki/versions.md` and select the **primary** version unless the user specified another.
-2. Read `wiki/vPRIMARY/index.md` to understand existing coverage for that version.
-3. Read `.wiki-runtime/context/postgres-PRIMARY/manifest.md` and relevant context artifacts.
-4. Inspect relevant directories and README files in `raw/postgres-PRIMARY/`.
+1. Read `wiki/versions.md` and select the explicit target version, using the primary version only after stating that assumption when the user did not specify one.
+2. Read `wiki/vNN/index.md` to understand existing coverage for that version.
+3. Read `.wiki-runtime/context/postgres-NN/manifest.md` and relevant context artifacts.
+4. Inspect relevant directories and README files in `raw/postgres-NN/`.
 5. Identify any missing context roots, include paths, generated-header needs, or callgraph roots.
-6. Regenerate or extend `.wiki-runtime/context/postgres-PRIMARY/` with `scripts/source_context`.
+6. Regenerate or extend `.wiki-runtime/context/postgres-NN/` with `scripts/source_context --version NN`.
 7. **Active-version pass:** for each `active` version, refresh or mark stale its matching context pack before claiming comparable coverage.
 8. Update `wiki/index.md`, `wiki/versions.md` if coverage changed, and the affected `wiki/vNN/index.md` pages. Append to `wiki/log.md` with the version tag.
 
@@ -454,7 +515,7 @@ Agent flow:
 1. Determine which version the question is being asked against. If unclear, assume the primary version and state that assumption explicitly before answering.
 2. Search existing wiki pages (start with `wiki/versions.md`, then the relevant `wiki/vNN/index.md`, then `wiki/index.md`).
 3. Read the matching `.wiki-runtime/context/postgres-NN/manifest.md` and relevant context artifacts for orientation.
-4. Search the matching `raw/postgres-NN/` and docs for supporting evidence.
+4. Search the matching `raw/postgres-NN/` and generated context for supporting evidence, using explicit version-pinned tooling such as `scripts/source_lookup --version NN` and `scripts/source_deps --version NN`.
 5. Answer the user with citations.
 6. File durable answers as question pages under `wiki/vNN/questions/` with per-version front matter when the answer should persist.
 7. Update `wiki/index.md`, the relevant `wiki/vNN/index.md`, `wiki/versions.md` if coverage changed, and `wiki/log.md`.
@@ -475,6 +536,11 @@ Agent checks:
 - Pages under `wiki/vNN/` without matching `version:` and `pinned_commit:`.
 - Pages whose `pinned_commit:` is stale relative to `wiki/versions.md`.
 - Question pages without `version:` or `pinned_commit:`.
+- Invalid or malformed `verified:` / `verified_by_agent:` fields.
+- New reports and question pages missing `verified: false`.
+- Managed pages missing verification fields.
+- Question pages under `wiki/vNN/questions/` whose front matter is not exactly ordered as `type`, `version`, `pinned_commit`, `verified`, `verified_by_agent`.
+- Unverified managed wiki documents missing `(unverified)` in the visible title or in index/landing-page link text.
 - Question pages citing source from a different version's checkout than their pin.
 - Pages under `wiki/vNN/` citing code from a different version's checkout.
 - Orphan pages and broken wiki links (including version-qualified links).
@@ -485,42 +551,59 @@ Agent checks:
 
 ## Suggested Tooling
 
-Start with simple local tools, scoped to the relevant version's checkout:
+Use the project-local scripts first. Source tools must be pinned to a PostgreSQL version:
 
 ```bash
-rg "ExecutorRun" raw/postgres-17
-rg "typedef struct.*Snapshot" raw/postgres-17/src
-git -C raw/postgres-17 log -- src/backend/executor/execMain.c
-git -C raw/postgres-17 grep "MemoryContext"
-
-# Cross-version diff for active-version verification
-diff <(git -C raw/postgres-17 show HEAD:src/backend/executor/execMain.c) \
-     <(git -C raw/postgres-16 show HEAD:src/backend/executor/execMain.c)
+scripts/recent_log --limit 20
+scripts/wiki_lint
+scripts/source_lookup --version 18 --symbol ExecutorRun
+scripts/source_lookup --version 18 --symbol 'Executor(Run|Start)' --regex --limit 20
+scripts/source_lookup --version 18 --path src/backend/executor/execMain.c --start 1 --limit 80
+scripts/source_lookup --version 18 --log src/backend/executor/execMain.c --limit 20
+scripts/source_deps --version 18 --includes src/backend/executor/execMain.c
+scripts/source_deps --version 18 --included-by executor/executor.h --limit 50
+scripts/source_deps --version 18 --compile-unit src/backend/executor/execMain.c --full-command
+scripts/source_deps --version 18 --transitive-includes src/backend/executor/execMain.c --depth 2 --limit 100
+scripts/source_context --version 18 --dry-run
+scripts/source_context --version 18 --refresh --skip-callgraphs
+scripts/source_context --all --skip-callgraphs
+scripts/version_diff --from 18 --to 12 --path src/backend/executor/execMain.c
+scripts/source_update --list
+scripts/source_update --version 18
+scripts/test_source_tools
 ```
 
-Optional later tools:
+Implemented script responsibilities:
 
-- `universal-ctags` per checkout, for symbol navigation.
-- `tree-sitter` for structured source exploration.
-- `doxygen` for generated call/reference maps.
-- `bear` or another compiler-database generator for autoconf/Make checkouts.
-- `meson`, `ninja`, and Graphviz where the pinned PostgreSQL version and host toolchain support them.
-- `cflow` for focused call graph generation around selected PostgreSQL entry points.
-- A small `scripts/wiki_lint` tool to detect broken links, orphan pages, missing source references, version/pin mismatches, stale `pinned_commit:`, and stale `verified_against:` entries.
-- A small `scripts/source_lookup` wrapper around `rg`, `git grep`, and `git log`, defaulting to the primary version's checkout.
-- A small `scripts/version_diff` to compare cited files across two checkouts during active-version verification.
-- A small `scripts/source_context` tool to regenerate `.wiki-runtime/context/postgres-NN/` from the pinned checkout and record tool availability, command lines, and incomplete artifacts in the manifest.
+- `scripts/recent_log` prints recent `wiki/log.md` entries.
+- `scripts/wiki_lint` checks links, source references, version/pin metadata, verification fields, front-matter order, wrong-version citations, and unverified title/link hints.
+- `scripts/source_lookup` searches symbols/text, prints source slices, and shows source git history for an explicit `--version NN`.
+- `scripts/source_deps` queries `.wiki-runtime/context/postgres-NN/include-deps.txt` and `compile_commands.json` for direct includes, reverse include users, compile-unit details, and transitive include edges. It supports text/JSON output, limits, and full compile command display.
+- `scripts/source_context` regenerates context packs with explicit `--version NN` or `--all`; it supports `--refresh`, `--skip-callgraphs`, and `--dry-run`.
+- `scripts/source_update` clones or updates a checkout to the pin in `wiki/versions.md`, with optional branch/commit override.
+- `scripts/source_rebuild` reclones a checkout at the latest release tag for a major and updates the source pin.
+- `scripts/version_diff` compares one source path across two explicit source checkouts.
+- `scripts/test_source_tools` runs the synthetic end-to-end source-tool test suite.
 
+External tools used by the implemented scripts when available:
+
+- `git`, `rg`, and Python for source lookup, git history, tests, and lint.
+- `tree` for bounded source tree snapshots, with an ASCII fallback when missing.
+- `cc`, `gcc`, `clang`, `make`, `meson`, `ninja`, and `bear` for build probing and compiler database generation.
+- `doxygen`, Graphviz `dot`, and `cflow` for generated call/reference artifacts.
+- `pkg-config` and PostgreSQL build files for external dependency inventory.
+
+Additional optional tools such as `universal-ctags` and `tree-sitter` can still be added later, but source navigation currently comes from the generated context packs and the project-local scripts above.
 
 Open `wiki/` as an Obsidian vault. Use the graph view during lint passes to spot orphan pages and isolated clusters. Source navigation itself should come from generated context packs under `.wiki-runtime/context/postgres-NN/`, not manually maintained call-chain page families.
 
-Diagrams should be authored as Mermaid blocks inside relevant pages (or in `wiki/diagrams/` if shared across pages). Avoid binary image formats unless screenshotting documentation; Mermaid keeps everything diffable and grep-able.
+Diagrams are optional. When they are useful, prefer Mermaid blocks inside the relevant page so the evidence and explanation stay together. Avoid binary image formats unless screenshotting documentation; Mermaid keeps everything diffable and grep-able.
 
 ## Implementation Roadmap
 
 ### Phase 1: Wiki Scaffold
 
-- Create the version-agnostic wiki structure: `index.md`, `log.md`, `overview.md`, `versions.md`, `wiki/diagrams/`.
+- Create the version-agnostic wiki structure: `index.md`, `log.md`, `overview.md`, and `versions.md`.
 - Ignore runtime directories from git if this repo uses git.
 - Draft `AGENTS.md` with the maintenance rules.
 - Add page templates with the per-version front matter block.
@@ -547,14 +630,26 @@ For each stage, make sure source orientation is available through `.wiki-runtime
 
 ### Phase 6: Maintenance Tooling
 
-Add scripts for:
+Implemented scripts:
 
-- Broken wiki link detection
-- Orphan page detection
-- Missing source reference detection
-- Per-version project-context pack generation
-- Recent activity summaries from `wiki/log.md`
-- Start, stop, status, and log inspection for the local wiki maintainer agent
+- `scripts/recent_log` for recent activity summaries from `wiki/log.md`.
+- `scripts/wiki_lint` for broken links, orphan warnings, missing source references, version/pin drift, wrong-version citations, verification metadata, front-matter ordering, and unverified title/link hints.
+- `scripts/source_lookup` for version-pinned source search, source slices, and source git history.
+- `scripts/source_deps` for version-pinned include/dependency and compile-unit context queries over generated context packs.
+- `scripts/source_context` for per-version project-context pack generation and refresh.
+- `scripts/source_update` and `scripts/source_rebuild` for checkout lifecycle operations.
+- `scripts/version_diff` for explicit cross-version source path comparisons.
+- `scripts/test_source_tools` for source-tool regression coverage.
+
+### Phase 7: Source Context and Tool Contracts
+
+Completed. The current contract is:
+
+- Every supported version has a context pack or an explicit context-pack gap under `.wiki-runtime/context/postgres-NN/`.
+- Context packs record source pin, source path, context path, generation timestamp, tool versions, attempted commands, artifact statuses, and deferred or failed artifacts.
+- `include-deps.txt` uses a structured format consumable by `scripts/source_deps`, with compile-database-derived edges when available and textual scan fallback when not.
+- Source tools enforce explicit version scope. Single-version tools require `--version NN`; cross-version diffs require `--from NN --to MM`; context generation across all versions requires explicit `--all`.
+- Synthetic end-to-end tests cover source lookup, dependency queries, context generation fallback paths, compile database consumption, and missing-version enforcement.
 
 ## First Useful Milestone
 
@@ -566,6 +661,7 @@ The wiki is never "done" — it compounds as long as it's used. But there's a na
 - Each supported version has a generated or explicitly deferred project-context manifest under `.wiki-runtime/context/postgres-NN/`.
 - The query lifecycle is navigable from parse through execute on the primary version through generated source-context artifacts.
 - Each page has front matter declaring its version scope and includes source references or explicit open questions.
-- The agent maintenance rules are documented in `AGENTS.md`, including the version-awareness section.
+- The project-local source tools enforce explicit version pins and are covered by `scripts/test_source_tools`.
+- The agent maintenance rules are documented in `AGENTS.md`, including source-context evidence scope, citation discipline, verification metadata, production SQL/GUC rules, lint rules, report-generation rules, and the hard source-tool version-pin rule.
 
 After this point, growth is driven by the questions you ask, the source areas you investigate through generated context, and the versions you choose to support.
