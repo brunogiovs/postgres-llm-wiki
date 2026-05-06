@@ -15,10 +15,10 @@ Questions filed:
 - [[v12/questions/bgwriter-tuning-recommendations|Bgwriter tuning recommendations (unverified)]] (four bgwriter GUCs with defaults/ranges/reload semantics, source-grounded direction-of-change matrix per scenario, and verified `pg_stat_bgwriter` counter wiring for iterative tuning)
 - [[v12/questions/enable-io-timing-measurements-production|Enable I/O timing measurements on production]] (agent-reviewed procedure for enabling `track_io_timing` on production, with host timing preflight, reload/session semantics, tagged SQL sampling, `pg_stat_database`, optional `pg_stat_statements`, and plan-level drill-down)
 
-A generated project-context pack exists under `.wiki-runtime/context/postgres-12/`.
+A generated project-context pack exists under `.wiki-runtime/context/postgres-12/`; its compiler database now includes the normal build plus an appended contrib build capture.
 
 ## Project Context
 
 - Manifest: `.wiki-runtime/context/postgres-12/manifest.md`
-- Generated artifacts: `.wiki-runtime/context/postgres-12/tree-L4.txt`, `.wiki-runtime/context/postgres-12/build-config/`, `.wiki-runtime/context/postgres-12/external-deps.txt`, `.wiki-runtime/context/postgres-12/compile_commands.json`, `.wiki-runtime/context/postgres-12/include-deps.txt`, and `.wiki-runtime/context/postgres-12/callgraphs/`
+- Generated artifacts: `.wiki-runtime/context/postgres-12/tree-L4.txt`, `.wiki-runtime/context/postgres-12/build-config/`, `.wiki-runtime/context/postgres-12/external-deps.txt`, `.wiki-runtime/context/postgres-12/compile_commands.json` (normal build plus appended contrib capture), `.wiki-runtime/context/postgres-12/include-deps.txt`, and `.wiki-runtime/context/postgres-12/callgraphs/`
 - Deferred artifacts: none

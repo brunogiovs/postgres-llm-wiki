@@ -19,7 +19,7 @@ This is the global catalog for the PostgreSQL engine wiki.
 
 ### PostgreSQL 12.2
 
-- [[v12/index]] - Legacy version landing page. Source checkout pinned to `REL_12_STABLE` commit `45b88269a353ad93744772791feb6d01bc7e1e42`; project-context pack generated under `.wiki-runtime/context/postgres-12/`.
+- [[v12/index]] - Legacy version landing page. Source checkout pinned to `REL_12_STABLE` commit `45b88269a353ad93744772791feb6d01bc7e1e42`; project-context pack generated under `.wiki-runtime/context/postgres-12/` with an appended contrib compile capture.
 - [[v12/questions/bgwriter-tuning-recommendations|Bgwriter tuning recommendations (unverified)]] - Source-grounded direction-of-change matrix for the four PG 12 bgwriter GUCs (`bgwriter_delay`, `bgwriter_lru_maxpages`, `bgwriter_lru_multiplier`) across the main tuning scenarios, with verified `pg_stat_bgwriter` counter wiring for iterative numeric tuning.
 - [[v12/questions/enable-io-timing-measurements-production|Enable I/O timing measurements on production]] - Production procedure for enabling PG 12 `track_io_timing`, including host timing preflight, reload/session semantics, tagged SQL sampling, `pg_stat_database`, optional `pg_stat_statements`, and `EXPLAIN (ANALYZE, BUFFERS, TIMING OFF)` interpretation.
 

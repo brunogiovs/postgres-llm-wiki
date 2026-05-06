@@ -400,6 +400,7 @@ def generate_compile_database(run: PackRun) -> None:
         return
 
     generated = False
+    captured_contrib = False
     meson_missing = not shutil.which("meson")
     bear_missing = not shutil.which("bear")
 
@@ -434,6 +435,17 @@ def generate_compile_database(run: PackRun) -> None:
             jobs = str(min(os.cpu_count() or 2, 8))
             proc = run_command(run, ["bear", "--", "make", f"-j{jobs}"], cwd=run.build_dir, timeout=1800)
             if proc is not None and proc.returncode == 0:
+                if (run.source / "contrib" / "Makefile").is_file():
+                    contrib_proc = run_command(
+                        run,
+                        ["bear", "--append", "--", "make", "-C", "contrib", f"-j{jobs}"],
+                        cwd=run.build_dir,
+                        timeout=1800,
+                    )
+                    if contrib_proc is None or contrib_proc.returncode != 0:
+                        failures.append("bear make contrib did not complete successfully")
+                    else:
+                        captured_contrib = True
                 generated = copy_compile_commands(run, run.build_dir / "compile_commands.json")
             else:
                 failures.append("bear make did not complete successfully")
@@ -441,7 +453,10 @@ def generate_compile_database(run: PackRun) -> None:
             failures.append("configure for Bear compiler database failed")
 
     if generated:
-        run.add_artifact("compile_commands.json", target, "generated", "compiler database generated")
+        detail = "compiler database generated"
+        if captured_contrib:
+            detail += " with contrib build capture appended"
+        run.add_artifact("compile_commands.json", target, "generated", detail, failures)
         return
 
     reasons: list[str] = []

@@ -2,6 +2,12 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-06] tooling v12 | Add contrib compile capture to source context
+
+- Updated `scripts/source_context` so Bear captures the normal PostgreSQL build and then appends a `make -C contrib` capture when the checkout has contrib sources.
+- Refreshed `.wiki-runtime/context/postgres-12/`; `compile_commands.json` now includes `contrib/pg_stat_statements/pg_stat_statements.c`.
+- Updated `wiki/v12/questions/enable-io-timing-measurements-production.md`, `wiki/v12/index.md`, and `wiki/versions.md` to remove the stale compile-unit gap, record the expanded context coverage, and drop a stale coverage note for a removed v12 corruption catalog.
+
 ## [2026-05-06] remove v12 | Corruption log entries with data checksums disabled
 
 - Removed `wiki/v12/questions/corruption-log-entries.md` per user request.
