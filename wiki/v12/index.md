@@ -10,7 +10,10 @@
 
 ## Coverage
 
-Questions filed: [[v12/questions/corruption-log-entries]] (agent reviewed; corruption-related backend, contrib, WAL, and data-directory tool messages)
+Questions filed:
+
+- [[v12/questions/corruption-log-entries]] (agent reviewed; checksum-disabled corruption-related backend, contrib, WAL, relation-state, and data-directory tool messages)
+- [[v12/questions/bgwriter-tuning-recommendations|Bgwriter tuning recommendations (unverified)]] (four bgwriter GUCs with defaults/ranges/reload semantics, source-grounded direction-of-change matrix per scenario, and verified `pg_stat_bgwriter` counter wiring for iterative tuning)
 
 A generated project-context pack exists under `.wiki-runtime/context/postgres-12/`.
 

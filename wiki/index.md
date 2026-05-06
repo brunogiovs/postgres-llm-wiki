@@ -20,7 +20,8 @@ This is the global catalog for the PostgreSQL engine wiki.
 ### PostgreSQL 12.2
 
 - [[v12/index]] - Legacy version landing page. Source checkout pinned to `REL_12_STABLE` commit `45b88269a353ad93744772791feb6d01bc7e1e42`; project-context pack generated under `.wiki-runtime/context/postgres-12/`.
-- [[v12/questions/corruption-log-entries]] - Reviewed catalog of PostgreSQL 12 corruption-related backend, contrib, WAL, and core data-directory tool messages with confidence scores.
+- [[v12/questions/corruption-log-entries]] - Reviewed checksum-disabled PostgreSQL 12 corruption-message catalog covering backend, contrib, WAL, relation state, and core data-directory tool messages with confidence scores.
+- [[v12/questions/bgwriter-tuning-recommendations|Bgwriter tuning recommendations (unverified)]] - Source-grounded direction-of-change matrix for the four PG 12 bgwriter GUCs (`bgwriter_delay`, `bgwriter_lru_maxpages`, `bgwriter_lru_multiplier`, `bgwriter_flush_after`) across the main tuning scenarios, with verified `pg_stat_bgwriter` counter wiring for iterative numeric tuning.
 
 
 

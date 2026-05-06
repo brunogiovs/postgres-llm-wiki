@@ -2,6 +2,14 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-06] filed v12 | Bgwriter tuning recommendations
+
+- Filed `wiki/v12/questions/bgwriter-tuning-recommendations.md` (unverified) covering the four PG 12 bgwriter GUCs (`bgwriter_delay`, `bgwriter_lru_maxpages`, `bgwriter_lru_multiplier`, `bgwriter_flush_after`): defaults, ranges, `PGC_SIGHUP` reload semantics, and a source-grounded direction-of-change matrix across default / write-heavy / read-mostly / disable / Linux flush-after / non-Linux / flush-after-regression scenarios.
+- Verified `pg_stat_bgwriter` counter wiring end-to-end against the pinned source: view definition in `system_views.sql`, SQL functions in `pgstatfuncs.c`, accumulators in `bufmgr.c` (`m_buf_written_clean`, `m_maxwritten_clean`) and `checkpointer.c` (`num_backend_writes`, `num_backend_fsync`), and aggregator in `pgstat.c`.
+- Source backing for direction-of-change drawn from `doc/src/sgml/config.sgml` bgwriter subsection (L2030-L2158) and the GUC entries in `src/backend/utils/misc/guc.c` and `src/include/pg_config_manual.h`.
+- Set `verified: false` and `verified_by_agent: not yet`; titled and linked with `(unverified)` hint per AGENTS.md. Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md` coverage text.
+- Open questions: PG 12 source does not encode numeric per-scenario recommendations beyond the documented defaults; `HIBERNATE_FACTOR = 50` is a non-GUC compile-time constant; `bgwriter_flush_after` effectiveness on non-Linux Unix variants is not characterized by the v12 tree.
+
 ## [2026-05-06] docs | project plan source-tool sync
 
 - Updated `postgresql-engine-wiki-plan.md` to reflect the implemented source-context packs, project-local source tooling, explicit source-tool version pins, synthetic tests, and current `AGENTS.md` maintenance rules.
@@ -94,3 +102,10 @@ Use this prefix shape:
 - Updated `postgresql-engine-wiki-plan.md` and `AGENTS.md` so all questions default to a deep inquiry context envelope before drafting.
 - Added requirements to inspect source neighborhoods, callers, callees, includes, compile units, tests, docs, catalogs, grammar, history, version boundaries, and context-pack gaps.
 - Added question-page expectations for `## Context Reviewed` and `## Evidence Map` so future answers expose both evidence coverage and remaining gaps.
+
+## [2026-05-06] review v12 | Checksum-disabled corruption log entries catalog
+
+- Reworked `wiki/v12/questions/corruption-log-entries.md` for PostgreSQL 12 clusters with data checksums disabled.
+- Moved data-page checksum and basebackup checksum-failure messages into an excluded enabled-checksum-only section, verified from `DataChecksumsEnabled()`, `PageIsVerified()`, basebackup gating, and `pg_checksums` mode checks.
+- Added checksum-disabled-relevant TOAST, B-tree half-dead internal page, control-file utility, and low-confidence internal-state messages with source citations and confidence scores.
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md` coverage text.
