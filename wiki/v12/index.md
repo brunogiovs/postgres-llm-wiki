@@ -10,7 +10,7 @@
 
 ## Coverage
 
-Questions filed: [[v12/questions/corruption-log-entries]] (agent reviewed)
+Questions filed: [[v12/questions/corruption-log-entries]] (agent reviewed; corruption-related backend, contrib, WAL, and data-directory tool messages)
 
 A generated project-context pack exists under `.wiki-runtime/context/postgres-12/`.
 

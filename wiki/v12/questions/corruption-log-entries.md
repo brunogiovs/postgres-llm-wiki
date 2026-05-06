@@ -3,27 +3,27 @@ type: question
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
 verified: false
-verified_by_agent: gpt-5 2026-05-06T12:59:39Z
+verified_by_agent: gpt-5 2026-05-06T18:16:24Z
 ---
 
 # Corruption log entries
 
 ## Question
 
-In PostgreSQL 12, review the "Corruption log entries" catalog. Using the pinned PostgreSQL 12 source checkout, list backend, bundled-contrib, and core data-directory tool messages that can indicate persistent database, index, WAL, relation-map, replication-state, or table-storage corruption. For each message or tightly related message family, explain the condition and give a confidence number from 0 to 100% that persistent database contents are corrupted.
+In PostgreSQL 12, review the "Corruption log entries" catalog. Using the pinned PostgreSQL 12 source checkout, list backend, bundled-contrib, and core data-directory tool output messages that can indicate persistent database, index, WAL, relation-map, replication-state, or table-storage corruption. Include the relevant core data-directory tools reviewed here (`pg_checksums`, `pg_controldata`, `pg_ctl`, and `pg_resetwal`). For each message or tightly related message family, explain the condition and give a confidence number from 0 to 100% that persistent database contents are corrupted.
 
 ## Answer
 
 Assumption: "PostgreSQL 12" means the local checkout pinned to `45b88269a353ad93744772791feb6d01bc7e1e42`. The confidence values below are triage estimates for persistent database corruption; PostgreSQL does not encode such percentages in the source.
 
-Reviewed scope: source-visible messages in `raw/postgres-12/src/backend/`, `raw/postgres-12/contrib/`, and the core data-directory tools `pg_checksums`, `pg_controldata`, and `pg_ctl`, searched for `ERRCODE_DATA_CORRUPTED`, `ERRCODE_INDEX_CORRUPTED`, and corruption/checksum/invalid-page WAL strings. Localized `.po` files, frontend dump-archive corruption, network protocol/user-input decoding, and generic client-memory messages are excluded unless noted.
+Reviewed scope: source-visible messages in `raw/postgres-12/src/backend/`, `raw/postgres-12/contrib/`, and the core data-directory tools `pg_checksums`, `pg_controldata`, `pg_ctl`, and `pg_resetwal`, searched for `ERRCODE_DATA_CORRUPTED`, `ERRCODE_INDEX_CORRUPTED`, and corruption/checksum/invalid-page WAL strings. Localized `.po` files, frontend dump-archive corruption, network protocol/user-input decoding, and generic client-memory messages are excluded unless noted.
 
 ### Critical Page And Storage Signals
 
 | Confidence | Log entry | Explanation | Source |
 |---:|---|---|---|
 | 100% | `page verification failed, calculated checksum %u but expected %u` | A data page read from disk did not match its page checksum when checksums were enabled; `PageIsVerified` reports the mismatch before deciding whether the page can be accepted. | [[raw/postgres-12/src/backend/storage/page/bufpage.c#PageIsVerified]] |
-| 95% | `invalid page in block %u of relation %s` | `ReadBuffer_common` read a relation block whose page failed `PageIsVerified`; all-zero pages are allowed by the verifier, so this points at non-zero invalid page contents or checksum failure. | [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#ReadBuffer_common]], [[raw/postgres-12/src/backend/storage/page/bufpage.c#PageIsVerified]] |
+| 95% | `invalid page in block %u of relation %s` | `ReadBuffer_common` or relation-storage copy read a relation block whose page failed `PageIsVerified`; all-zero pages are allowed by the verifier, so this points at non-zero invalid page contents or checksum failure. | [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#ReadBuffer_common]], [[raw/postgres-12/src/backend/catalog/storage.c#RelationCopyStorage]], [[raw/postgres-12/src/backend/storage/page/bufpage.c#PageIsVerified]] |
 | 100% | `invalid page in block %u of relation %s; zeroing out page` | The same invalid-page path is reached, but PostgreSQL zeros the damaged block because the read mode or `zero_damaged_pages` permits that. | [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#ReadBuffer_common]] |
 | 90% | `could not read block %u in file "%s": read only %d of %d bytes` | The storage manager got a short read for a relation block. Outside recovery or zero-damaged-page handling, `mdread` reports this as `ERRCODE_DATA_CORRUPTED`. | [[raw/postgres-12/src/backend/storage/smgr/md.c#mdread]] |
 | 95% | `corrupted page pointers: lower = %u, upper = %u, special = %u` | Page header bounds fail consistency checks before page modification or compaction; these checks guard against spreading damage while moving tuple data. | [[raw/postgres-12/src/backend/storage/page/bufpage.c#PageAddItemExtended]], [[raw/postgres-12/src/backend/storage/page/bufpage.c#PageRepairFragmentation]] |
@@ -57,9 +57,17 @@ Reviewed scope: source-visible messages in `raw/postgres-12/src/backend/`, `raw/
 | 95% | `index "%s" contains corrupted page at block %u` | B-tree, hash, GiST, or `pgstattuple` hash inspection found an index page with an invalid special area or page-type metadata. | [[raw/postgres-12/src/backend/access/nbtree/nbtpage.c#_bt_checkpage]], [[raw/postgres-12/src/backend/access/hash/hashutil.c#_hash_checkpage]], [[raw/postgres-12/src/backend/access/gist/gistutil.c#gistcheckpage]], [[raw/postgres-12/contrib/pgstattuple/pgstatindex.c#pgstathashindex]] |
 | 95% | `index "%s" is not a hash index` / `index "%s" has wrong hash version` | Hash-index metapage magic or version does not match the access method. | [[raw/postgres-12/src/backend/access/hash/hashutil.c#_hash_checkpage]] |
 | 90% | `unexpected page type 0x%04X in HASH index "%s" block %u` | `pgstattuple` hash-index inspection saw a hash page type outside the valid hash page classes. | [[raw/postgres-12/contrib/pgstattuple/pgstatindex.c#pgstathashindex]] |
-| 90% | `index table contains corrupted page` / `invalid magic number for metadata` | `pageinspect` hash-page inspection found invalid hash page layout or metapage magic in a raw page value. | [[raw/postgres-12/contrib/pageinspect/hashfuncs.c#verify_hash_page]] |
+| 90% | `index table contains corrupted page` / `invalid magic number for metadata` / `invalid version for metadata` | `pageinspect` hash-page inspection found invalid hash page layout, metapage magic, or metapage version in a raw page value. | [[raw/postgres-12/contrib/pageinspect/hashfuncs.c#verify_hash_page]] |
 | 85% | `corrupted BRIN index: inconsistent range map` | BRIN reverse-map navigation found a repeated or out-of-range tuple pointer. | [[raw/postgres-12/src/backend/access/brin/brin_revmap.c#brinGetTupleForHeapBlock]] |
 | 90% | `unexpected page type 0x%04X in BRIN index "%s" block %u` | BRIN reverse-map extension found a non-regular/non-empty page where it expected a regular page. | [[raw/postgres-12/src/backend/access/brin/brin_revmap.c#revmap_physical_extend]] |
+
+### Pageinspect Heap Raw-Page Signals
+
+| Confidence | Log entry | Explanation | Source |
+|---:|---|---|---|
+| 70% | `number of attributes in tuple header is greater than number of attributes in tuple descriptor` | `pageinspect` tuple-data splitting found a heap tuple header that names more attributes than the relation descriptor. With `tuple_data_split()` fed from `heap_page_items(get_raw_page(...))`, that can indicate heap tuple or catalog/descriptor inconsistency; with hand-written arguments it can also be caller misuse. | [[raw/postgres-12/contrib/pageinspect/heapfuncs.c#tuple_data_split_internal]] |
+| 75% | `first byte of varlena attribute is incorrect for attribute %d` / `unexpected end of tuple data` / `end of tuple reached without looking at all its data` | `pageinspect` could not walk raw tuple data according to the relation's attribute layout: a varlena header was invalid, an attribute overran the tuple data, or bytes remained after all attributes were decoded. | [[raw/postgres-12/contrib/pageinspect/heapfuncs.c#tuple_data_split_internal]] |
+| 35% | `illegal character '%c' in t_bits string` / `argument of t_bits is null...` / `unexpected length of t_bits %u, expected %d` / `t_bits string is expected to be NULL...` | These are `pageinspect` tuple-split input-consistency failures around the null bitmap. They can accompany a corrupt tuple inspection workflow, but by themselves are often inconsistent function arguments rather than persistent storage corruption. | [[raw/postgres-12/contrib/pageinspect/heapfuncs.c#text_to_bits]], [[raw/postgres-12/contrib/pageinspect/heapfuncs.c#tuple_data_split]] |
 
 ### Amcheck B-Tree Verification Signals
 
@@ -104,6 +112,10 @@ Reviewed scope: source-visible messages in `raw/postgres-12/src/backend/`, `raw/
 | 95% | `incorrect resource manager data checksum in record at %X/%X` | WAL record CRC validation failed. | [[raw/postgres-12/src/backend/access/transam/xlogreader.c#ValidXLogRecord]] |
 | 85% | `invalid magic number %04X in log segment %s, offset %u` | A WAL page header has the wrong magic number for PostgreSQL 12 WAL. | [[raw/postgres-12/src/backend/access/transam/xlogreader.c#XLogReaderValidatePageHeader]] |
 | 85% | `record with invalid length at %X/%X` | WAL record decoding found a record body whose length fields are internally inconsistent. | [[raw/postgres-12/src/backend/access/transam/xlogreader.c#DecodeXLogRecord]] |
+| 85% | `could not read from log segment %s, offset %u: read %d of %zu` | WAL reading got a short read from a segment while replay or WAL sender expected a complete WAL page/range. This can be WAL truncation, missing bytes, or a concurrently removed/recycled segment; the source marks the replay-reader path as `ERRCODE_DATA_CORRUPTED`. | [[raw/postgres-12/src/backend/access/transam/xlog.c#XLogPageRead]], [[raw/postgres-12/src/backend/replication/walsender.c#XLogRead]] |
+| 75% | `invalid record offset at %X/%X` / `contrecord is requested by %X/%X` / `there is no contrecord flag at %X/%X` / `invalid contrecord length %u at %X/%X` / `record length %u at %X/%X too long` | WAL record assembly found impossible record or continuation boundaries. This is strong evidence for malformed WAL at that LSN, though recovery can also encounter expected invalid records at the end of available WAL. | [[raw/postgres-12/src/backend/access/transam/xlogreader.c#XLogReadRecord]] |
+| 80% | `invalid resource manager ID %u at %X/%X` / `invalid block_id %u at %X/%X` / backup-image header invariant messages / `invalid compressed image at %X/%X, block %d` | WAL record decoding found an impossible resource-manager ID, block-reference header, backup image shape, or compressed full-page image. | [[raw/postgres-12/src/backend/access/transam/xlogreader.c#ValidXLogRecordHeader]], [[raw/postgres-12/src/backend/access/transam/xlogreader.c#DecodeXLogRecord]], [[raw/postgres-12/src/backend/access/transam/xlogreader.c#RestoreBlockImage]] |
+| 70% | `invalid info bits %04X in log segment %s, offset %u` / `unexpected pageaddr %X/%X in log segment %s, offset %u` / `out-of-sequence timeline ID %u (after %u) in log segment %s, offset %u` / `WAL file is from different database system...` | WAL page-header validation found metadata inconsistent with the requested WAL stream. These can indicate WAL-file corruption, but the "different database system" variants can also mean the wrong WAL file or incompatible archive was supplied. | [[raw/postgres-12/src/backend/access/transam/xlogreader.c#XLogReaderValidatePageHeader]] |
 | 85% | `invalid length of primary checkpoint record` / `invalid length of checkpoint record` | Startup checkpoint record parsing found a checkpoint record with the wrong total length. | [[raw/postgres-12/src/backend/access/transam/xlog.c#ReadCheckpointRecord]] |
 | 95% | `page %u of relation %s is uninitialized` / `page %u of relation %s does not exist` followed by `WAL contains references to invalid pages` | Recovery tracked WAL references to invalid pages; unresolved entries are logged and then trigger PANIC. | [[raw/postgres-12/src/backend/access/transam/xlogutils.c#report_invalid_page]], [[raw/postgres-12/src/backend/access/transam/xlogutils.c#XLogCheckInvalidPages]] |
 | 50% | `database system was interrupted while in recovery at %s` with hint `This probably means that some data is corrupted...` | Startup noticed a previous interruption during recovery. The hint warns of possible corruption, but the state itself is not a direct page or checksum failure. | [[raw/postgres-12/src/backend/access/transam/xlog.c#StartupXLOG]] |
@@ -125,6 +137,9 @@ Reviewed scope: source-visible messages in `raw/postgres-12/src/backend/`, `raw/
 | 95% | `WARNING: Calculated CRC checksum does not match value stored in file...` from `pg_controldata` | `pg_controldata` detected a `pg_control` CRC mismatch and warns that the file may be corrupt or incompatible with the tool's expected layout. | [[raw/postgres-12/src/bin/pg_controldata/pg_controldata.c#main]] |
 | 90% | `WARNING: invalid WAL segment size... The file is corrupt...` from `pg_controldata` | `pg_controldata` found a WAL segment size in `pg_control` outside the valid power-of-two range. | [[raw/postgres-12/src/bin/pg_controldata/pg_controldata.c#main]] |
 | 95% | `%s: control file appears to be corrupt` from `pg_ctl` | `pg_ctl` could not validate the control-file CRC while reading the cluster state. | [[raw/postgres-12/src/bin/pg_ctl/pg_ctl.c#get_control_dbstate]] |
+| 95% | `pg_control exists but has invalid CRC; proceed with caution` from `pg_resetwal` | `pg_resetwal` could read a same-version `pg_control`, but its CRC did not validate; the tool keeps the values while treating them as guessed. | [[raw/postgres-12/src/bin/pg_resetwal/pg_resetwal.c#ReadControlFile]] |
+| 90% | `pg_control exists but is broken or wrong version; ignoring it` from `pg_resetwal` | `pg_resetwal` could open `pg_control`, but the file was too malformed or wrong-version for the normal read path, so it falls back to guessed control values. | [[raw/postgres-12/src/bin/pg_resetwal/pg_resetwal.c#ReadControlFile]] |
+| 90% | `pg_control specifies invalid WAL segment size (%d byte[s]); proceed with caution` from `pg_resetwal` | `pg_resetwal` read `pg_control` but found an invalid WAL segment size, which is a control-file consistency failure. | [[raw/postgres-12/src/bin/pg_resetwal/pg_resetwal.c#ReadControlFile]] |
 
 ### Two-Phase, Replication, And Logical Decoding State
 
@@ -137,6 +152,7 @@ Reviewed scope: source-visible messages in `raw/postgres-12/src/backend/`, `raw/
 | 95% | `calculated CRC checksum does not match value stored in file "%s"` | Two-phase state file CRC validation failed. | [[raw/postgres-12/src/backend/access/transam/twophase.c#ReadTwoPhaseFile]] |
 | 90% | `corrupted two-phase state file for transaction %u` | Recovered two-phase file header transaction ID does not match the expected transaction. | [[raw/postgres-12/src/backend/access/transam/twophase.c#ProcessTwoPhaseBuffer]] |
 | 60% | `corrupted two-phase state in memory for transaction %u` | The same transaction-ID mismatch was found in memory rather than in a file; it is serious, but not direct evidence of persistent storage damage. | [[raw/postgres-12/src/backend/access/transam/twophase.c#ProcessTwoPhaseBuffer]] |
+| 80% | `could not read file "%s": read %d of %zu` from logical replication origin, replication slot, or snapbuild state restore | A persistent logical-replication state file was shorter than the fixed-size header or expected payload being restored. The same generic text appears in several restore paths, so the file path and surrounding context identify whether it is origin, slot, or snapbuild state. | [[raw/postgres-12/src/backend/replication/logical/origin.c#StartupReplicationOrigin]], [[raw/postgres-12/src/backend/replication/slot.c#RestoreSlotFromDisk]], [[raw/postgres-12/src/backend/replication/logical/snapbuild.c#SnapBuildRestore]] |
 | 75% | `replication checkpoint has wrong magic %u instead of %u` | Logical replication origin checkpoint file magic is wrong. | [[raw/postgres-12/src/backend/replication/logical/origin.c#StartupReplicationOrigin]] |
 | 80% | `replication slot checkpoint has wrong checksum %u, expected %u` | Logical replication origin checkpoint CRC is wrong. | [[raw/postgres-12/src/backend/replication/logical/origin.c#StartupReplicationOrigin]] |
 | 75% | `replication slot file "%s" has wrong magic number: %u instead of %u` | Replication slot state file magic is wrong. | [[raw/postgres-12/src/backend/replication/slot.c#RestoreSlotFromDisk]] |
@@ -171,8 +187,29 @@ Reviewed scope: source-visible messages in `raw/postgres-12/src/backend/`, `raw/
 | 20% | `free page manager btree is corrupt` | Dynamic shared memory allocator metadata is corrupt; it is allocator state, not a PostgreSQL relation index. | [[raw/postgres-12/src/backend/utils/mmgr/freepage.c#FreePageManagerGetInternal]] |
 | 25% | `dynamic shared memory control segment is corrupt` / `invalid magic number in dynamic shared memory segment` | DSM control/segment metadata is invalid. This points to shared-memory state, not table/index files. | [[raw/postgres-12/src/backend/storage/ipc/dsm.c#dsm_postmaster_startup]], [[raw/postgres-12/src/backend/access/transam/parallel.c#ParallelWorkerMain]] |
 
+## Context Reviewed
+
+- Navigation and bookkeeping: `wiki/versions.md`, `wiki/index.md`, the last 20 `wiki/log.md` entries through `scripts/recent_log --limit 20`, and `wiki/v12/index.md`.
+- Context pack: `.wiki-runtime/context/postgres-12/manifest.md`, `include-deps.txt`, `compile_commands.json`, and targeted `scripts/source_deps --version 12` checks for storage, WAL reader, logical replication origin, pageinspect, `pg_checksums`, and `pg_resetwal` files.
+- Source search envelope: `scripts/source_lookup --version 12 --symbol ERRCODE_DATA_CORRUPTED --limit 200`, `scripts/source_lookup --version 12 --symbol ERRCODE_INDEX_CORRUPTED --limit 200`, and `rg` over `raw/postgres-12/src/backend`, `raw/postgres-12/contrib`, `raw/postgres-12/src/common`, `raw/postgres-12/src/bin/pg_checksums`, `raw/postgres-12/src/bin/pg_controldata`, `raw/postgres-12/src/bin/pg_ctl`, and `raw/postgres-12/src/bin/pg_resetwal`.
+- Tests checked: checksum-corruption coverage in [[raw/postgres-12/src/bin/pg_checksums/t/002_actions.pl]], control-file warnings in [[raw/postgres-12/src/bin/pg_controldata/t/001_pg_controldata.pl]], `pg_resetwal` corrupt-control handling in [[raw/postgres-12/src/bin/pg_resetwal/t/002_corrupted.pl]], backend basebackup checksum reporting through the `pg_basebackup` TAP test in [[raw/postgres-12/src/bin/pg_basebackup/t/010_pg_basebackup.pl]], amcheck regression coverage in [[raw/postgres-12/contrib/amcheck/expected/check_btree.out]], pageinspect normal-path coverage in [[raw/postgres-12/contrib/pageinspect/expected/page.out]], and invalid-page recovery coverage in [[raw/postgres-12/src/test/recovery/t/015_promotion_pages.pl]].
+
+## Evidence Map
+
+- Page and storage messages map to page verification, buffer reads, storage-manager reads, relation-storage copy, large-object chunks, and FSM repair in `bufpage.c`, `bufmgr.c`, `md.c`, `storage.c`, `inv_api.c`, and `fsmpage.c`.
+- Heap and MVCC messages map to tuple freezing and HOT-chain index-build/validation paths in `heapam.c` and `heapam_handler.c`.
+- Index messages map to B-tree, hash, GiST, BRIN, amcheck, pgstattuple, and pageinspect source paths under `src/backend/access/` and `contrib/`.
+- WAL, control-file, and recovery messages map to WAL record/page validation, checkpoint/control-file loading, invalid-page tracking, and backup interruption checks in `xlogreader.c`, `xlog.c`, and `xlogutils.c`.
+- Tool-output messages map to the checked core data-directory tools: `pg_checksums`, `pg_controldata`, `pg_ctl`, and `pg_resetwal`.
+- Replication-state messages map to two-phase state, logical replication origin state, replication slot state, and logical decoding snapbuild state restore paths.
+- Low-confidence internal-state messages map to shared/local buffer, smgr, lock-manager, dynahash, ilist, freepage, DSM, and parallel-worker invariant checks; they are included because the source text says "corrupt/corrupted", but the explanations keep them separate from direct persistent relation-file evidence.
+
+## Open Questions
+
+No unresolved source-evidence gaps were found for the catalog entries above. The confidence percentages remain reviewer triage judgments, not PostgreSQL source-defined probabilities.
+
 ## Source References
 
 - Source pin and context pack: [[raw/postgres-12/]], `.wiki-runtime/context/postgres-12/manifest.md`
 - Context checks used for this review: `.wiki-runtime/context/postgres-12/include-deps.txt` through `scripts/source_deps --version 12 --includes ...`
-- Source searches used for this review: `scripts/source_lookup --version 12 --symbol ...`, `rg` over `raw/postgres-12/src/backend`, `raw/postgres-12/contrib`, `raw/postgres-12/src/bin/pg_checksums`, `raw/postgres-12/src/bin/pg_controldata`, and `raw/postgres-12/src/bin/pg_ctl`
+- Source searches used for this review: `scripts/source_lookup --version 12 --symbol ...`, `rg` over `raw/postgres-12/src/backend`, `raw/postgres-12/contrib`, `raw/postgres-12/src/bin/pg_checksums`, `raw/postgres-12/src/bin/pg_controldata`, `raw/postgres-12/src/bin/pg_ctl`, and `raw/postgres-12/src/bin/pg_resetwal`

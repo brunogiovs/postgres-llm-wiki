@@ -82,6 +82,13 @@ Use this prefix shape:
 ## [YYYY-MM-DD] <kind> v<NN> | <subject>
 ```
 
+## [2026-05-06] review v12 | Corruption log entries deep inquiry refresh
+
+- Re-reviewed `wiki/v12/questions/corruption-log-entries.md` against the pinned PostgreSQL 12 source checkout and `.wiki-runtime/context/postgres-12/` pack.
+- Added missing source-visible families for `pageinspect` heap tuple decoding, additional WAL reader/decoder failures, logical replication state-file short reads, and `pg_resetwal` control-file warnings.
+- Added `## Context Reviewed`, `## Evidence Map`, and `## Open Questions` to document the review envelope; refreshed `verified_by_agent: gpt-5 2026-05-06T18:16:24Z`.
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md` coverage text.
+
 ## [2026-05-06] docs | deep inquiry context requirements
 
 - Updated `postgresql-engine-wiki-plan.md` and `AGENTS.md` so all questions default to a deep inquiry context envelope before drafting.
