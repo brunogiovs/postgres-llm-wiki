@@ -2,6 +2,17 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-06] cleanup v12 | Remove generated question HTML
+
+- Removed `convert_md_to_html.py`.
+- Removed generated question HTML files under `wiki/v12/questions/`.
+
+## [2026-05-06] html v12 | Generated HTML for PostgreSQL 12 questions
+
+- Generated HTML versions of `wiki/v12/questions/bgwriter-tuning-recommendations.md` and `wiki/v12/questions/corruption-log-entries.md` using a Python script that converts Markdown to HTML with Obsidian-style link support.
+- HTML files include proper `<a href>` links for source citations and wiki links, following AGENTS.md Obsidian-style link conventions.
+- Added basic CSS styling for readability, including table formatting and code blocks.
+
 ## [2026-05-06] filed v12 | Bgwriter tuning recommendations
 
 - Filed `wiki/v12/questions/bgwriter-tuning-recommendations.md` (unverified) covering the four PG 12 bgwriter GUCs (`bgwriter_delay`, `bgwriter_lru_maxpages`, `bgwriter_lru_multiplier`, `bgwriter_flush_after`): defaults, ranges, `PGC_SIGHUP` reload semantics, and a source-grounded direction-of-change matrix across default / write-heavy / read-mostly / disable / Linux flush-after / non-Linux / flush-after-regression scenarios.
