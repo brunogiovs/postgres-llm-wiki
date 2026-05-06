@@ -54,6 +54,13 @@ Append one entry after every scaffold change, version lifecycle event, ingest, t
 - Updated `wiki/index.md` and `wiki/v12/index.md` with links to the new question page.
 - Sourced from grep searches across `raw/postgres-12/` for corruption-related error messages, verified with `scripts/source_lookup`.
 
+## [2026-05-06] review v12 | Corruption log entries catalog
+
+- Re-reviewed `wiki/v12/questions/corruption-log-entries.md` against pinned `raw/postgres-12/` sources and the v12 context pack.
+- Rewrote the catalog around source-visible `ERRCODE_DATA_CORRUPTED`, `ERRCODE_INDEX_CORRUPTED`, checksum, invalid-page, WAL-validation, relation-map, replication-state, and low-confidence internal-state messages.
+- Set `verified_by_agent: gpt-5 2026-05-06T12:59:39Z`; kept human `verified: false`.
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md` to remove unverified title/link hints and reflect the reviewed coverage.
+
 Use this prefix shape:
 
 ```md
