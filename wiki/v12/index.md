@@ -14,6 +14,7 @@ Questions filed:
 
 - [[v12/questions/corruption-log-entries]] (agent reviewed; checksum-disabled corruption-related backend, contrib, WAL, relation-state, and data-directory tool messages)
 - [[v12/questions/bgwriter-tuning-recommendations|Bgwriter tuning recommendations (unverified)]] (four bgwriter GUCs with defaults/ranges/reload semantics, source-grounded direction-of-change matrix per scenario, and verified `pg_stat_bgwriter` counter wiring for iterative tuning)
+- [[v12/questions/enable-io-timing-measurements-production|Enable I/O timing measurements on production]] (agent-reviewed procedure for enabling `track_io_timing` on production, with host timing preflight, reload/session semantics, tagged SQL sampling, `pg_stat_database`, optional `pg_stat_statements`, and plan-level drill-down)
 
 A generated project-context pack exists under `.wiki-runtime/context/postgres-12/`.
 

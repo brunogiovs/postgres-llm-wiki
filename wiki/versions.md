@@ -7,7 +7,7 @@ This page indexes the PostgreSQL versions covered by the wiki.
 | Version | Status | Wiki Home | Branch | Pinned Commit | Coverage |
 |---|---|---|---|---|---|
 | 18 | primary | [[v18/index]] | `REL_18_STABLE` | `6cb307251c5c6261286c1566496920976640108e` | Generated project-context pack with compiler database, include dependencies, and focused query-lifecycle callgraphs. |
-| 12 | legacy | [[v12/index]] | `REL_12_STABLE` | `45b88269a353ad93744772791feb6d01bc7e1e42` | Generated project-context pack with compiler database, include dependencies, and focused callgraphs; one agent-reviewed checksum-disabled corruption-message catalog covering backend, contrib, WAL, relation-state, and data-directory tool messages; one filed (unverified) bgwriter tuning question covering the four bgwriter GUCs and `pg_stat_bgwriter` counter wiring. |
+| 12 | legacy | [[v12/index]] | `REL_12_STABLE` | `45b88269a353ad93744772791feb6d01bc7e1e42` | Generated project-context pack with compiler database, include dependencies, and focused callgraphs; one agent-reviewed checksum-disabled corruption-message catalog covering backend, contrib, WAL, relation-state, and data-directory tool messages; one filed (unverified) bgwriter tuning question covering the four bgwriter GUCs and `pg_stat_bgwriter` counter wiring; one agent-reviewed production `track_io_timing` enablement procedure. |
 
 ## Archived Versions
 

@@ -2,6 +2,12 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-06] filed v12 | Enable I/O timing measurements on production
+
+- Filed `wiki/v12/questions/enable-io-timing-measurements-production.md` with a PostgreSQL 12 production procedure for enabling `track_io_timing`, including `pg_test_timing` preflight, `ALTER SYSTEM` + `pg_reload_conf()` rollout, session-only fallback, tagged SQL sampling, `pg_stat_database` deltas, optional `pg_stat_statements`, and `EXPLAIN (ANALYZE, BUFFERS, TIMING OFF)` drill-down guidance.
+- Verified GUC scope and restart/reload/session semantics against `guc.c`, `guc.h`, `catalogs.sgml`, `alter_system.sgml`, and `signalfuncs.c`; verified timing collection through `bufmgr.c`, `pgstat.h`, `pgstat.c`, `pgstatfuncs.c`, `system_views.sql`, `instrument.c`, `explain.c`, and `pg_stat_statements.c`.
+- Set `verified: false` and `verified_by_agent: gpt-5 2026-05-06T20:05:37Z`; updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md`.
+
 ## [2026-05-06] cleanup v12 | Remove generated question HTML
 
 - Removed `convert_md_to_html.py`.
