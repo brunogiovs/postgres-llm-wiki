@@ -40,6 +40,22 @@ Context-pack artifacts may support claims about source-tree shape, build inputs,
 
 If a context artifact conflicts with the pinned raw source, the raw source wins. Record the context-pack discrepancy under `## Open Questions` or regenerate the pack with `scripts/source_context` before using the artifact.
 
+## Deep Inquiry Default
+
+All user questions, reports, and filed answers run in deep-inquiry mode unless the user explicitly asks for a quick answer. Deep inquiry means gathering a wider evidence neighborhood before drafting; it does not mean adding uncited breadth or padding the final prose.
+
+For each question:
+
+- Confirm the target PostgreSQL version and use explicit version-scoped source tools for every source operation.
+- Read the matching context-pack manifest and note missing or stale artifacts before relying on the pack.
+- Locate the primary source files and symbols, then inspect adjacent callers, callees, structs, macros, includes, compile-unit flags, generated headers, and reverse include users through `scripts/source_lookup` and `scripts/source_deps`.
+- Check relevant tests, catalog definitions, grammar rules, documentation, error paths, GUC definitions, and extension/contrib boundaries when the question touches them.
+- Inspect file or symbol history when the user asks why something exists, when intent matters, or when a regression/change claim is being made.
+- Use `scripts/version_diff --from NN --to MM` only when the answer makes a cross-version claim or the user asks for a comparison.
+- Draft from a claim-to-source evidence map. Every behavioral claim needs a matching raw citation; unresolved claims go under `## Open Questions`.
+
+The minimum depth target for an engine-internals answer is: normal path, relevant error or edge path, key data structures, caller/callee boundary, build or generated-header context when applicable, and tests or explicit test absence. For planner, WAL, crash recovery, MVCC, storage, or corruption topics, missing caller/callee or data-structure context is a verification gap that must be resolved or recorded under `## Open Questions`.
+
 ## Citation Discipline
 
 - Cite source paths and symbols for every behavioral claim.
@@ -189,10 +205,11 @@ For version-agnostic work:
 1. Assume the primary version unless the user specifies another.
 2. Search `wiki/versions.md`, the relevant version landing page, and `wiki/index.md` for navigation and bookkeeping context only.
 3. Read `.wiki-runtime/context/postgres-NN/manifest.md` and relevant context artifacts for the target version.
-4. Search source evidence under `raw/postgres-NN/` and supporting generated context under `.wiki-runtime/context/postgres-NN/`.
-5. Answer with citations to the matching `raw/postgres-NN/` paths and symbols.
-6. File durable answers as question pages or fold them into existing pages.
-7. Update indexes and log.
+4. Build the deep inquiry context envelope: search source evidence under `raw/postgres-NN/` and supporting generated context under `.wiki-runtime/context/postgres-NN/`, inspect primary symbols plus callers/callees/includes/compile units, and check relevant tests, docs, catalogs, grammar, history, and context-pack gaps.
+5. Draft a claim-to-source evidence map. Move anything not verified into `## Open Questions`.
+6. Answer with citations to the matching `raw/postgres-NN/` paths and symbols, including important context limits when they matter.
+7. File durable answers as question pages or fold them into existing pages. Filed question pages should include `## Context Reviewed` and `## Evidence Map` unless a stronger local template exists.
+8. Update indexes and log.
 
 ### Report Generation And Review
 
@@ -222,6 +239,7 @@ Check for:
 - Managed pages missing verification fields (both `verified:` and `verified_by_agent:` absent).
 - Question pages under `wiki/vNN/questions/` with front matter not in exact order: `type`, `version`, `pinned_commit`, `verified`, `verified_by_agent`.
 - Unverified managed wiki documents, including question pages, missing an `(unverified)` hint in the visible title or in index or landing-page link text.
+- Filed question pages missing `## Context Reviewed`, `## Evidence Map`, or an explicit `## Open Questions` section when the deep inquiry context envelope found gaps.
 
 Use the project-local scripts first:
 

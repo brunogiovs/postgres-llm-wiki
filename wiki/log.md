@@ -81,3 +81,9 @@ Use this prefix shape:
 ```md
 ## [YYYY-MM-DD] <kind> v<NN> | <subject>
 ```
+
+## [2026-05-06] docs | deep inquiry context requirements
+
+- Updated `postgresql-engine-wiki-plan.md` and `AGENTS.md` so all questions default to a deep inquiry context envelope before drafting.
+- Added requirements to inspect source neighborhoods, callers, callees, includes, compile units, tests, docs, catalogs, grammar, history, version boundaries, and context-pack gaps.
+- Added question-page expectations for `## Context Reviewed` and `## Evidence Map` so future answers expose both evidence coverage and remaining gaps.

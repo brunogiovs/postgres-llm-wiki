@@ -11,6 +11,7 @@ This is not a wiki generated from a PostgreSQL database. It is a wiki about how 
 - Explain PostgreSQL internals through durable markdown pages.
 - Keep every technical claim tied to source files, functions, documentation, commits, or mailing-list threads.
 - Maintain a reproducible project-context pack for each supported PostgreSQL version so agents can inspect source layout, build configuration, compilation units, header dependencies, call graphs, and external dependency assumptions without re-discovering the whole project each time.
+- Make every inquiry deep by default: before answering, assemble a broad version-pinned context envelope that covers the relevant source neighborhood, callers, callees, includes, build flags, generated context, tests, documentation, history, and known gaps.
 - Preserve uncertainty instead of inventing intent.
 - Let the wiki compound over time as new source areas and questions are investigated.
 
@@ -248,7 +249,31 @@ The context pack should include:
 
 6. **External dependency inventory** - capture project dependency assumptions from `configure --help`, `meson_options.txt`, build logs, and selected host probes such as `pkg-config --list-all`. The manifest should distinguish host-wide package availability from dependencies PostgreSQL actually checks or enables.
 
+Future context-pack extensions should broaden answer context, not just make lookup faster:
+
+- **Symbol/reference index** - definitions and bounded reference lists for functions, structs, macros, enums, global variables, GUCs, wait events, and error codes, generated from the pinned checkout and consumed through explicit `--version NN` tools.
+- **Test and fixture index** - regression tests, isolation specs, TAP tests, expected files, and test helpers grouped by source area so answers can check intended behavior as well as implementation.
+- **Documentation and catalog index** - relevant `doc/src/sgml/`, `src/include/catalog/`, generated catalog inputs, grammar files, system view definitions, and extension SQL files mapped to source areas.
+- **History index** - bounded `git log` slices for cited files and symbols so agents can inspect why-sensitive changes without doing full history archaeology on every question.
+- **Known-gap inventory** - manifest entries should distinguish unavailable tool output, untraced callers/callees, missing generated headers, absent tests, and unresolved source/version questions.
+
 The context pack should be regenerated whenever a version is added, re-pinned, or substantially re-indexed. Do not commit the generated artifacts unless the repository policy changes; make the commands reproducible and keep durable human summaries in the wiki.
+
+### Deep Inquiry Context Envelope
+
+All user questions and filed reports run in deep-inquiry mode unless the user explicitly asks for a quick answer. Deep-inquiry mode is not permission to dump more prose; it is a requirement to inspect a wider evidence neighborhood before deciding what is true.
+
+For each question, the agent builds a context envelope before drafting:
+
+1. **Version and scope** - identify the target PostgreSQL version, state the primary-version assumption when needed, and keep every source command pinned to that version.
+2. **Existing navigation** - read `wiki/versions.md`, `wiki/index.md`, the relevant `wiki/vNN/index.md`, recent `wiki/log.md` entries, and any existing related question pages for placement and duplicate avoidance only.
+3. **Context-pack status** - read `.wiki-runtime/context/postgres-NN/manifest.md`, note artifact status and gaps, and regenerate or extend the pack when the missing artifact is needed for the question.
+4. **Source neighborhood** - locate the primary files and symbols, then inspect adjacent callers, callees, structs, macros, includes, compile-unit flags, generated headers, and reverse include users through `scripts/source_lookup` and `scripts/source_deps`.
+5. **Behavioral neighborhood** - check relevant tests, catalog definitions, grammar rules, documentation, error paths, GUC definitions, and extension/contrib boundaries when the question touches them.
+6. **History and version boundary** - inspect file or symbol history when intent, regression risk, or "why" is part of the question. Use `scripts/version_diff --from NN --to MM` only when the answer claims cross-version behavior or the user asks for comparison.
+7. **Evidence map** - draft the answer from a claim-to-source map: each behavioral claim has a matching raw citation, while unresolved claims move to `## Open Questions`.
+
+The minimum depth target for an engine-internals answer is: normal path, relevant error or edge path, key data structures, caller/callee boundary, build/generated-header context when applicable, and tests or explicit test absence. For planner, WAL, crash recovery, MVCC, storage, or corruption topics, treat missing caller/callee or data-structure context as a blocker to verification unless it is called out under `## Open Questions`.
 
 ### What Counts as an Ingest
 
@@ -323,12 +348,18 @@ Recommended sections:
 
 ## Detailed Answer
 
+## Context Reviewed
+
+## Evidence Map
+
 ## Evidence
 
 ## Related Pages
 
 ## Follow-Up Questions
 ```
+
+`## Context Reviewed` records the source/context envelope actually inspected: manifest, core files and symbols, dependency queries, callgraph artifacts, tests, docs, catalog or grammar files, and history/diffs when relevant. `## Evidence Map` lists the important claims and their backing raw citations so information gaps are visible before prose smooths them over.
 
 A question page stays pinned to a single version, even if its answer happens to be identical across versions. If the user asks the same question against another version, the agent re-investigates it on that version's source and files a new question page with cross-links to the original.
 
@@ -400,6 +431,7 @@ A question page stays pinned to a single version, even if its answer happens to 
 ### Report generation and review
 
 - Reports and generated documents must use only the target version's raw checkout and source-context pack as evidence.
+- Reports and generated documents must be prepared through the Deep Inquiry Context Envelope. The filed page should include `## Context Reviewed` and `## Evidence Map` unless the document type has a stronger local template.
 - When the user modifies or clarifies a prompt during generation, fold that into the page's `## Question` section before revising the answer body.
 - Rewrite the `## Question` section coherently rather than appending transcript fragments.
 
@@ -531,10 +563,11 @@ Agent flow:
 1. Determine which version the question is being asked against. If unclear, assume the primary version and state that assumption explicitly before answering.
 2. Search existing wiki pages (start with `wiki/versions.md`, then the relevant `wiki/vNN/index.md`, then `wiki/index.md`).
 3. Read the matching `.wiki-runtime/context/postgres-NN/manifest.md` and relevant context artifacts for orientation.
-4. Search the matching `raw/postgres-NN/` and generated context for supporting evidence, using explicit version-pinned tooling such as `scripts/source_lookup --version NN` and `scripts/source_deps --version NN`.
-5. Answer the user with citations.
-6. File durable answers as question pages under `wiki/vNN/questions/` with per-version front matter when the answer should persist.
-7. Update `wiki/index.md`, the relevant `wiki/vNN/index.md`, `wiki/versions.md` if coverage changed, and `wiki/log.md`.
+4. Build the Deep Inquiry Context Envelope: search the matching `raw/postgres-NN/` and generated context with explicit version-pinned tooling, inspect primary symbols plus callers/callees/includes/compile units, and check relevant tests, docs, catalogs, grammar, history, and context-pack gaps.
+5. Draft an evidence map that ties each behavioral claim to a matching raw citation. Move anything not verified into `## Open Questions`.
+6. Answer the user with citations, including the important context limits when they matter.
+7. File durable answers as question pages under `wiki/vNN/questions/` with per-version front matter, `## Context Reviewed`, and `## Evidence Map` when the answer should persist.
+8. Update `wiki/index.md`, the relevant `wiki/vNN/index.md`, `wiki/versions.md` if coverage changed, and `wiki/log.md`.
 
 The bias toward filing is deliberate: explorations should compound in the wiki the same way ingested sources do.
 
@@ -557,6 +590,7 @@ Agent checks:
 - Managed pages missing verification fields.
 - Question pages under `wiki/vNN/questions/` whose front matter is not exactly ordered as `type`, `version`, `pinned_commit`, `verified`, `verified_by_agent`.
 - Unverified managed wiki documents missing `(unverified)` in the visible title or in index/landing-page link text.
+- Filed question pages missing `## Context Reviewed`, `## Evidence Map`, or an explicit `## Open Questions` section when the context envelope found gaps.
 - Question pages citing source from a different version's checkout than their pin.
 - Pages under `wiki/vNN/` citing code from a different version's checkout.
 - Orphan pages and broken wiki links (including version-qualified links).
