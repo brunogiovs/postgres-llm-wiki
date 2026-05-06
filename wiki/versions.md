@@ -6,8 +6,8 @@ This page indexes the PostgreSQL versions covered by the wiki.
 
 | Version | Status | Wiki Home | Branch | Pinned Commit | Coverage |
 |---|---|---|---|---|---|
-| 18 | primary | [[v18/index]] | `REL_18_STABLE` | `6cb307251c5c6261286c1566496920976640108e` | Query lifecycle subsystem spine and source-backed question coverage. |
-| 12 | legacy | [[v12/index]] | `REL_12_STABLE` | `45b88269a353ad93744772791feb6d01bc7e1e42` | Initial scaffold for version 12.2. |
+| 18 | primary | [[v18/index]] | `REL_18_STABLE` | `6cb307251c5c6261286c1566496920976640108e` | Query lifecycle subsystem spine, source-backed question coverage, and generated project-context manifest. |
+| 12 | legacy | [[v12/index]] | `REL_12_STABLE` | `45b88269a353ad93744772791feb6d01bc7e1e42` | Legacy question coverage and generated project-context manifest. |
 
 ## Archived Versions
 

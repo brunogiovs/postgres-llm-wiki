@@ -10,7 +10,13 @@
 
 ## Coverage
 
-Query lifecycle subsystem spine is initialized. Source-backed pages exist for parser, analyzer, rewriter, planner, executor, and filed PostgreSQL 18 questions.
+Query lifecycle subsystem spine is initialized. Source-backed pages exist for parser, analyzer, rewriter, planner, executor, and filed PostgreSQL 18 questions. A generated project-context pack exists under `.wiki-runtime/context/postgres-18/`.
+
+## Project Context
+
+- Manifest: `.wiki-runtime/context/postgres-18/manifest.md`
+- Generated artifacts: `.wiki-runtime/context/postgres-18/tree-L4.txt`, `.wiki-runtime/context/postgres-18/build-config/`, and `.wiki-runtime/context/postgres-18/external-deps.txt`
+- Deferred artifacts: `.wiki-runtime/context/postgres-18/compile_commands.json`, `.wiki-runtime/context/postgres-18/include-deps.txt`, and `.wiki-runtime/context/postgres-18/callgraphs/`
 
 ## Subsystems
 
@@ -35,3 +41,7 @@ No source file map pages have been created yet.
 - [[v18/questions/query-disk-io-with-warm-cache]] - PG 18 pre-execution and execution disk I/O paths and how slow random I/O hurts even with warm shared buffers and OS page cache.
 
 ## Open Questions
+
+- Project-context compiler database generation is deferred on this host because `meson` and `bear` are missing.
+- Project-context include dependencies are deferred until a compiler database or configured PostgreSQL build headers are available.
+- Project-context call/reference graphs are deferred on this host because `cflow`, `doxygen`, and `dot` are missing.

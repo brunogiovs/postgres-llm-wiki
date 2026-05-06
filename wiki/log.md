@@ -640,3 +640,18 @@ For version-agnostic work, omit the version segment:
 - Removed high-level wiki navigation/status references to code-path and shared-concept backfill phases from `wiki/index.md`, `wiki/overview.md`, `wiki/versions.md`, version landing pages, and `AGENTS.md`.
 - Updated `scripts/wiki_lint` so managed-page checks follow the remaining managed sections: subsystems, files, and questions.
 - Ran `scripts/wiki_lint`: 10 existing v12 content errors remain, 0 warnings from this cleanup.
+
+## [2026-05-06] context v18 | project context pack
+
+- Generated `.wiki-runtime/context/postgres-18/manifest.md` with source pin, tool status, command log, artifact status, and deferred gaps.
+- Generated minimum context artifacts: `tree-L4.txt` using the ASCII fallback, `build-config/`, and `external-deps.txt`.
+- Recorded deferred artifacts: `compile_commands.json` (`meson` and `bear` missing), `include-deps.txt` (no compiler database or configured build headers), and `callgraphs/` (`cflow`, `doxygen`, and `dot` missing).
+- Updated `wiki/v18/index.md`, `wiki/index.md`, `wiki/overview.md`, `wiki/versions.md`, and the Phase 7 implementation-step status.
+
+## [2026-05-06] context v12 | project context pack
+
+- Generated `.wiki-runtime/context/postgres-12/manifest.md` with source pin, tool status, command log, artifact status, and deferred gaps.
+- Generated minimum context artifacts: `tree-L4.txt` using the ASCII fallback, `build-config/`, and `external-deps.txt`.
+- Recorded deferred artifacts: `compile_commands.json` (`bear` missing), `include-deps.txt` (no compiler database or configured build headers), and `callgraphs/` (`cflow`, `doxygen`, and `dot` missing).
+- Updated `wiki/v12/index.md`, `wiki/index.md`, `wiki/overview.md`, `wiki/versions.md`, and the Phase 7 implementation-step status.
+- Ran `scripts/wiki_lint`: 10 existing v12 content errors remain, 0 warnings from the Phase 7 updates.

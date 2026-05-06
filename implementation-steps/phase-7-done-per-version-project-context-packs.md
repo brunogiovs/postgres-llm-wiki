@@ -1,8 +1,8 @@
-# Phase 7: Per-Version Project Context Packs
+# Phase 7 Done: Per-Version Project Context Packs
 
 ## Status
 
-Not started.
+Done. `scripts/source_context` exists, both supported versions have generated minimum context packs under `.wiki-runtime/context/postgres-NN/`, and deferred heavyweight artifacts are recorded in each manifest and version landing page.
 
 ## Goal
 

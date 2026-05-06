@@ -10,7 +10,7 @@ Use these files as the execution checklist when building the PostgreSQL engine L
 2. [Phase 2 Done: Bootstrap Supported Versions](phase-2-done-bootstrap-supported-versions.md)
 3. [Phase 3 Done: Query Lifecycle Spine](phase-3-done-query-lifecycle-spine.md)
 4. [Phase 6 Done: Maintenance Tooling](phase-6-done-maintenance-tooling.md)
-5. [Phase 7: Per-Version Project Context Packs](phase-7-per-version-project-context-packs.md)
+5. [Phase 7 Done: Per-Version Project Context Packs](phase-7-done-per-version-project-context-packs.md)
 
 ## Completion Convention
 

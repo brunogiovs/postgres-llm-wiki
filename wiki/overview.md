@@ -1,4 +1,4 @@
-e# PostgreSQL Engine Wiki Overview
+# PostgreSQL Engine Wiki Overview
 
 This wiki is an LLM-maintained knowledge base for PostgreSQL engine internals.
 
@@ -6,7 +6,7 @@ It is source-backed: durable claims should cite PostgreSQL source files, functio
 
 ## Current Status
 
-Phase 6 maintenance tooling is initialized for the PostgreSQL engine wiki.
+Phase 7 project-context packs are initialized for every supported PostgreSQL version.
 
 PostgreSQL 18 is the current primary version. Use [[versions]] as the main version index, then enter the PG 18 wiki through [[v18/index]].
 
@@ -22,13 +22,15 @@ The first useful spine of the wiki will follow the query lifecycle:
 
 ## Source Checkouts
 
-- PostgreSQL 18: `raw/postgres-18/`, branch `REL_18_STABLE`, pinned commit `6cb307251c5c6261286c1566496920976640108e`.
+- PostgreSQL 18: `raw/postgres-18/`, branch `REL_18_STABLE`, pinned commit `6cb307251c5c6261286c1566496920976640108e`; context manifest `.wiki-runtime/context/postgres-18/manifest.md`.
+- PostgreSQL 12: `raw/postgres-12/`, branch `REL_12_STABLE`, pinned commit `45b88269a353ad93744772791feb6d01bc7e1e42`; context manifest `.wiki-runtime/context/postgres-12/manifest.md`.
 
 ## Maintenance Tooling
 
 - `scripts/recent_log` - recent entries from `wiki/log.md`.
 - `scripts/wiki_lint` - broken links, metadata drift, source-reference checks, and orphan warnings.
 - `scripts/source_lookup` - source search and file lookup inside `raw/postgres-NN/`.
+- `scripts/source_context` - generated source tree, build configuration, dependency, and graph-orientation packs under `.wiki-runtime/context/postgres-NN/`.
 - `scripts/version_diff` - path diff across two project-local source checkouts.
 - `scripts/hermes_sessions` - list and clear project-local Hermes session files and database rows.
 

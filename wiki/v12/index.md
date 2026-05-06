@@ -10,7 +10,13 @@
 
 ## Coverage
 
-Questions: [[v12/questions/can-non-prepared-statements-use-generic-plans]], [[v12/questions/data-checksums-implementation]], [[v12/questions/genetic-query-optimizer]], [[v12/questions/key-metrics-usage-operational-status]], [[v12/questions/pg-test-timing-track-io-timing-overhead]], [[v12/questions/query-disk-io-with-warm-cache]], [[v12/questions/plan-cache-mode-production-impact]], [[v12/questions/detect-slow-random-io-disk-metrics]], [[v12/questions/track-io-timing-blk-write-time-dirty-victim-select]], [[v12/questions/dirty-victim-select-mitigation]], [[v12/questions/bgwriter-tuning-scenarios]], [[v12/questions/production-io-overhead-measurement-protocol-track-io-timing]], [[v12/questions/cte-join-inheritance-partitioned-table-300-partitions-settings-overhead]], [[v12/questions/partition-planner-settings]].
+Questions: [[v12/questions/can-non-prepared-statements-use-generic-plans]], [[v12/questions/data-checksums-implementation]], [[v12/questions/genetic-query-optimizer]], [[v12/questions/key-metrics-usage-operational-status]], [[v12/questions/pg-test-timing-track-io-timing-overhead]], [[v12/questions/query-disk-io-with-warm-cache]], [[v12/questions/plan-cache-mode-production-impact]], [[v12/questions/detect-slow-random-io-disk-metrics]], [[v12/questions/track-io-timing-blk-write-time-dirty-victim-select]], [[v12/questions/dirty-victim-select-mitigation]], [[v12/questions/bgwriter-tuning-scenarios]], [[v12/questions/production-io-overhead-measurement-protocol-track-io-timing]], [[v12/questions/cte-join-inheritance-partitioned-table-300-partitions-settings-overhead]], [[v12/questions/partition-planner-settings]]. A generated project-context pack exists under `.wiki-runtime/context/postgres-12/`.
+
+## Project Context
+
+- Manifest: `.wiki-runtime/context/postgres-12/manifest.md`
+- Generated artifacts: `.wiki-runtime/context/postgres-12/tree-L4.txt`, `.wiki-runtime/context/postgres-12/build-config/`, and `.wiki-runtime/context/postgres-12/external-deps.txt`
+- Deferred artifacts: `.wiki-runtime/context/postgres-12/compile_commands.json`, `.wiki-runtime/context/postgres-12/include-deps.txt`, and `.wiki-runtime/context/postgres-12/callgraphs/`
 
 ## Subsystems
 
@@ -53,3 +59,7 @@ No source file map pages have been created yet.
 
 
 ## Open Questions
+
+- Project-context compiler database generation is deferred on this host because `bear` is missing.
+- Project-context include dependencies are deferred until a compiler database or configured PostgreSQL build headers are available.
+- Project-context call/reference graphs are deferred on this host because `cflow`, `doxygen`, and `dot` are missing.
