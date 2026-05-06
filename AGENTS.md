@@ -230,12 +230,13 @@ scripts/source_lookup --path src/backend/executor/execMain.c
 scripts/source_deps --version 18 --includes src/backend/executor/execMain.c
 scripts/source_deps --version 18 --included-by executor/executor.h
 scripts/source_deps --version 18 --compile-unit src/backend/executor/execMain.c
+scripts/test_source_tools
 scripts/version_diff --from 18 --to 17 --path src/backend/executor/execMain.c
 scripts/source_update --list
 scripts/source_update --version 18
 ```
 
-`scripts/source_lookup` and `scripts/source_deps` default to the primary version in `wiki/versions.md`. `scripts/source_deps` reads `.wiki-runtime/context/postgres-NN/include-deps.txt` and `compile_commands.json`; regenerate the context pack with `scripts/source_context` if those artifacts are missing or stale. `scripts/version_diff` requires both source checkouts to exist under `raw/postgres-NN/`. `scripts/source_update` clones or updates a checkout to the commit pinned in `wiki/versions.md`; pass `--branch` and `--commit` to override.
+`scripts/source_lookup` and `scripts/source_deps` default to the primary version in `wiki/versions.md`. `scripts/source_deps` reads `.wiki-runtime/context/postgres-NN/include-deps.txt` and `compile_commands.json`; regenerate the context pack with `scripts/source_context` if those artifacts are missing or stale. `scripts/test_source_tools` builds a synthetic temporary wiki/source/context environment and runs end-to-end checks for `source_lookup` and `source_deps`. `scripts/version_diff` requires both source checkouts to exist under `raw/postgres-NN/`. `scripts/source_update` clones or updates a checkout to the commit pinned in `wiki/versions.md`; pass `--branch` and `--commit` to override.
 
 ## Version Control
 

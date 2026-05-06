@@ -1,9 +1,10 @@
 # Project-local runtime state and generated artifacts.
 .obsidian/
 .wiki-runtime/
+__pycache__/
+*.py[cod]
 
 # Local PostgreSQL source checkouts are kept in-project but should not be
 # committed as part of the wiki content.
 raw/postgres-*/
 raw/_archive/postgres-*/
-

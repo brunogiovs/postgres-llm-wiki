@@ -29,6 +29,7 @@ This is the global catalog for the PostgreSQL engine wiki.
 - `scripts/wiki_lint` - wiki health checks.
 - `scripts/source_lookup` - project-local PostgreSQL source lookup.
 - `scripts/source_deps` - context-pack include/dependency lookup for direct includes, reverse include users, transitive include edges, and compile-unit flags.
+- `scripts/test_source_tools` - end-to-end synthetic fixture tests for `scripts/source_lookup` and `scripts/source_deps`.
 - `scripts/source_context` - regenerate per-version project-context packs under `.wiki-runtime/context/postgres-NN/`.
 - `scripts/version_diff` - source path comparison across project-local PostgreSQL checkouts.
 - `scripts/llama_server` - start, stop, status, and logs for the local llama.cpp OpenAI-compatible server.

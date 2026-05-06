@@ -2,6 +2,11 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-06] tooling | source lookup synthetic end-to-end tests
+
+- Added `tests/test_source_tools.py`, which builds a temporary synthetic wiki, `raw/postgres-99/` checkout, git history, and `.wiki-runtime/context/postgres-99/` pack to exercise `scripts/source_lookup` and `scripts/source_deps` as subprocess CLIs.
+- Added `scripts/test_source_tools` as the one-command test runner and listed it in `AGENTS.md` and `wiki/index.md`.
+
 ## [2026-05-06] delete v12 | track_io_timing measurement question
 
 - Deleted `wiki/v12/questions/measure-io-overhead-with-track-io-timing.md` as requested.
@@ -17,15 +22,15 @@ Append one entry after every scaffold change, version lifecycle event, ingest, t
 ## [2026-05-05] maintenance v12 | removed unverified stray question page
 
 - Deleted `wiki/v12/questions/measure-io-overhead.md`. The file appeared untracked in the working tree during the `track_io_timing` question session and contained claims contradicting the pinned v12 source: it asserted `track_io_timing` does not exist in PG 12 (it does, declared `PGC_SUSET` at `raw/postgres-12/src/backend/utils/misc/guc.c#L1402`), cited `raw/postgres-12/src/include/utils/guc_tables.h` (a file that does not exist on this checkout), claimed `log_min_duration_statement` is `PGC_SUSET` (it is `PGC_SUSET`), and linked to `wiki/v12/concepts/` pages that do not exist.
-- The verified replacement is [[v12/questions/measure-io-overhead-with-track-io-timing]], filed earlier today.
+- The verified replacement was `v12/questions/measure-io-overhead-with-track-io-timing`, filed earlier that day and later deleted on 2026-05-06.
 
 ## [2026-05-05] verify v12 | track_io_timing production measurement procedure
 
-- Set `verified_by_agent: Cline 2026-05-05T22:10:00Z` on [[v12/questions/measure-io-overhead-with-track-io-timing]] after re-checking all claims against the pinned `raw/postgres-12/` source.
+- Set `verified_by_agent: Cline 2026-05-05T22:10:00Z` on `v12/questions/measure-io-overhead-with-track-io-timing` after re-checking all claims against the pinned `raw/postgres-12/` source.
 
 ## [2026-05-05] question v12 | track_io_timing production measurement procedure
 
-- Filed [[v12/questions/measure-io-overhead-with-track-io-timing]] covering host clock-source qualification with `pg_test_timing`, cluster-wide enable via `ALTER SYSTEM` + `pg_reload_conf()`, delta sampling from `pg_stat_database` and `pg_stat_statements`, and per-plan drill-down via `EXPLAIN (ANALYZE, BUFFERS)`.
+- Filed `v12/questions/measure-io-overhead-with-track-io-timing` covering host clock-source qualification with `pg_test_timing`, cluster-wide enable via `ALTER SYSTEM` + `pg_reload_conf()`, delta sampling from `pg_stat_database` and `pg_stat_statements`, and per-plan drill-down via `EXPLAIN (ANALYZE, BUFFERS)`.
 - GUC scope verified `PGC_SUSET` against `raw/postgres-12/src/backend/utils/misc/guc.c` and `src/include/utils/guc.h`; instrumentation sites verified in `src/backend/storage/buffer/bufmgr.c` and `src/backend/commands/explain.c`. Counter exposure verified in `src/backend/utils/adt/pgstatfuncs.c`, `src/backend/catalog/system_views.sql`, and `contrib/pg_stat_statements/pg_stat_statements.c`.
 - Updated `wiki/index.md` and `wiki/v12/index.md` to link the new question.
 - Removed stale `## Diagrams` / `#### Diagrams` sections from `wiki/v12/index.md` and `wiki/index.md`; the linked files were deleted in the prior diagram cleanup commit but the links were left behind.
