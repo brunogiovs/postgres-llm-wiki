@@ -34,6 +34,8 @@ Use the context artifacts this way:
 - `callgraphs/*.cflow.txt` - focused call-path navigation for known entry points. Use these to find likely edges, then verify every behavioral claim in the matching raw source.
 - `external-deps.txt` - external library and tool inventory from the source/build configuration. Use it only for dependency context; do not infer PostgreSQL runtime behavior from it alone.
 
+Use `scripts/source_deps` for targeted include/dependency queries over the context pack before ad hoc searching. It can show direct includes, reverse include users, per-file compile context, and bounded transitive include edges.
+
 Context-pack artifacts may support claims about source-tree shape, build inputs, compiler flags, include relationships, generated callgraph availability, and external dependency inventory. Runtime, planner, executor, storage, WAL, MVCC, SQL grammar, catalog, GUC, and user-visible behavior claims still require citations to matching files or symbols under `raw/postgres-NN/`.
 
 If a context artifact conflicts with the pinned raw source, the raw source wins. Record the context-pack discrepancy under `## Open Questions` or regenerate the pack with `scripts/source_context` before using the artifact.
@@ -225,12 +227,15 @@ scripts/recent_log --limit 20
 scripts/wiki_lint
 scripts/source_lookup --symbol ExecutorRun
 scripts/source_lookup --path src/backend/executor/execMain.c
+scripts/source_deps --version 18 --includes src/backend/executor/execMain.c
+scripts/source_deps --version 18 --included-by executor/executor.h
+scripts/source_deps --version 18 --compile-unit src/backend/executor/execMain.c
 scripts/version_diff --from 18 --to 17 --path src/backend/executor/execMain.c
 scripts/source_update --list
 scripts/source_update --version 18
 ```
 
-`scripts/source_lookup` defaults to the primary version in `wiki/versions.md`. `scripts/version_diff` requires both source checkouts to exist under `raw/postgres-NN/`. `scripts/source_update` clones or updates a checkout to the commit pinned in `wiki/versions.md`; pass `--branch` and `--commit` to override.
+`scripts/source_lookup` and `scripts/source_deps` default to the primary version in `wiki/versions.md`. `scripts/source_deps` reads `.wiki-runtime/context/postgres-NN/include-deps.txt` and `compile_commands.json`; regenerate the context pack with `scripts/source_context` if those artifacts are missing or stale. `scripts/version_diff` requires both source checkouts to exist under `raw/postgres-NN/`. `scripts/source_update` clones or updates a checkout to the commit pinned in `wiki/versions.md`; pass `--branch` and `--commit` to override.
 
 ## Version Control
 

@@ -2,6 +2,12 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-06] tooling | source dependency context lookup
+
+- Added `scripts/source_deps`, a read-only helper over `.wiki-runtime/context/postgres-NN/include-deps.txt` and `compile_commands.json` for direct include lookup, reverse include users, compile-unit context, and bounded transitive include traversal.
+- Updated `AGENTS.md` and `wiki/index.md` so future agents discover the dependency lookup workflow before falling back to ad hoc searches.
+- Fixed the v12 question source-reference heading and landing-page link shape so `scripts/wiki_lint` recognizes the existing evidence and inbound link.
+
 ## [2026-05-05] maintenance v12 | removed unverified stray question page
 
 - Deleted `wiki/v12/questions/measure-io-overhead.md`. The file appeared untracked in the working tree during the `track_io_timing` question session and contained claims contradicting the pinned v12 source: it asserted `track_io_timing` does not exist in PG 12 (it does, declared `PGC_SUSET` at `raw/postgres-12/src/backend/utils/misc/guc.c#L1402`), cited `raw/postgres-12/src/include/utils/guc_tables.h` (a file that does not exist on this checkout), claimed `log_min_duration_statement` is `PGC_SUSET` (it is `PGC_SUSET`), and linked to `wiki/v12/concepts/` pages that do not exist.

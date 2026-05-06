@@ -227,7 +227,7 @@ RESET track_io_timing;
 - `track_io_timing` does not capture WAL fsync, temp-file I/O, or local-buffer I/O in v12, so it is not a full picture of disk overhead — only the shared-buffer-manager component.
 - Enabling cluster-wide on a host with a microsecond-class clock source can itself become the dominant cost. Step 0 is not optional.
 
-## Evidence
+## Source References
 
 - GUC declaration and `PGC_SUSET` context: [[raw/postgres-12/src/backend/utils/misc/guc.c#L1401-L1409|guc.c lines 1401-1409]]
 - `PGC_SUSET` semantics: [[raw/postgres-12/src/include/utils/guc.h#L63-L66|guc.h lines 63-66]]
