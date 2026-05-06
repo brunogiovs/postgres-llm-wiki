@@ -71,6 +71,11 @@ Append one entry after every scaffold change, version lifecycle event, ingest, t
 - Set `verified_by_agent: gpt-5 2026-05-06T12:59:39Z`; kept human `verified: false`.
 - Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md` to remove unverified title/link hints and reflect the reviewed coverage.
 
+## [2026-05-06] docs | source-context tool testing requirements
+
+- Updated `postgresql-engine-wiki-plan.md` with high-level testing requirements derived from `tests/test_source_tools.py`.
+- Captured expected coverage for explicit source-tool scopes, lookup behavior, dependency queries, output contracts, path safety, missing-pack errors, context-pack generation, compile database handling, textual fallback, and source-context producer/consumer compatibility.
+
 Use this prefix shape:
 
 ```md

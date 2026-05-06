@@ -190,6 +190,22 @@ scripts/source_context --all --skip-callgraphs
 
 Agents query context packs through `scripts/source_deps --version NN` before doing ad hoc include chasing. It supports direct includes, reverse include users, per-file compile-unit context, bounded transitive include edges, text/JSON output, row limits, and full compiler-command display.
 
+### Source Context Tool Testing Requirements
+
+The synthetic tests in `tests/test_source_tools.py` define the regression envelope for the source-context tools. Keep the tests synthetic enough to run quickly without depending on the real PostgreSQL checkouts, but realistic enough to exercise the producer/consumer contracts between `scripts/source_context`, `scripts/source_deps`, and `scripts/source_lookup`.
+
+The test suite should prove these high-level requirements:
+
+- **Explicit scope enforcement** - `scripts/source_lookup` and `scripts/source_deps` reject omitted `--version NN`; `scripts/source_context` rejects omitted `--version NN` or `--all`; unsupported versions fail before source or context artifacts are used.
+- **Source lookup behavior** - `scripts/source_lookup --version NN` can print bounded source slices, search fixed symbols, search regular expressions, and show per-file git history from the selected `raw/postgres-NN/` checkout. Regex lookup should still work through the git-grep fallback path when `rg` is unavailable.
+- **Dependency resolution behavior** - `scripts/source_deps --version NN --includes` resolves raw headers, generated build headers, and unresolved system headers distinctly, and reports that distinction consistently in JSON output.
+- **Reverse and transitive dependency behavior** - reverse include lookup reports source users in a stable order that prioritizes repeated include directives, while transitive include lookup respects depth and limit controls and terminates cleanly on include cycles.
+- **Compile-unit behavior** - compile database queries expose defines, include paths, and the full compiler command when requested; missing compile database entries fail with actionable text and JSON responses.
+- **Output contract behavior** - text and JSON modes both honor `--limit`; truncated text output tells the maintainer to raise the limit, and truncated JSON output sets a machine-readable `truncated` flag.
+- **Path safety and missing-pack behavior** - dependency queries reject paths outside the selected `raw/postgres-NN/` checkout and report missing context manifests with a clear `scripts/source_context --version NN` remediation path.
+- **Context-pack generation behavior** - `scripts/source_context --version NN --skip-callgraphs` writes a manifest and an `include-deps.txt` format consumable by `scripts/source_deps`, using compile-database-derived include edges when `compile_commands.json` exists and textual scanning of tracked `.c` and `.h` files when it does not.
+- **Fallback status behavior** - textual fallback generation marks `compile_commands.json` as `deferred`, marks `include-deps.txt` as `generated`, marks skipped callgraphs as `skipped`, and makes compile-unit queries fail with a remediation message rather than silently inventing compile context.
+
 The context pack should include:
 
 1. **Project structure** - a bounded directory tree, using a unicode or ASCII tree format:
