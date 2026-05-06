@@ -29,12 +29,6 @@ Use this prefix shape:
 - Removed `wiki/v12/questions/partition-planner-settings.md` (missing ## Source References)
 - Updated `wiki/v12/index.md` and `wiki/index.md` to remove references
 
-## [2026-05-03] update v12 | source code tree diagram replaced with ASCII tree
-
-- Replaced Mermaid mindmap diagram in `wiki/v12/diagrams/source-code-tree-overview.md` with Unicode/ASCII tree representation per agents.md requirements.
-- Verified directory structure against `raw/postgres-12@45b88269a353ad93744772791feb6d01bc7e1e42`.
-- Updated `verified_by_agent` timestamp.
-
 ## [2026-05-03] update | AGENTS.md citation discipline clarified
 
 - Added "Use the same citation format for all code references, function names, and symbols mentioned in the text" to Citation Discipline section.
@@ -54,13 +48,6 @@ For version-agnostic work, omit the version segment:
 - Verified all citations point to correct source files in `raw/postgres-12/` at pinned commit.
 - Updated `verified_by_agent` timestamp.
 - Updated wiki/index.md and wiki/v12/index.md with page references.
-
-## [2026-05-03] lint v12 | Corrected citation format on source code tree overview diagram
-
-- Fixed citation format to use mandatory shape `[[raw/postgres-12/path#symbol]]` per AGENTS.md.
-- Previously used incorrect `[[v12/files/path#symbol]]` format.
-- Verified all citations point to correct source files in `raw/postgres-12/` at pinned commit.
-- Updated `verified_by_agent` timestamp.
 
 ## [2026-05-03] lint v12 | Added missing Source References section to question page
 
@@ -202,8 +189,7 @@ For version-agnostic work, omit the version segment:
   - `src/backend/postmaster/autovacuum.c` (3475 lines)
   - `src/include/postmaster/autovacuum.h` (71 lines)
 - Documented 17 GUC parameters and their evolution
-| 2025-05-01 12:48 | **autovacuum-evolution** | Research | ✅ | Moved to `wiki/shared/autovacuum-evolution.md` for cross-version content. Added Open Questions section per AGENTS.md. Updated citations to use `raw/postgres-18/` source paths. Document now has 26 git commit references and follows citation discipline. |
-  - Version-by-version feature breakdown
+- Version-by-version feature breakdown
   - Git commit references for each major change
   - Source code line references
   - Default GUC values table
@@ -354,32 +340,6 @@ For version-agnostic work, omit the version segment:
 - Command: `sed -i '/^verified: true$/d' wiki/v18/questions/*.md`.
 - Pre: 7 matches; Post: 0 matches in questions.
  - No v12 changes needed.
-
-## [2026-05-03] cleanup | removed local LLM related log entries
-
-- Removed log entries related to local LLM setup: Hermes-managed LLM lifecycle, Hermes local LLM config, llama.cpp local LLM backend.
-## [2026-05-03] diagram v12 | source code tree overview
-
-- Created `wiki/v12/diagrams/source-code-tree-overview.md` with mermaid mindmap of source tree directories and explanations of main code areas `raw/postgres-12@45b88269...`.
-
-- Updated `wiki/v12/index.md` (## Diagrams) and `wiki/index.md` (v12 #### Diagrams).
-
-
-## [2026-05-03] diagram v12 | source code tree overview
-
-- Created `wiki/v12/diagrams/source-code-tree-overview.md` (mermaid mindmap + explanations/citations for main areas).
-
-- Verified against `raw/postgres-12@45b88269a353ad93744772791feb6d01bc7e1e42`.
-
-- Updated `wiki/v12/index.md` and `wiki/index.md`.
-## [2026-05-03] verify-fix v12 | source-code-tree-overview
-
-- Re-verified citations against raw/postgres-12@45b88269...
-
-- Fixed invalid (heap/README, pg_stat_statements/README), standardized relative paths (src/backend/..., include/...), corrected headers.
-
-- wiki_lint: 0 errors.
-
 
 ## [2026-05-05] fix v12 | production-io-overhead-measurement-protocol-track-io-timing
 
