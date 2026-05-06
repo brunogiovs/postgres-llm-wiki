@@ -20,6 +20,7 @@ This is the global catalog for the PostgreSQL engine wiki.
 ### PostgreSQL 12.2
 
 - [[v12/index]] - Legacy version landing page. Source checkout pinned to `REL_12_STABLE` commit `45b88269a353ad93744772791feb6d01bc7e1e42`; project-context pack generated under `.wiki-runtime/context/postgres-12/`.
+- [[v12/questions/corruption-log-entries]] - Catalog of PostgreSQL 12 log messages indicating potential database corruption with confidence scores (unverified).
 
 
 

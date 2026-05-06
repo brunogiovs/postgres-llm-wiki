@@ -100,6 +100,7 @@ Rules for agents:
 - If verification fails for any claim, do not set `verified_by_agent:`. Either fix the claim, move it under `## Open Questions`, or leave the field absent.
 - When creating new pages or reports (e.g., question pages under `wiki/vNN/questions/`), agents must set `verified: false` and `verified_by_agent: not yet` in front matter. Never change or remove a human-set `verified:`. Treat human-set values as authoritative.
 - `verified:` and `verified_by_agent:` are independent. A page may have either, both, or neither.
+- For any managed wiki document, including question pages under `wiki/vNN/questions/`, that is not yet verified (`verified: false` with `verified_by_agent: not yet`, missing, or invalid), include an explicit `(unverified)` hint in the visible document title and any index or landing-page link text that names the document. If the document has no visible title, add a first-level heading such as `# Corruption log entries (unverified)` before the body. Do not add a `title:` front-matter field to question pages; question front matter has a fixed schema. Remove the title hint only after the document has a valid agent verification timestamp or a human reviewer sets `verified: true`.
 
 - For question pages under `wiki/vNN/questions/`, front matter must use **exactly** this order:
   ```yaml
@@ -219,6 +220,7 @@ Check for:
 - New reports and question pages missing `verified: false`.
 - Managed pages missing verification fields (both `verified:` and `verified_by_agent:` absent).
 - Question pages under `wiki/vNN/questions/` with front matter not in exact order: `type`, `version`, `pinned_commit`, `verified`, `verified_by_agent`.
+- Unverified managed wiki documents, including question pages, missing an `(unverified)` hint in the visible title or in index or landing-page link text.
 
 Use the project-local scripts first:
 

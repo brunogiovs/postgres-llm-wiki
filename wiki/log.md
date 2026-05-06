@@ -2,6 +2,10 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-06] tooling | unverified document title hints
+
+- Updated `AGENTS.md` so any unverified managed wiki document, including question pages, must show an `(unverified)` hint in its visible title and index or landing-page link text without adding extra question front-matter fields.
+
 ## [2026-05-06] tooling | source script instruction coverage
 
 - Expanded `AGENTS.md` source-tooling guidance to cover the current `source_lookup`, `source_deps`, `source_context`, `source_update`, `test_source_tools`, and `version_diff` command surfaces, including regex lookup, path/log slices, JSON dependency output, full compile commands, textual context fallback, refresh/dry-run/all context generation, and branch/commit checkout overrides.
@@ -43,6 +47,12 @@ Append one entry after every scaffold change, version lifecycle event, ingest, t
 
 - Removed all diagram files and directories (`wiki/diagrams/`, `wiki/v12/diagrams/`)
 - Cleaned up `wiki/log.md` by removing malformed entries and obsolete diagram-related log entries
+
+## [2026-05-06] filed v12 | Database corruption log entries catalog
+
+- Filed `wiki/v12/questions/corruption-log-entries.md` with comprehensive catalog of 39 PostgreSQL 12 log messages indicating potential database corruption, each with explanation and confidence score (0-100%) for corruption likelihood.
+- Updated `wiki/index.md` and `wiki/v12/index.md` with links to the new question page.
+- Sourced from grep searches across `raw/postgres-12/` for corruption-related error messages, verified with `scripts/source_lookup`.
 
 Use this prefix shape:
 
