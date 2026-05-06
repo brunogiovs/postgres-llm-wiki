@@ -38,7 +38,7 @@ The raw parser is deliberately syntax-level. `src/backend/parser/parser.c` says 
 - `RawStmt`
 - `RawParseMode`
 
-These should become shared or version-specific concept pages after Phase 4 shows which ones recur.
+These should be expanded only when a later source-backed question or subsystem pass needs the detail.
 
 ## Important Code Paths
 
@@ -66,4 +66,4 @@ Only PostgreSQL 18 is currently supported.
 
 - Which raw parse node types are produced for a minimal `SELECT`?
 - Where should the wiki draw the boundary between parser and analyzer pages for files like `parse_expr.c` and `parse_clause.c`?
-- Should scanner and grammar internals get separate file pages before the first code-path trace?
+- Should scanner and grammar internals get separate file pages before a deeper source trace?

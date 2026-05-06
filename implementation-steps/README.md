@@ -9,9 +9,8 @@ Use these files as the execution checklist when building the PostgreSQL engine L
 1. [Phase 1 Done: Wiki Scaffold](phase-1-done-wiki-scaffold.md)
 2. [Phase 2 Done: Bootstrap Supported Versions](phase-2-done-bootstrap-supported-versions.md)
 3. [Phase 3 Done: Query Lifecycle Spine](phase-3-done-query-lifecycle-spine.md)
-4. [Phase 4 Done: First Code Paths](phase-4-done-first-code-paths.md)
-5. [Phase 5 Done: Backfill Concepts](phase-5-done-backfill-concepts.md)
-6. [Phase 6 Done: Maintenance Tooling](phase-6-done-maintenance-tooling.md)
+4. [Phase 6 Done: Maintenance Tooling](phase-6-done-maintenance-tooling.md)
+5. [Phase 7: Per-Version Project Context Packs](phase-7-per-version-project-context-packs.md)
 
 ## Completion Convention
 
@@ -35,6 +34,7 @@ Also update this index and add a `## Status` section to the completed phase file
 - Keep each `wiki/vNN/index.md` as the version-local table of contents.
 - Run all wiki tooling from the project root.
 - Store all wiki-specific dependencies, caches, model/runtime state, indexes, logs, and temporary files inside this project directory.
+- Maintain generated per-version project-context packs under `.wiki-runtime/context/postgres-NN/` for every supported PostgreSQL version.
 - Make source-backed pages only after checking the pinned PostgreSQL source.
 - Prefer narrow, verifiable source traces over broad unsourced summaries.
 - Update `wiki/index.md`, `wiki/log.md`, and the relevant version landing page after every meaningful wiki change.

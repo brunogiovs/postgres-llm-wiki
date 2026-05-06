@@ -38,15 +38,10 @@ wiki/
   log.md
   overview.md
   versions.md
-  shared/
-    concepts/
   diagrams/
 
 templates/
   subsystem.md
-  concept-shared.md
-  concept-version.md
-  code-path.md
   file.md
   question.md
 
@@ -100,7 +95,7 @@ This page indexes the PostgreSQL versions covered by the wiki.
 
 ## Local Model Rules To Include In `AGENTS.md`
 
-- Trace one code path, subsystem slice, or question at a time.
+- Trace one subsystem slice or question at a time.
 - Prefer `rg`, `git grep`, and short source excerpts over loading entire directories.
 - Do not ingest a large subsystem in one pass with the 16GB local model.
 - Treat generated pages as drafts until source references are checked.

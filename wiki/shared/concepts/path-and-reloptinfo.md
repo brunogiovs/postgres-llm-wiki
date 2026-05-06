@@ -53,5 +53,5 @@ Verified against PostgreSQL 18 at commit `6cb307251c5c6261286c156649692097664010
 
 ## Open Questions
 
-- Which scan path constructors should get first code-path pages?
+- Which scan path constructors should get focused source-backed pages first?
 - How should join search and upper relations be split into separate concept pages?

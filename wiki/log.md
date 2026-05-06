@@ -626,3 +626,17 @@ For version-agnostic work, omit the version segment:
 - Bumped `verified_by_agent` to `claude-opus-4-7 2026-05-05T01:00:00Z` (same agent, post-correction re-verification).
 
 ## [2026-05-04] answer v12 | cte-join-inheritance-partitioned-table-300-partitions-settings-overhead
+
+## [2026-05-06] update | per-version project context plan
+
+- Updated `postgresql-engine-wiki-plan.md` to require a reproducible project-context pack for each supported PostgreSQL version under `.wiki-runtime/context/postgres-NN/`.
+- Added the expected context artifacts: bounded source tree snapshot, PostgreSQL build configuration inventory, compiler database, include dependency graph, call/reference graphs, external dependency inventory, and manifest with commands/tool versions/gaps.
+- Folded context-pack generation into supported-version setup, pin bumps, suggested tooling, the implementation roadmap, the implementation-steps checklist, and the first useful milestone.
+
+## [2026-05-06] update | removed code-path and concept-backfill phases
+
+- Removed the Phase 4 first-code-paths and Phase 5 concept-backfill implementation-step files.
+- Updated the implementation-steps index to point only at the remaining active phases.
+- Removed high-level wiki navigation/status references to code-path and shared-concept backfill phases from `wiki/index.md`, `wiki/overview.md`, `wiki/versions.md`, version landing pages, and `AGENTS.md`.
+- Updated `scripts/wiki_lint` so managed-page checks follow the remaining managed sections: subsystems, files, and questions.
+- Ran `scripts/wiki_lint`: 10 existing v12 content errors remain, 0 warnings from this cleanup.

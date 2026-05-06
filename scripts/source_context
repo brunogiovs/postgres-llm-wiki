@@ -1,0 +1,777 @@
+#!/usr/bin/env python3
+"""Generate per-version PostgreSQL project-context packs under .wiki-runtime/.
+
+The generated pack is orientation material for agents.  It is not source
+evidence; wiki claims still need citations into raw/postgres-NN/.
+
+Usage:
+  scripts/source_context
+  scripts/source_context --version 18
+  scripts/source_context --all
+  scripts/source_context --version 12 --skip-callgraphs
+  scripts/source_context --version 18 --refresh --dry-run
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Iterable
+
+sys.dont_write_bytecode = True
+
+from wiki_tooling import (
+    REPO_ROOT,
+    RUNTIME_ROOT,
+    append_tool_log,
+    die,
+    ensure_private_dir,
+    load_versions,
+    primary_version,
+    redact_args,
+    source_checkout,
+    write_private_text,
+)
+
+
+TREE_IGNORE = {"build", "target", ".git", "__pycache__", "autom4te.cache", "tmp_check"}
+TREE_IGNORE_PATTERN = "build|target|.git|__pycache__|autom4te.cache|tmp_check"
+BUILD_CONFIG_INPUTS = (
+    "Makefile",
+    "configure",
+    "configure.ac",
+    "GNUmakefile.in",
+    "src/Makefile.global.in",
+    "meson.build",
+    "meson_options.txt",
+)
+TOOL_VERSION_COMMANDS = {
+    "git": ["git", "--version"],
+    "tree": ["tree", "--version"],
+    "cc": ["cc", "--version"],
+    "gcc": ["gcc", "--version"],
+    "clang": ["clang", "--version"],
+    "meson": ["meson", "--version"],
+    "ninja": ["ninja", "--version"],
+    "bear": ["bear", "--version"],
+    "doxygen": ["doxygen", "--version"],
+    "dot": ["dot", "-V"],
+    "cflow": ["cflow", "--version"],
+    "pkg-config": ["pkg-config", "--version"],
+    "make": ["make", "--version"],
+}
+CALLGRAPH_ROOTS = {
+    "PostgresMain": ["src/backend/tcop/postgres.c"],
+    "exec_simple_query": ["src/backend/tcop/postgres.c"],
+    "standard_planner": ["src/backend/optimizer/plan/planner.c"],
+    "ExecutorRun": ["src/backend/executor/execMain.c"],
+}
+
+
+@dataclass
+class CommandAttempt:
+    argv: list[str]
+    cwd: Path
+    status: str
+    exit_code: int | None = None
+    stderr: str = ""
+    note: str = ""
+
+
+@dataclass
+class ArtifactStatus:
+    name: str
+    path: str
+    status: str
+    detail: str = ""
+    failures: list[str] = field(default_factory=list)
+
+
+@dataclass
+class PackRun:
+    version: str
+    info: dict[str, str]
+    source: Path
+    context_dir: Path
+    build_dir: Path
+    attempts: list[CommandAttempt] = field(default_factory=list)
+    tools: dict[str, str] = field(default_factory=dict)
+    artifacts: list[ArtifactStatus] = field(default_factory=list)
+
+    def add_artifact(
+        self,
+        name: str,
+        path: Path | str,
+        status: str,
+        detail: str = "",
+        failures: Iterable[str] = (),
+    ) -> ArtifactStatus:
+        rendered_path = render_path(path) if isinstance(path, Path) else path
+        artifact = ArtifactStatus(name, rendered_path, status, detail, list(failures))
+        self.artifacts.append(artifact)
+        return artifact
+
+
+def render_path(path: Path | str) -> str:
+    raw = Path(path) if not isinstance(path, Path) else path
+    try:
+        return raw.resolve().relative_to(REPO_ROOT).as_posix()
+    except (OSError, ValueError):
+        return str(path)
+
+
+def normalise_arg(arg: str) -> str:
+    try:
+        path = Path(arg)
+    except TypeError:
+        return arg
+    if path.is_absolute():
+        try:
+            return path.resolve().relative_to(REPO_ROOT).as_posix()
+        except (OSError, ValueError):
+            return arg
+    return arg
+
+
+def render_command(argv: Iterable[str]) -> str:
+    return " ".join(shlex.quote(normalise_arg(arg)) for arg in redact_args(argv))
+
+
+def summarise_stderr(stderr: str) -> str:
+    text = stderr.replace(str(REPO_ROOT), ".").strip()
+    if not text:
+        return ""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    summary = " / ".join(lines[:6])
+    if len(summary) > 700:
+        summary = summary[:697] + "..."
+    return summary
+
+
+def ensure_runtime_path(path: Path) -> None:
+    try:
+        path.resolve().relative_to(RUNTIME_ROOT)
+    except ValueError:
+        die(f"refusing to write outside .wiki-runtime: {path}")
+
+
+def write_runtime_text(path: Path, text: str) -> None:
+    ensure_runtime_path(path)
+    write_private_text(path, text)
+
+
+def copy_runtime_file(src: Path, dst: Path) -> None:
+    ensure_runtime_path(dst)
+    ensure_private_dir(dst.parent)
+    shutil.copy2(src, dst)
+
+
+def run_command(
+    run: PackRun,
+    argv: list[str],
+    *,
+    cwd: Path | None = None,
+    timeout: int = 120,
+) -> subprocess.CompletedProcess[str] | None:
+    cwd = cwd or REPO_ROOT
+    try:
+        proc = subprocess.run(
+            argv,
+            cwd=cwd,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+        )
+    except FileNotFoundError as exc:
+        run.attempts.append(
+            CommandAttempt(argv=argv, cwd=cwd, status="failed", exit_code=None, stderr=str(exc))
+        )
+        return None
+    except subprocess.TimeoutExpired as exc:
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        note = f"timed out after {timeout}s"
+        run.attempts.append(
+            CommandAttempt(argv=argv, cwd=cwd, status="failed", exit_code=None, stderr=stderr, note=note)
+        )
+        return None
+
+    status = "ok" if proc.returncode == 0 else "failed"
+    run.attempts.append(
+        CommandAttempt(argv=argv, cwd=cwd, status=status, exit_code=proc.returncode, stderr=proc.stderr)
+    )
+    return proc
+
+
+def probe_tools(run: PackRun) -> None:
+    for tool, argv in TOOL_VERSION_COMMANDS.items():
+        path = shutil.which(tool)
+        if not path:
+            run.tools[tool] = "missing"
+            continue
+
+        proc = run_command(run, argv, timeout=20)
+        output = ""
+        if proc is not None:
+            output = (proc.stdout or proc.stderr).strip().splitlines()[0:1]
+            output = output[0] if output else "version output unavailable"
+        status = output if proc is not None and proc.returncode == 0 else "version probe failed"
+        run.tools[tool] = f"{path} - {status}"
+
+    compiler = next((tool for tool in ("cc", "gcc", "clang") if shutil.which(tool)), None)
+    run.tools["compiler"] = f"selected `{compiler}`" if compiler else "missing"
+
+
+def build_ascii_tree(root: Path, max_depth: int = 4) -> str:
+    lines = [render_path(root)]
+
+    def children(path: Path) -> list[Path]:
+        visible = [child for child in path.iterdir() if child.name not in TREE_IGNORE]
+        return sorted(visible, key=lambda child: (not child.is_dir(), child.name.lower()))
+
+    def walk(path: Path, prefix: str, depth: int) -> None:
+        if depth >= max_depth:
+            return
+        try:
+            entries = children(path)
+        except OSError:
+            return
+        for index, child in enumerate(entries):
+            last = index == len(entries) - 1
+            connector = "`-- " if last else "|-- "
+            suffix = "/" if child.is_dir() else ""
+            lines.append(f"{prefix}{connector}{child.name}{suffix}")
+            if child.is_dir():
+                walk(child, prefix + ("    " if last else "|   "), depth + 1)
+
+    walk(root, "", 0)
+    return "\n".join(lines) + "\n"
+
+
+def generate_tree(run: PackRun) -> None:
+    target = run.context_dir / "tree-L4.txt"
+    tree = shutil.which("tree")
+    if tree:
+        proc = run_command(
+            run,
+            [
+                "tree",
+                "-L",
+                "4",
+                "--dirsfirst",
+                "-I",
+                TREE_IGNORE_PATTERN,
+                render_path(run.source),
+            ],
+            cwd=REPO_ROOT,
+            timeout=120,
+        )
+        if proc is not None and proc.returncode == 0:
+            write_runtime_text(target, proc.stdout)
+            run.add_artifact("tree-L4.txt", target, "generated", "generated with tree -L 4")
+            return
+
+    write_runtime_text(target, build_ascii_tree(run.source))
+    reason = "tree command unavailable; generated with built-in ASCII fallback"
+    run.add_artifact("tree-L4.txt", target, "generated", reason)
+
+
+def generate_build_config(run: PackRun) -> None:
+    target_dir = run.context_dir / "build-config"
+    ensure_runtime_path(target_dir)
+    ensure_private_dir(target_dir)
+
+    copied: list[str] = []
+    missing: list[str] = []
+    for rel in BUILD_CONFIG_INPUTS:
+        src = run.source / rel
+        if src.is_file():
+            dst = target_dir / rel
+            copy_runtime_file(src, dst)
+            copied.append(rel)
+        else:
+            missing.append(rel)
+
+    config_dir = run.source / "config"
+    config_m4 = sorted(config_dir.glob("*.m4")) if config_dir.is_dir() else []
+    for src in config_m4:
+        rel = src.relative_to(run.source).as_posix()
+        copy_runtime_file(src, target_dir / rel)
+        copied.append(rel)
+    if not config_m4:
+        missing.append("config/*.m4")
+
+    inventory_lines = [
+        f"# Build Configuration Inventory for PostgreSQL {run.version}",
+        "",
+        "## Copied Inputs",
+        "",
+    ]
+    inventory_lines.extend(f"- `{rel}`" for rel in copied)
+    inventory_lines.extend(["", "## Missing Expected Inputs", ""])
+    inventory_lines.extend(f"- `{rel}`" for rel in missing)
+    inventory_lines.append("")
+    write_runtime_text(target_dir / "inventory.md", "\n".join(inventory_lines))
+
+    detail = f"copied {len(copied)} build input(s); {len(missing)} expected input pattern(s) missing"
+    run.add_artifact("build-config/", target_dir, "generated", detail)
+
+
+def generate_external_deps(run: PackRun) -> None:
+    target = run.context_dir / "external-deps.txt"
+    lines = [
+        f"# External Dependency Context for PostgreSQL {run.version}",
+        "",
+        "This file separates PostgreSQL-declared dependency knobs from host-wide package availability.",
+        "",
+    ]
+    failures: list[str] = []
+
+    configure = run.source / "configure"
+    if configure.is_file():
+        proc = run_command(run, ["./configure", "--help"], cwd=run.source, timeout=90)
+        lines.extend(["## configure --help", ""])
+        if proc is not None and proc.returncode == 0:
+            lines.append(proc.stdout.rstrip())
+        else:
+            message = "configure --help failed"
+            failures.append(message)
+            lines.append(message)
+    else:
+        lines.extend(["## configure --help", "", "No configure script found in this checkout."])
+
+    meson_options = run.source / "meson_options.txt"
+    lines.extend(["", "## meson_options.txt", ""])
+    if meson_options.is_file():
+        lines.append(meson_options.read_text(encoding="utf-8", errors="replace").rstrip())
+    else:
+        lines.append("No meson_options.txt found in this checkout.")
+
+    lines.extend(["", "## Host pkg-config --list-all", ""])
+    if shutil.which("pkg-config"):
+        proc = run_command(run, ["pkg-config", "--list-all"], cwd=REPO_ROOT, timeout=90)
+        if proc is not None and proc.returncode == 0:
+            packages = sorted(line.rstrip() for line in proc.stdout.splitlines() if line.strip())
+            lines.extend(packages if packages else ["pkg-config returned no packages."])
+        else:
+            message = "pkg-config --list-all failed"
+            failures.append(message)
+            lines.append(message)
+    else:
+        lines.append("pkg-config is not available on this host.")
+
+    lines.append("")
+    write_runtime_text(target, "\n".join(lines))
+    detail = "captured configure help, meson options when present, and host pkg-config availability"
+    status = "generated" if target.exists() else "failed"
+    run.add_artifact("external-deps.txt", target, status, detail, failures)
+
+
+def copy_compile_commands(run: PackRun, source_path: Path) -> bool:
+    if not source_path.is_file():
+        return False
+    target = run.context_dir / "compile_commands.json"
+    copy_runtime_file(source_path, target)
+    return True
+
+
+def generate_compile_database(run: PackRun) -> None:
+    target = run.context_dir / "compile_commands.json"
+    failures: list[str] = []
+
+    if target.is_file():
+        run.add_artifact("compile_commands.json", target, "generated", "existing compiler database retained")
+        return
+
+    generated = False
+    meson_missing = not shutil.which("meson")
+    bear_missing = not shutil.which("bear")
+
+    if (run.source / "meson.build").is_file() and not meson_missing:
+        ensure_private_dir(run.build_dir)
+        proc = run_command(
+            run,
+            ["meson", "setup", render_path(run.build_dir), render_path(run.source)],
+            cwd=REPO_ROOT,
+            timeout=600,
+        )
+        if proc is not None and proc.returncode == 0:
+            generated = copy_compile_commands(run, run.build_dir / "compile_commands.json")
+        elif (run.build_dir / "compile_commands.json").is_file():
+            generated = copy_compile_commands(run, run.build_dir / "compile_commands.json")
+        else:
+            failures.append("meson setup did not produce compile_commands.json")
+
+    if not generated and not bear_missing and (run.source / "configure").is_file() and shutil.which("make"):
+        ensure_private_dir(run.build_dir)
+        prefix = run.build_dir / "install"
+        configure = os.path.relpath(run.source / "configure", run.build_dir)
+        proc = run_command(
+            run,
+            [configure, f"--prefix={prefix}"],
+            cwd=run.build_dir,
+            timeout=600,
+        )
+        if proc is not None and proc.returncode == 0:
+            jobs = str(min(os.cpu_count() or 2, 8))
+            proc = run_command(run, ["bear", "--", "make", f"-j{jobs}"], cwd=run.build_dir, timeout=1800)
+            if proc is not None and proc.returncode == 0:
+                generated = copy_compile_commands(run, run.build_dir / "compile_commands.json")
+            else:
+                failures.append("bear make did not complete successfully")
+        else:
+            failures.append("configure for Bear compiler database failed")
+
+    if generated:
+        run.add_artifact("compile_commands.json", target, "generated", "compiler database generated")
+        return
+
+    reasons: list[str] = []
+    if (run.source / "meson.build").is_file() and meson_missing:
+        reasons.append("meson is missing")
+    if bear_missing:
+        reasons.append("bear is missing")
+    if not shutil.which("make"):
+        reasons.append("make is missing")
+    if not (run.source / "configure").is_file() and not (run.source / "meson.build").is_file():
+        reasons.append("no supported build entry point was found")
+    detail = "; ".join(reasons or ["host build did not produce a compiler database"])
+    run.add_artifact("compile_commands.json", target, "deferred", detail, failures)
+
+
+def parse_include_dirs(command: list[str]) -> list[str]:
+    include_dirs: list[str] = []
+    index = 0
+    while index < len(command):
+        arg = command[index]
+        if arg == "-I" and index + 1 < len(command):
+            include_dirs.append(command[index + 1])
+            index += 2
+            continue
+        if arg.startswith("-I") and len(arg) > 2:
+            include_dirs.append(arg[2:])
+        index += 1
+    return include_dirs
+
+
+def textual_include_edges(path: Path) -> list[str]:
+    pattern = re.compile(r"^\s*#\s*include\s+[<\"]([^>\"]+)[>\"]")
+    edges: list[str] = []
+    try:
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            match = pattern.match(line)
+            if match:
+                edges.append(match.group(1))
+    except OSError:
+        pass
+    return edges
+
+
+def generate_include_deps_from_compile_db(run: PackRun, compile_db: Path, target: Path) -> bool:
+    try:
+        entries = json.loads(compile_db.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+
+    files = sorted({entry.get("file", "") for entry in entries if entry.get("file")})
+    include_dirs: set[str] = set()
+    for entry in entries:
+        args = entry.get("arguments")
+        if isinstance(args, list):
+            include_dirs.update(parse_include_dirs([str(arg) for arg in args]))
+            continue
+        command = entry.get("command")
+        if isinstance(command, str):
+            include_dirs.update(parse_include_dirs(shlex.split(command)))
+
+    lines = [
+        f"# Include Dependencies for PostgreSQL {run.version}",
+        "",
+        "Derived from compile_commands.json source entries by recording direct #include directives.",
+        "",
+        "## Build Include Directories",
+        "",
+    ]
+    lines.extend(f"- `{normalise_arg(path)}`" for path in sorted(include_dirs))
+    lines.extend(["", "## Direct Include Edges", ""])
+
+    for file_name in files:
+        path = Path(file_name)
+        if not path.is_absolute():
+            path = run.source / file_name
+        includes = textual_include_edges(path)
+        if not includes:
+            continue
+        source_label = normalise_arg(str(path))
+        for include in includes:
+            lines.append(f"{source_label}: {include}")
+
+    lines.append("")
+    write_runtime_text(target, "\n".join(lines))
+    return True
+
+
+def generate_include_deps_with_compiler(run: PackRun, target: Path) -> tuple[bool, list[str]]:
+    failures: list[str] = []
+    compiler = next((tool for tool in ("cc", "gcc", "clang") if shutil.which(tool)), None)
+    if not compiler:
+        return False, ["no C compiler found"]
+
+    # A PostgreSQL dependency pass needs configured headers such as pg_config.h.
+    # Without them, the preprocessor emits platform-selection #error blocks; in
+    # that case it is more useful to defer explicitly than to write noisy output.
+    generated_headers = [
+        run.build_dir / "src/include/pg_config.h",
+        run.source / "src/include/pg_config.h",
+    ]
+    if not any(path.is_file() for path in generated_headers):
+        return False, ["compiler fallback needs generated pg_config.h headers; compile database was unavailable"]
+
+    proc = run_command(run, ["git", "-C", render_path(run.source), "ls-files", "*.c", "*.h"], cwd=REPO_ROOT)
+    if proc is None or proc.returncode != 0:
+        return False, ["git ls-files for C/header inputs failed"]
+
+    files = sorted(line.strip() for line in proc.stdout.splitlines() if line.strip())
+    if not files:
+        return False, ["no tracked C or header files found"]
+
+    response = run.build_dir / "include-deps.rsp"
+    ensure_private_dir(run.build_dir)
+    args = [
+        "-MM",
+        "-MG",
+        "-I",
+        render_path(run.source / "src/include"),
+        "-I",
+        render_path(run.build_dir / "src/include"),
+        *[render_path(run.source / file_name) for file_name in files],
+    ]
+    write_runtime_text(response, "\n".join(shlex.quote(arg) for arg in args) + "\n")
+    proc = run_command(run, [compiler, f"@{render_path(response)}"], cwd=REPO_ROOT, timeout=300)
+    if proc is not None and proc.returncode == 0:
+        write_runtime_text(target, proc.stdout)
+        return True, failures
+    failures.append("compiler dependency fallback failed")
+    return False, failures
+
+
+def generate_include_deps(run: PackRun) -> None:
+    target = run.context_dir / "include-deps.txt"
+    compile_db = run.context_dir / "compile_commands.json"
+    failures: list[str] = []
+
+    if compile_db.is_file() and generate_include_deps_from_compile_db(run, compile_db, target):
+        run.add_artifact(
+            "include-deps.txt",
+            target,
+            "generated",
+            "derived direct include edges from compile_commands.json source entries",
+        )
+        return
+
+    generated, compiler_failures = generate_include_deps_with_compiler(run, target)
+    failures.extend(compiler_failures)
+    if generated:
+        run.add_artifact("include-deps.txt", target, "generated", "generated with compiler -MM/-MG fallback")
+        return
+
+    run.add_artifact("include-deps.txt", target, "deferred", "; ".join(failures), failures)
+
+
+def generate_callgraphs(run: PackRun, skip: bool) -> None:
+    target_dir = run.context_dir / "callgraphs"
+    if skip:
+        run.add_artifact("callgraphs/", target_dir, "skipped", "--skip-callgraphs was supplied")
+        return
+
+    ensure_runtime_path(target_dir)
+    ensure_private_dir(target_dir)
+    failures: list[str] = []
+    generated: list[str] = []
+
+    if shutil.which("cflow"):
+        for root, rel_paths in CALLGRAPH_ROOTS.items():
+            paths = [rel for rel in rel_paths if (run.source / rel).is_file()]
+            if not paths:
+                failures.append(f"{root}: source file missing")
+                continue
+            output = target_dir / f"{root}.cflow.txt"
+            proc = run_command(run, ["cflow", "--main", root, *paths], cwd=run.source, timeout=240)
+            if proc is not None and proc.returncode == 0 and proc.stdout.strip():
+                write_runtime_text(output, proc.stdout)
+                generated.append(output.name)
+            else:
+                failures.append(f"{root}: cflow failed or returned no graph")
+
+    if generated:
+        detail = "generated focused cflow roots: " + ", ".join(sorted(generated))
+        run.add_artifact("callgraphs/", target_dir, "generated", detail, failures)
+        return
+
+    missing = []
+    if not shutil.which("cflow"):
+        missing.append("cflow is missing")
+    if not shutil.which("doxygen"):
+        missing.append("doxygen is missing")
+    if not shutil.which("dot"):
+        missing.append("dot is missing")
+    detail = "; ".join(missing or ["call/reference graph generation did not complete"])
+    run.add_artifact("callgraphs/", target_dir, "deferred", detail, failures)
+
+
+def manifest_text(run: PackRun) -> str:
+    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    head = "unavailable"
+    proc = run_command(run, ["git", "-C", render_path(run.source), "rev-parse", "HEAD"], cwd=REPO_ROOT)
+    if proc is not None and proc.returncode == 0:
+        head = proc.stdout.strip()
+
+    artifacts = [
+        ArtifactStatus("manifest.md", render_path(run.context_dir / "manifest.md"), "generated", "this manifest"),
+        *run.artifacts,
+    ]
+
+    lines = [
+        f"# PostgreSQL {run.version} Project Context Pack",
+        "",
+        "This pack is generated orientation material. It is not evidence for behavioral wiki claims.",
+        "",
+        "## Source Pin",
+        "",
+        f"- PostgreSQL version: {run.version}",
+        f"- Branch: `{run.info.get('branch', '')}`",
+        f"- Pinned commit: `{run.info.get('commit', '')}`",
+        f"- Source checkout: `{render_path(run.source)}`",
+        f"- Source checkout HEAD: `{head}`",
+        f"- Context pack path: `{render_path(run.context_dir)}`",
+        f"- Build workspace path: `{render_path(run.build_dir)}`",
+        f"- Regenerated: `{generated_at}`",
+        "",
+        "## Tool Status",
+        "",
+        "| Tool | Status |",
+        "|---|---|",
+    ]
+    for tool in sorted(run.tools):
+        lines.append(f"| `{tool}` | {run.tools[tool]} |")
+
+    lines.extend(
+        [
+            "",
+            "## Artifact Status",
+            "",
+            "| Artifact | Path | Status | Details |",
+            "|---|---|---|---|",
+        ]
+    )
+    for artifact in artifacts:
+        details = artifact.detail.replace("|", "\\|")
+        lines.append(f"| `{artifact.name}` | `{artifact.path}` | `{artifact.status}` | {details} |")
+
+    lines.extend(["", "## Commands Attempted", "", "| Status | CWD | Command | Exit | Notes |", "|---|---|---|---|---|"])
+    for attempt in run.attempts:
+        exit_code = "" if attempt.exit_code is None else str(attempt.exit_code)
+        notes = attempt.note or summarise_stderr(attempt.stderr)
+        notes = notes.replace("|", "\\|")
+        lines.append(
+            f"| {attempt.status} | `{render_path(attempt.cwd)}` | `{render_command(attempt.argv)}` | {exit_code} | {notes} |"
+        )
+
+    lines.extend(["", "## Deferred Or Failed Artifacts", ""])
+    deferred = [artifact for artifact in artifacts if artifact.status in {"deferred", "failed"} or artifact.failures]
+    if deferred:
+        for artifact in deferred:
+            detail = artifact.detail or "no detail recorded"
+            lines.append(f"- `{artifact.name}`: {artifact.status} - {detail}")
+            for failure in artifact.failures:
+                lines.append(f"  - {failure}")
+    else:
+        lines.append("No deferred or failed artifacts.")
+
+    lines.append("")
+    return "\n".join(lines)
+
+
+def generate_pack(version: str, info: dict[str, str], args: argparse.Namespace) -> int:
+    source = source_checkout(version)
+    context_dir = RUNTIME_ROOT / "context" / f"postgres-{version}"
+    build_dir = RUNTIME_ROOT / "build" / f"postgres-{version}"
+    ensure_runtime_path(context_dir)
+    ensure_runtime_path(build_dir)
+
+    if args.dry_run:
+        print(f"v{version}: would write {render_path(context_dir)} and {render_path(build_dir)}")
+        if args.refresh:
+            print(f"v{version}: would refresh existing generated context/build directories first")
+        return 0
+
+    if args.refresh:
+        if context_dir.exists():
+            shutil.rmtree(context_dir)
+        if build_dir.exists():
+            shutil.rmtree(build_dir)
+
+    ensure_private_dir(context_dir)
+    ensure_private_dir(build_dir)
+
+    run = PackRun(version=version, info=info, source=source, context_dir=context_dir, build_dir=build_dir)
+    probe_tools(run)
+    generate_tree(run)
+    generate_build_config(run)
+    generate_external_deps(run)
+    generate_compile_database(run)
+    generate_include_deps(run)
+    generate_callgraphs(run, args.skip_callgraphs)
+
+    manifest = context_dir / "manifest.md"
+    try:
+        write_runtime_text(manifest, manifest_text(run))
+    except OSError as exc:
+        die(f"could not write {render_path(manifest)}: {exc}", code=1)
+
+    print(f"v{version}: wrote {render_path(manifest)}")
+    for artifact in run.artifacts:
+        print(f"  {artifact.status:<9} {artifact.name} - {artifact.detail}")
+    return 0
+
+
+def selected_versions(args: argparse.Namespace, versions: dict[str, dict[str, str]]) -> list[str]:
+    if args.all:
+        return sorted(versions, key=int, reverse=True)
+    if args.version:
+        if args.version not in versions:
+            die(f"unsupported PostgreSQL version: {args.version}")
+        return [args.version]
+    return [primary_version(versions)]
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    scope = parser.add_mutually_exclusive_group()
+    scope.add_argument("--version", help="PostgreSQL major version to generate, defaulting to the primary version")
+    scope.add_argument("--all", action="store_true", help="generate context packs for every supported version")
+    parser.add_argument("--refresh", action="store_true", help="clear existing generated context/build output first")
+    parser.add_argument("--skip-callgraphs", action="store_true", help="do not attempt cflow/doxygen callgraph generation")
+    parser.add_argument("--dry-run", action="store_true", help="show target paths without writing generated output")
+    args = parser.parse_args(argv)
+
+    append_tool_log("source_context", sys.argv[1:])
+
+    versions = load_versions()
+    targets = selected_versions(args, versions)
+    status = 0
+    for version in targets:
+        status = max(status, generate_pack(version, versions[version], args))
+    return status
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

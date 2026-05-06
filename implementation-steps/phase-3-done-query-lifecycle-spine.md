@@ -6,7 +6,7 @@ Done on 2026-04-30.
 
 ## Goal
 
-Build the first subsystem pages around PostgreSQL's query lifecycle. These pages create the navigational spine for later code-path traces.
+Build the first subsystem pages around PostgreSQL's query lifecycle.
 
 ## Target Subsystems
 
@@ -31,7 +31,7 @@ Build the first subsystem pages around PostgreSQL's query lifecycle. These pages
 4. Identify the subsystem's major source files, headers, entry points, and core structs.
 5. Create or update `wiki/vNN/subsystems/<subsystem>.md`.
 6. Add source references for every behavioral claim.
-7. Add cross-links to known concepts and future code paths.
+7. Add cross-links to related wiki pages where useful.
 8. Add Open Questions for uncertain behavior.
 9. Update `wiki/vNN/index.md`.
 10. Update `wiki/index.md`.
@@ -74,10 +74,6 @@ git -C raw/postgres-NN grep "standard_planner"
 ## Major Entry Points
 
 ## Core Data Structures
-
-## Related Concepts
-
-## Important Code Paths
 
 ## Differences Across Supported Versions
 

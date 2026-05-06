@@ -33,7 +33,6 @@ Checks:
 - Pages without source references.
 - Pages under `wiki/vNN/` without matching `version:` and `pinned_commit:`.
 - Stale `pinned_commit:` values relative to `wiki/versions.md`.
-- Stale `verified_against:` values on shared concepts.
 - Question pages citing source from the wrong version checkout.
 - Version landing pages missing links to existing version-local pages.
 - `wiki/versions.md` coverage notes that disagree with actual pages.

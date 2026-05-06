@@ -16,18 +16,6 @@ Questions: [[v12/questions/can-non-prepared-statements-use-generic-plans]], [[v1
 
 No PostgreSQL 12-specific subsystem pages have been created yet.
 
-## Code Paths
-
-No PostgreSQL 12-specific code path pages have been created yet.
-
-## Concepts
-
-No PostgreSQL 12-specific concept pages have been created yet.
-
-### Shared Concepts Verified Against PG12
-
-No shared concept pages verified against PG12 yet.
-
 ## Files
 
 No source file map pages have been created yet.

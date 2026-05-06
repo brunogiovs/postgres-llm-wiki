@@ -24,8 +24,8 @@ from wiki_tooling import (
 )
 
 
-MANAGED_VERSION_DIRS = ("subsystems", "concepts", "code-paths", "files", "questions")
-SOURCE_REQUIRED_TYPES = {"subsystem", "concept", "code-path", "file", "question"}
+MANAGED_VERSION_DIRS = ("subsystems", "files", "questions")
+SOURCE_REQUIRED_TYPES = {"subsystem", "file", "question"}
 ROOT_EXEMPT_SLUGS = {"index", "overview", "versions", "log"}
 
 
@@ -48,8 +48,6 @@ def is_version_local(slug: str) -> tuple[str | None, str | None]:
 
 
 def requires_front_matter(slug: str) -> bool:
-    if slug.startswith("shared/concepts/"):
-        return True
     version, _ = is_version_local(slug)
     return version is not None
 
@@ -108,26 +106,6 @@ def lint() -> tuple[list[Issue], list[Issue]]:
             if wrong:
                 errors.append(Issue("ERROR", rel(path), f"cites source checkout(s) for wrong version: {', '.join(wrong)}"))
 
-        if slug.startswith("shared/concepts/"):
-            if fm.get("type") != "concept":
-                errors.append(Issue("ERROR", rel(path), "shared concept must declare type: concept"))
-            if fm.get("scope") != "shared":
-                errors.append(Issue("ERROR", rel(path), "shared concept must declare scope: shared"))
-            verified = fm.get("verified_against")
-            if not isinstance(verified, dict) or not verified:
-                errors.append(Issue("ERROR", rel(path), "shared concept must declare verified_against"))
-            else:
-                for cited_version, commit in verified.items():
-                    expected = versions.get(str(cited_version), {}).get("commit")
-                    if expected and commit != expected:
-                        errors.append(Issue("ERROR", rel(path), f"verified_against for v{cited_version} is stale"))
-
-            cited_versions = sorted(set(re.findall(r"raw/postgres-(\d+)/", text)))
-            if isinstance(verified, dict):
-                missing = [version for version in cited_versions if version not in verified]
-                if missing:
-                    errors.append(Issue("ERROR", rel(path), f"source citation version missing from verified_against: {', '.join(missing)}"))
-
         page_type = str(fm.get("type", ""))
         if page_type in SOURCE_REQUIRED_TYPES and not has_source_references(text):
             errors.append(Issue("ERROR", rel(path), "missing ## Source References entries"))
@@ -153,7 +131,7 @@ def lint() -> tuple[list[Issue], list[Issue]]:
                 if list(fm.keys()) != present_expected:
                     warnings.append(Issue("WARN", rel(path), f"front matter keys not in order: {list(fm.keys())} (expected {all_keys})"))
 
-            if verified is None and vba is None and not slug.startswith("shared/concepts/"):
+            if verified is None and vba is None:
                 warnings.append(Issue("WARN", rel(path), "Missing verification fields (verified or verified_by_agent)"))
 
         for target in extract_obsidian_links(text):

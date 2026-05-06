@@ -20,25 +20,6 @@ The first useful spine of the wiki will follow the query lifecycle:
 4. [[v18/subsystems/planner]]
 5. [[v18/subsystems/executor]]
 
-The first code-path pages should trace:
-
-1. [[v18/code-paths/simple-select-query]]
-2. [[v18/code-paths/insert-path]]
-3. [[v18/code-paths/update-path]]
-4. [[v18/code-paths/delete-path]]
-
-The first shared concept layer covers:
-
-1. [[shared/concepts/query-tree]]
-2. [[shared/concepts/planned-statement]]
-3. [[shared/concepts/plan-and-planstate]]
-4. [[shared/concepts/path-and-reloptinfo]]
-5. [[shared/concepts/executor-state]]
-6. [[shared/concepts/tuple-table-slot]]
-7. [[shared/concepts/modifytable]]
-8. [[shared/concepts/portal]]
-9. [[shared/concepts/querydesc]]
-
 ## Source Checkouts
 
 - PostgreSQL 18: `raw/postgres-18/`, branch `REL_18_STABLE`, pinned commit `6cb307251c5c6261286c1566496920976640108e`.
@@ -54,7 +35,6 @@ The first shared concept layer covers:
 ## Operating Principles
 
 - Trace source code before summarizing behavior.
-- Prefer code-path pages over vague subsystem summaries.
+- Prefer narrow, source-backed subsystem and question pages over broad unsourced summaries.
 - Keep version-local content under `wiki/vNN/`.
-- Keep shared theory under `wiki/shared/concepts/`.
 - Keep runtime dependencies and generated state under `.wiki-runtime/`.

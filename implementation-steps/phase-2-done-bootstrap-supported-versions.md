@@ -41,8 +41,6 @@ wiki/
   vNN/
     index.md
     subsystems/
-    concepts/
-    code-paths/
     files/
     questions/
 ```
@@ -84,10 +82,6 @@ wiki/
 No source-backed pages yet.
 
 ## Subsystems
-
-## Code Paths
-
-## Concepts
 
 ## Files
 

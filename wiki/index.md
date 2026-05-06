@@ -9,18 +9,6 @@ This is the global catalog for the PostgreSQL engine wiki.
 - [[log]] - Chronological activity log.
 - [[operations/agent]] - Project-local Hermes install and start/stop runbook for the wiki maintainer agent.
 
-## Shared Concepts
-
-- [[shared/concepts/query-tree]] - Analyzed `Query` trees.
-- [[shared/concepts/planned-statement]] - Planner output wrapper around plan trees.
-- [[shared/concepts/plan-and-planstate]] - Planner `Plan` trees and executor `PlanState` trees.
-- [[shared/concepts/path-and-reloptinfo]] - Planner relation and candidate path structures.
-- [[shared/concepts/executor-state]] - Query-wide executor state.
-- [[shared/concepts/tuple-table-slot]] - Executor row container.
-- [[shared/concepts/modifytable]] - DML plan node family.
-- [[shared/concepts/portal]] - Execution wrapper used by query processing and cursors.
-- [[shared/concepts/querydesc]] - Executor descriptor for one planned statement execution.
-
 ## Version-Specific Pages
 
 ### PostgreSQL 18
@@ -34,14 +22,6 @@ This is the global catalog for the PostgreSQL engine wiki.
 - [[v18/subsystems/rewriter]] - PG 18 query rewriter.
 - [[v18/subsystems/planner]] - PG 18 planner/optimizer entry map.
 - [[v18/subsystems/executor]] - PG 18 executor entry map.
-
-#### Code Paths
-
-- [[v18/code-paths/simple-select-query]] - PG 18 simple `SELECT` through simple Query protocol.
-- [[v18/code-paths/insert-path]] - PG 18 simple `INSERT ... VALUES`.
-- [[v18/code-paths/update-path]] - PG 18 simple `UPDATE`.
-- [[v18/code-paths/delete-path]] - PG 18 simple `DELETE`.
-- [[v18/code-paths/pgstatindex]] - PG 18 `pgstatindex` btree scan from `contrib/pgstattuple` (with picture diagram).
 
 #### Questions
 

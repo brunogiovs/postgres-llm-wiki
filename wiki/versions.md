@@ -6,7 +6,7 @@ This page indexes the PostgreSQL versions covered by the wiki.
 
 | Version | Status | Wiki Home | Branch | Pinned Commit | Coverage |
 |---|---|---|---|---|---|
-| 18 | primary | [[v18/index]] | `REL_18_STABLE` | `6cb307251c5c6261286c1566496920976640108e` | Query lifecycle spine, first code paths, and foundational concepts for planning/executor structures. |
+| 18 | primary | [[v18/index]] | `REL_18_STABLE` | `6cb307251c5c6261286c1566496920976640108e` | Query lifecycle subsystem spine and source-backed question coverage. |
 | 12 | legacy | [[v12/index]] | `REL_12_STABLE` | `45b88269a353ad93744772791feb6d01bc7e1e42` | Initial scaffold for version 12.2. |
 
 ## Archived Versions
@@ -18,7 +18,7 @@ No PostgreSQL versions have been archived yet.
 
 ## Status Meanings
 
-- `primary` - exactly one supported version; default target for new ingests, traces, and answers.
+- `primary` - exactly one supported version; default target for new ingests and answers.
 - `active` - kept close to the primary through active-version verification.
 - `legacy` - preserved for reference and questions, but not checked by default.
 - `archived` - removed from active maintenance and kept under `wiki/_archive/`.
@@ -28,7 +28,7 @@ No PostgreSQL versions have been archived yet.
 - Pins must be exact commit hashes, not floating branch names.
 - Source checkouts must live under `raw/postgres-NN/`.
 - Version landing pages must live under `wiki/vNN/index.md`.
-- Generated indexes for a source checkout must live under `.wiki-runtime/indexes/`.
+- Generated runtime artifacts must live under `.wiki-runtime/`: search and symbol indexes under `.wiki-runtime/indexes/`, project-context packs under `.wiki-runtime/context/postgres-NN/`, and build trees under `.wiki-runtime/build/postgres-NN/`.
 
 ## Current Primary
 
