@@ -2,6 +2,13 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-07] filed v12 | WAL directory high throughput low latency disk improvements
+
+- Filed `wiki/v12/questions/wal-high-throughput-low-latency-disk-improvements.md` analyzing how fast WAL storage improves PostgreSQL 12 operations.
+- Grounded the answer in pinned source for `XLogFlush()` during commits, `CreateCheckPoint()` WAL flushing, `XLogBackgroundFlush()` background writing, and `issue_xlog_fsync()` segment switches.
+- Cited WAL write operations (`pg_pwrite()`, `WAIT_EVENT_WAL_WRITE`) and sync operations (`pg_fsync()`, `WAIT_EVENT_WAL_SYNC`).
+- Updated `wiki/index.md` and `wiki/v12/index.md`.
+
 ## [2026-05-07] filed v12 | Separate WAL disk full and replication slots
 
 - Filed `wiki/v12/questions/wal-separate-disk-full-replication-slots.md` for PostgreSQL 12 WAL-on-separate-disk behavior when the WAL filesystem fills.

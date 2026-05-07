@@ -27,6 +27,7 @@ This is the global catalog for the PostgreSQL engine wiki.
 - [[v12/questions/enable-io-timing-measurements-production|Enable I/O timing measurements on production]] - Production procedure for enabling PG 12 `track_io_timing`, including host timing preflight, reload/session semantics, tagged SQL sampling, `pg_stat_database`, optional `pg_stat_statements`, and `EXPLAIN (ANALYZE, BUFFERS, TIMING OFF)` interpretation.
 - [[v12/questions/inheritance-partition-no-pruning-overhead|Inheritance partition query overhead when no pruning is possible]] - Source-grounded overhead matrix for PG 12 traditional inheritance partitioning when no child tables can be pruned, covering `constraint_exclusion`, generic/custom plans, indexes/stats, planner cost knobs, parallel append, JIT, and instrumentation overhead.
 - [[v12/questions/wal-separate-disk-full-replication-slots|WAL on a separate full disk and replication slots]] - Agent-reviewed PG 12 answer covering full `pg_wal` filesystem PANIC behavior, replication-slot WAL retention, slot persistence, separate-WAL-disk corruption risk, and a production-safe slot-retention diagnostic query.
+- [[v12/questions/wal-high-throughput-low-latency-disk-improvements|WAL directory on high throughput, low latency disk improvements (unverified)]] - Source-grounded analysis of how fast WAL storage improves transaction commit latency, checkpoint performance, background WAL writing, and WAL segment switches.
 
 
 

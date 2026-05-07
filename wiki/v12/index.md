@@ -19,6 +19,7 @@ Questions filed:
 - [[v12/questions/enable-io-timing-measurements-production|Enable I/O timing measurements on production]] (agent-reviewed procedure for enabling `track_io_timing` on production, with host timing preflight, reload/session semantics, tagged SQL sampling, `pg_stat_database`, optional `pg_stat_statements`, and plan-level drill-down)
 - [[v12/questions/inheritance-partition-no-pruning-overhead|Inheritance partition query overhead when no pruning is possible]] (agent-reviewed matrix of PG 12 tunables that reduce or add overhead when a traditional-inheritance query must visit roughly 300 child tables because constraint exclusion cannot prune them)
 - [[v12/questions/wal-separate-disk-full-replication-slots|WAL on a separate full disk and replication slots]] (agent-reviewed analysis of full `pg_wal` filesystem PANIC behavior, replication-slot WAL retention and persistence, separate-WAL-disk corruption risk, and a production-safe retained-WAL diagnostic query)
+- [[v12/questions/wal-high-throughput-low-latency-disk-improvements|WAL directory on high throughput, low latency disk improvements (unverified)]] (source-grounded analysis of how fast WAL storage improves transaction commit latency, checkpoint performance, background WAL writing, and WAL segment switches)
 
 A generated project-context pack exists under `.wiki-runtime/context/postgres-12/`; its compiler database now includes the normal build plus an appended contrib build capture.
 
