@@ -2,6 +2,24 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-06] lint | wiki health check
+
+- Ran `scripts/wiki_lint` after filing the PostgreSQL 12 inheritance partition no-pruning overhead question.
+- Result: `0 error(s), 0 warning(s)`.
+
+## [2026-05-06] filed v12 | Inheritance partition no-pruning overhead
+
+- Filed `wiki/v12/questions/inheritance-partition-no-pruning-overhead.md` for a PostgreSQL 12 traditional-inheritance query that must visit roughly 300 children because no pruning is possible.
+- Covered source-grounded overhead reducers and overhead adders: `constraint_exclusion`, generic/custom plan choice, child indexes and stats, planner cost knobs, parallel append, JIT, partitionwise options, `track_io_timing`, `auto_explain`, and executor/planner stats logging.
+- Verified the inheritance expansion, constraint-exclusion, append execution, declarative partition pruning boundary, GUC contexts, and instrumentation paths against pinned `raw/postgres-12/` sources and `.wiki-runtime/context/postgres-12/`; set `verified_by_agent: gpt-5 2026-05-06T22:40:55Z`.
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md`.
+
+## [2026-05-06] review v12 | Re-review I/O timing measurements procedure
+
+- Re-reviewed `wiki/v12/questions/enable-io-timing-measurements-production.md` against pinned `raw/postgres-12/` sources and `.wiki-runtime/context/postgres-12/` pack.
+- Confirmed GUC definition, timing instrumentation sites in buffer manager, stats collection and exposure paths, and reload/session semantics.
+- Updated `verified_by_agent: Cline 2026-05-06T20:33:00Z`.
+
 ## [2026-05-06] tooling v12 | Add contrib compile capture to source context
 
 - Updated `scripts/source_context` so Bear captures the normal PostgreSQL build and then appends a `make -C contrib` capture when the checkout has contrib sources.
