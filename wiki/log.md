@@ -2,6 +2,27 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-07] filed v12 | Checkpoint monitoring and optimization scenarios
+
+- Filed `wiki/v12/questions/checkpoint-monitoring-optimization-scenarios.md` (unverified) covering PG 12 checkpoint monitoring through `pg_stat_bgwriter` and `log_checkpoints`, source-grounded checkpoint/WAL GUC tuning, reload semantics, and deployment scenarios for fast local disks and cloud block storage.
+- Checked source paths for timed and WAL-caused checkpoint triggers, checkpoint write/sync phases, `checkpoint_completion_target` pacing, WAL retention/recycling, `pg_stat_bgwriter` view wiring, `pg_stat_reset_shared('bgwriter')`, `pg_reload_conf()`, and SQL timeout GUCs.
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md` with visible `(unverified)` link text and coverage notes.
+- Open questions: the pinned PG 12 source does not contain AWS/Azure-specific disk behavior or universal numeric checkpoint target values.
+
+## [2026-05-07] review v12 | track_io_timing boundary in disk I/O review
+
+- Extended `wiki/v12/questions/disk-io-before-after-query-plan-execution.md` with a precise PostgreSQL 12 `track_io_timing` boundary analysis.
+- Verified the `ReadBuffer_common` `smgrread` timer, `FlushBuffer` `smgrwrite` timer, relation-extension exclusion, temp `BufFile` block counters without timing, WAL write/sync separation, foreground/parallel/background instrumentation boundaries, and `pg_stat_database` / `EXPLAIN` / `pg_stat_statements` exposure paths.
+- Refreshed `verified_by_agent: gpt-5 2026-05-07T02:01:08Z` and updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md`.
+- Ran `scripts/wiki_lint`; result: `0 error(s), 0 warning(s)`.
+
+## [2026-05-07] review v12 | Disk I/O before/after query planning and execution
+
+- Re-reviewed `wiki/v12/questions/disk-io-before-after-query-plan-execution.md` against pinned PostgreSQL 12 sources and `.wiki-runtime/context/postgres-12/`.
+- Rewrote the answer around query lifecycle boundaries, catalog and relcache access, planner relation-size probes, shared-buffer hits versus storage reads, DML writes, hint bits, temp spills, WAL flushes, bgwriter/checkpointer writes, and DDL/maintenance file operations.
+- Set `verified_by_agent: gpt-5 2026-05-07T01:34:17Z`, removed the stale visible `(unverified)` title hint, and updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md`.
+- Ran `scripts/wiki_lint`; result: `0 error(s), 0 warning(s)`.
+
 ## [2026-05-06] lint | wiki health check
 
 - Ran `scripts/wiki_lint` after filing the PostgreSQL 12 inheritance partition no-pruning overhead question.
