@@ -10,7 +10,7 @@ verified_by_agent: not yet
 
 ## Question
 
-In PostgreSQL 12, how should checkpoint behavior be monitored and optimized? Include practical deployment scenarios, including very fast local disks and cloud block storage such as AWS or Azure disks, while grounding PostgreSQL-side claims in the pinned PostgreSQL 12 source.
+In PostgreSQL 12, how should checkpoint behavior be monitored and optimized? Include practical deployment scenarios, including very fast local disks and cloud block storage such as AWS or Azure disks, while grounding PostgreSQL-side claims in the pinned PostgreSQL 12 source. Also include a production-safe SQL query to list all checkpoint-related configuration settings relevant to this investigation.
 
 ## Answer
 
@@ -49,6 +49,72 @@ SELECT /* wiki_checkpoint_bgwriter_sample */
 ```
 
 Those `SET` timeouts are session-scoped because `statement_timeout` and `lock_timeout` are `PGC_USERSET`; choose values appropriate for the production observation window [[raw/postgres-12/src/backend/utils/misc/guc.c#statement_timeout|guc.c#statement_timeout]], [[raw/postgres-12/src/backend/utils/misc/guc.c#lock_timeout|guc.c#lock_timeout]], [[raw/postgres-12/src/include/utils/guc.h#GucContext|guc.h#GucContext]]. If you reset the baseline, remember that `pg_stat_reset_shared('bgwriter')` zeros every counter in `pg_stat_bgwriter` for the cluster, so it can disrupt other monitoring [[raw/postgres-12/doc/src/sgml/monitoring.sgml|monitoring.sgml#L3272-L3279]], [[raw/postgres-12/src/backend/postmaster/pgstat.c#pgstat_reset_shared_counters|pgstat.c#pgstat_reset_shared_counters]].
+
+Capture the relevant runtime configuration before changing anything. PG 12 defines `pg_settings` as `SELECT * FROM pg_show_all_settings()` and documents the columns used below: `setting`, `unit`, `context`, `source`, `sourcefile`, `sourceline`, `pending_restart`, `boot_val`, `reset_val`, `min_val`, `max_val`, and `short_desc` [[raw/postgres-12/src/backend/catalog/system_views.sql#pg_settings|system_views.sql#pg_settings]], [[raw/postgres-12/doc/src/sgml/catalogs.sgml#view-pg-settings|catalogs.sgml#view-pg-settings]]. `sourcefile` and `sourceline` can be null when the value did not come from a configuration file or when the querying role lacks the documented visibility privilege [[raw/postgres-12/doc/src/sgml/catalogs.sgml#view-pg-settings|catalogs.sgml#view-pg-settings]].
+
+```sql
+SET /* wiki_checkpoint_config_statement_timeout */ statement_timeout = '30s';
+SET /* wiki_checkpoint_config_lock_timeout */ lock_timeout = '5s';
+
+SELECT /* wiki_checkpoint_config_inventory */
+       CASE
+         WHEN name IN (
+           'checkpoint_timeout',
+           'checkpoint_completion_target',
+           'checkpoint_flush_after',
+           'checkpoint_warning',
+           'max_wal_size',
+           'min_wal_size',
+           'log_checkpoints'
+         ) THEN 'direct checkpoint control'
+         WHEN name IN (
+           'full_page_writes',
+           'wal_compression',
+           'wal_log_hints'
+         ) THEN 'WAL volume after checkpoints'
+         WHEN name IN (
+           'archive_mode',
+           'archive_command',
+           'archive_timeout',
+           'wal_keep_segments',
+           'max_replication_slots'
+         ) THEN 'WAL retention or archive pressure'
+       END AS investigation_group,
+       name,
+       setting,
+       unit,
+       context,
+       source,
+       sourcefile,
+       sourceline,
+       pending_restart,
+       boot_val,
+       reset_val,
+       min_val,
+       max_val,
+       short_desc
+  FROM pg_settings
+ WHERE name IN (
+       'checkpoint_timeout',
+       'checkpoint_completion_target',
+       'checkpoint_flush_after',
+       'checkpoint_warning',
+       'max_wal_size',
+       'min_wal_size',
+       'log_checkpoints',
+       'full_page_writes',
+       'wal_compression',
+       'wal_log_hints',
+       'archive_mode',
+       'archive_command',
+       'archive_timeout',
+       'wal_keep_segments',
+       'max_replication_slots'
+ )
+ ORDER BY investigation_group, name;
+```
+
+Read `context` before proposing a change: in PG 12, `postmaster` means restart required; `sighup` means reload; `superuser` / `user` can be changed at session scope by roles with the required privilege and may also be set as configuration defaults [[raw/postgres-12/src/include/utils/guc.h#GucContext|guc.h#GucContext]]. The query intentionally includes adjacent WAL/archive settings because WAL retention and full-page-write volume can make checkpoint symptoms look like checkpoint tuning problems: `full_page_writes` writes full pages after checkpoints, `wal_compression` compresses those full-page writes, `wal_log_hints` is postmaster-only and also writes full pages after checkpoints for hint-bit changes, archiving settings can prevent old WAL removal, and replication slots / `wal_keep_segments` can retain WAL beyond normal checkpoint recycling [[raw/postgres-12/src/backend/utils/misc/guc.c#full_page_writes|guc.c#full_page_writes]], [[raw/postgres-12/src/backend/utils/misc/guc.c#wal_compression|guc.c#wal_compression]], [[raw/postgres-12/src/backend/utils/misc/guc.c#wal_log_hints|guc.c#wal_log_hints]], [[raw/postgres-12/src/backend/utils/misc/guc.c#archive_command|guc.c#archive_command]], [[raw/postgres-12/src/backend/utils/misc/guc.c#archive_mode|guc.c#archive_mode]], [[raw/postgres-12/src/backend/access/transam/xlog.c#KeepLogSeg|xlog.c#KeepLogSeg]], [[raw/postgres-12/doc/src/sgml/wal.sgml|wal.sgml#L579-L588]].
 
 Enable `log_checkpoints` during tuning when per-checkpoint shape matters. The GUC is `PGC_SIGHUP` and defaults off [[raw/postgres-12/src/backend/utils/misc/guc.c#log_checkpoints|guc.c#log_checkpoints]]. With it enabled, PG 12 logs checkpoint start causes such as `wal` or `time`, and checkpoint completion lines include written buffers, added/removed/recycled WAL files, write/sync/total times, sync file count, longest and average sync, distance, and estimate [[raw/postgres-12/src/backend/access/transam/xlog.c#LogCheckpointStart|xlog.c#LogCheckpointStart]], [[raw/postgres-12/src/backend/access/transam/xlog.c#LogCheckpointEnd|xlog.c#LogCheckpointEnd]]. Apply it with reload, not restart:
 
@@ -98,7 +164,8 @@ All checkpoint knobs in this table are `PGC_SIGHUP`, so configuration-file or `A
 - Navigation and bookkeeping: `wiki/versions.md`, `wiki/index.md`, `scripts/recent_log --limit 20`, and `wiki/v12/index.md`.
 - Context pack: `.wiki-runtime/context/postgres-12/manifest.md` confirmed source path `raw/postgres-12`, pinned commit `45b88269a353ad93744772791feb6d01bc7e1e42`, generated compile database, include dependencies, tree context, and no failed artifacts.
 - Context artifacts used: `tree-L4.txt`, `include-deps.txt`, `compile_commands.json`, `scripts/source_deps --version 12 --compile-unit src/backend/postmaster/checkpointer.c --full-command`, direct and transitive include queries for `src/backend/postmaster/checkpointer.c`, and reverse include users of `access/xlog.h`.
-- Source search envelope: targeted `scripts/source_lookup --version 12` searches and slices for `checkpoint_timeout`, `checkpoint_completion_target`, `checkpoint_flush_after`, `checkpoint_warning`, `max_wal_size`, `min_wal_size`, `log_checkpoints`, `CheckpointerMain`, `CheckpointWriteDelay`, `IsCheckpointOnSchedule`, `RequestCheckpoint`, `ForwardSyncRequest`, `AbsorbSyncRequests`, `CalculateCheckpointSegments`, `XLOGfileslop`, `XLogCheckpointNeeded`, `XLogWrite`, `CreateCheckPoint`, `CreateRestartPoint`, `CheckPointGuts`, `CheckPointBuffers`, `BufferSync`, `LogCheckpointStart`, `LogCheckpointEnd`, `pg_stat_bgwriter`, `pg_stat_reset_shared`, `pg_reload_conf`, `statement_timeout`, and `lock_timeout`.
+- Source search envelope: targeted `scripts/source_lookup --version 12` searches and slices for `checkpoint_timeout`, `checkpoint_completion_target`, `checkpoint_flush_after`, `checkpoint_warning`, `max_wal_size`, `min_wal_size`, `log_checkpoints`, `full_page_writes`, `wal_compression`, `wal_log_hints`, `archive_mode`, `archive_command`, `archive_timeout`, `wal_keep_segments`, `max_replication_slots`, `pg_settings`, `CheckpointerMain`, `CheckpointWriteDelay`, `IsCheckpointOnSchedule`, `RequestCheckpoint`, `ForwardSyncRequest`, `AbsorbSyncRequests`, `CalculateCheckpointSegments`, `XLOGfileslop`, `XLogCheckpointNeeded`, `XLogWrite`, `CreateCheckPoint`, `CreateRestartPoint`, `CheckPointGuts`, `CheckPointBuffers`, `BufferSync`, `LogCheckpointStart`, `LogCheckpointEnd`, `pg_stat_bgwriter`, `pg_stat_reset_shared`, `pg_reload_conf`, `statement_timeout`, and `lock_timeout`.
+- SQL syntax checked against PG 12 grammar for `SELECT`, `CASE`, `IN`, and `ORDER BY`; `pg_settings` column availability checked against the v12 view definition and catalog documentation.
 - Tests and generated definitions checked: `src/test/regress/expected/rules.out` for the `pg_stat_bgwriter` view shape; recovery and contrib tests containing `CHECKPOINT`, `log_checkpoints`, `checkpoint_timeout`, and `checkpoint_completion_target` were searched. The v12 tree has tests using checkpoints as recovery/logical-decoding fixtures, but no source test that encodes vendor-specific checkpoint tuning recommendations.
 
 ## Evidence Map
@@ -107,6 +174,7 @@ All checkpoint knobs in this table are `PGC_SIGHUP`, so configuration-file or `A
 - Checkpoint work phases: [[raw/postgres-12/src/backend/access/transam/xlog.c#CheckPointGuts|xlog.c#CheckPointGuts]], [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#CheckPointBuffers|bufmgr.c#CheckPointBuffers]], [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#BufferSync|bufmgr.c#BufferSync]], [[raw/postgres-12/src/backend/postmaster/checkpointer.c#CheckpointWriteDelay|checkpointer.c#CheckpointWriteDelay]], and [[raw/postgres-12/src/backend/postmaster/checkpointer.c#IsCheckpointOnSchedule|checkpointer.c#IsCheckpointOnSchedule]].
 - Monitoring surfaces: view definition in [[raw/postgres-12/src/backend/catalog/system_views.sql#pg_stat_bgwriter|system_views.sql#pg_stat_bgwriter]], docs in [[raw/postgres-12/doc/src/sgml/monitoring.sgml#pg-stat-bgwriter-view|monitoring.sgml#pg-stat-bgwriter-view]], SQL functions in [[raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c#pg_stat_get_bgwriter_timed_checkpoints|pgstatfuncs.c#pg_stat_get_bgwriter_timed_checkpoints]], stats message/rollup in [[raw/postgres-12/src/include/pgstat.h#PgStat_MsgBgWriter|pgstat.h#PgStat_MsgBgWriter]] and [[raw/postgres-12/src/backend/postmaster/pgstat.c#pgstat_recv_bgwriter|pgstat.c#pgstat_recv_bgwriter]], and checkpoint logging in [[raw/postgres-12/src/backend/access/transam/xlog.c#LogCheckpointStart|xlog.c#LogCheckpointStart]] / [[raw/postgres-12/src/backend/access/transam/xlog.c#LogCheckpointEnd|xlog.c#LogCheckpointEnd]].
 - Tuning knobs and reload semantics: GUC definitions in [[raw/postgres-12/src/backend/utils/misc/guc.c#checkpoint_timeout|guc.c#checkpoint_timeout]], [[raw/postgres-12/src/backend/utils/misc/guc.c#checkpoint_completion_target|guc.c#checkpoint_completion_target]], [[raw/postgres-12/src/backend/utils/misc/guc.c#checkpoint_flush_after|guc.c#checkpoint_flush_after]], [[raw/postgres-12/src/backend/utils/misc/guc.c#checkpoint_warning|guc.c#checkpoint_warning]], [[raw/postgres-12/src/backend/utils/misc/guc.c#max_wal_size|guc.c#max_wal_size]], [[raw/postgres-12/src/backend/utils/misc/guc.c#min_wal_size|guc.c#min_wal_size]], and [[raw/postgres-12/src/backend/utils/misc/guc.c#log_checkpoints|guc.c#log_checkpoints]]; reload behavior in [[raw/postgres-12/doc/src/sgml/config.sgml|config.sgml#L170-L183]], [[raw/postgres-12/doc/src/sgml/ref/alter_system.sgml|alter_system.sgml#L48-L60]], and [[raw/postgres-12/src/backend/storage/ipc/signalfuncs.c#pg_reload_conf|signalfuncs.c#pg_reload_conf]].
+- Configuration inventory query: `pg_settings` view shape in [[raw/postgres-12/src/backend/catalog/system_views.sql#pg_settings|system_views.sql#pg_settings]] and column docs in [[raw/postgres-12/doc/src/sgml/catalogs.sgml#view-pg-settings|catalogs.sgml#view-pg-settings]]; adjacent WAL/archive GUCs in [[raw/postgres-12/src/backend/utils/misc/guc.c#full_page_writes|guc.c#full_page_writes]], [[raw/postgres-12/src/backend/utils/misc/guc.c#archive_timeout|guc.c#archive_timeout]], [[raw/postgres-12/src/backend/utils/misc/guc.c#wal_keep_segments|guc.c#wal_keep_segments]], [[raw/postgres-12/src/backend/utils/misc/guc.c#max_replication_slots|max_replication_slots]], [[raw/postgres-12/src/backend/utils/misc/guc.c#archive_command|guc.c#archive_command]], and [[raw/postgres-12/src/backend/utils/misc/guc.c#archive_mode|guc.c#archive_mode]].
 - WAL retention and checkpoint segment sizing: [[raw/postgres-12/src/backend/access/transam/xlog.c#CalculateCheckpointSegments|xlog.c#CalculateCheckpointSegments]], [[raw/postgres-12/src/backend/access/transam/xlog.c#XLOGfileslop|xlog.c#XLOGfileslop]], [[raw/postgres-12/src/backend/access/transam/xlog.c#KeepLogSeg|xlog.c#KeepLogSeg]], and WAL docs in [[raw/postgres-12/doc/src/sgml/wal.sgml|wal.sgml#L470-L608]].
 
 ## Open Questions
@@ -121,5 +189,6 @@ All checkpoint knobs in this table are `PGC_SIGHUP`, so configuration-file or `A
 - WAL/checkpoint headers and generated context: [[raw/postgres-12/src/include/access/xlog.h|xlog.h]], [[raw/postgres-12/src/include/pgstat.h|pgstat.h]], `.wiki-runtime/context/postgres-12/include-deps.txt`, `.wiki-runtime/context/postgres-12/compile_commands.json`
 - Checkpoint and WAL GUC definitions: [[raw/postgres-12/src/backend/utils/misc/guc.c|guc.c]], [[raw/postgres-12/src/include/pg_config_manual.h|pg_config_manual.h]], [[raw/postgres-12/doc/src/sgml/config.sgml|config.sgml]], [[raw/postgres-12/doc/src/sgml/wal.sgml|wal.sgml]]
 - Monitoring and stats wiring: [[raw/postgres-12/src/backend/catalog/system_views.sql|system_views.sql]], [[raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c|pgstatfuncs.c]], [[raw/postgres-12/src/backend/postmaster/pgstat.c|pgstat.c]], [[raw/postgres-12/doc/src/sgml/monitoring.sgml|monitoring.sgml]]
+- Runtime configuration inventory: [[raw/postgres-12/doc/src/sgml/catalogs.sgml|catalogs.sgml]], [[raw/postgres-12/src/backend/parser/gram.y|gram.y]]
 - Reload and production SQL support: [[raw/postgres-12/doc/src/sgml/ref/alter_system.sgml|alter_system.sgml]], [[raw/postgres-12/src/backend/storage/ipc/signalfuncs.c|signalfuncs.c]], [[raw/postgres-12/src/include/utils/guc.h|guc.h]]
 - Tests and view-shape checks: [[raw/postgres-12/src/test/regress/expected/rules.out|rules.out]], `raw/postgres-12/src/test/recovery/`, `raw/postgres-12/contrib/test_decoding/`

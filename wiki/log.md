@@ -2,6 +2,12 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-07] update v12 | Checkpoint configuration inventory query
+
+- Updated `wiki/v12/questions/checkpoint-monitoring-optimization-scenarios.md` to fold the follow-up into the `## Question` section and add a production-safe `pg_settings` query for checkpoint-related configuration inventory.
+- Checked the query columns against the PG 12 `pg_settings` view and catalog docs, and checked adjacent GUCs for direct checkpoint control, WAL volume after checkpoints, and WAL retention/archive pressure.
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md` to mention the added `pg_settings` inventory query.
+
 ## [2026-05-07] filed v12 | Checkpoint monitoring and optimization scenarios
 
 - Filed `wiki/v12/questions/checkpoint-monitoring-optimization-scenarios.md` (unverified) covering PG 12 checkpoint monitoring through `pg_stat_bgwriter` and `log_checkpoints`, source-grounded checkpoint/WAL GUC tuning, reload semantics, and deployment scenarios for fast local disks and cloud block storage.
