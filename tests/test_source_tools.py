@@ -24,6 +24,7 @@ class SyntheticSourceToolsTest(unittest.TestCase):
         self._write_synthetic_source()
         self._write_synthetic_context()
         self._initialise_source_git_repo()
+        self._pin_context_to_source_head()
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
@@ -31,7 +32,7 @@ class SyntheticSourceToolsTest(unittest.TestCase):
     def _copy_scripts(self) -> None:
         scripts = self.repo / "scripts"
         scripts.mkdir()
-        for name in ("source_deps", "source_lookup", "wiki_tooling.py"):
+        for name in ("source_context", "source_context_check", "source_deps", "source_lookup", "wiki_tooling.py"):
             source = REPO_ROOT / "scripts" / name
             target = scripts / name
             shutil.copy2(source, target)
@@ -43,7 +44,7 @@ class SyntheticSourceToolsTest(unittest.TestCase):
         path.write_text(textwrap.dedent(text).lstrip(), encoding="utf-8")
         return path
 
-    def _write_synthetic_wiki(self) -> None:
+    def _write_synthetic_wiki(self, commit: str = "abc123synthetic") -> None:
         self._write(
             "wiki/versions.md",
             """
@@ -53,8 +54,8 @@ class SyntheticSourceToolsTest(unittest.TestCase):
 
             | Version | Status | Wiki Home | Branch | Pinned Commit | Coverage |
             |---|---|---|---|---|---|
-            | 99 | primary | [[v99/index]] | `SYNTHETIC_STABLE` | `abc123synthetic` | Synthetic test fixture. |
-            """,
+            | 99 | primary | [[v99/index]] | `SYNTHETIC_STABLE` | `{commit}` | Synthetic test fixture. |
+            """.format(commit=commit),
         )
 
     def _write_synthetic_source(self) -> None:
@@ -105,12 +106,20 @@ class SyntheticSourceToolsTest(unittest.TestCase):
             #define SYNTHETIC_FLAG 7
             """,
         )
+        self._write(
+            "raw/postgres-99/configure",
+            """
+            #!/bin/sh
+            exit 0
+            """,
+        )
 
     def _write_synthetic_context(self) -> None:
         build_include = self.repo / ".wiki-runtime/build/postgres-99/src/include"
         raw_include = self.repo / "raw/postgres-99/src/include"
         buffer_dir = self.repo / ".wiki-runtime/build/postgres-99/src/backend/storage/buffer"
         source_file = self.repo / "raw/postgres-99/src/backend/storage/buffer/bufmgr.c"
+        buffer_dir.mkdir(parents=True, exist_ok=True)
         self._write(
             ".wiki-runtime/context/postgres-99/manifest.md",
             """
@@ -150,6 +159,7 @@ class SyntheticSourceToolsTest(unittest.TestCase):
                     "cc",
                     "-DBUILDING_SYNTHETIC",
                     "-DSYNTHETIC_MODE=1",
+                    f"-DVAL_CONFIGURE=\"'--prefix={self.repo / '.wiki-runtime/build/postgres-99/install'}'\"",
                     "-I",
                     str(build_include),
                     "-I",
@@ -164,6 +174,42 @@ class SyntheticSourceToolsTest(unittest.TestCase):
         path = self.repo / ".wiki-runtime/context/postgres-99/compile_commands.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(compile_db, indent=2), encoding="utf-8")
+
+    def _pin_context_to_source_head(self) -> None:
+        head = self._run(["git", "rev-parse", "HEAD"], cwd=self.repo / "raw/postgres-99").stdout.strip()
+        self._write_synthetic_wiki(commit=head)
+        self._write(
+            ".wiki-runtime/context/postgres-99/manifest.md",
+            f"""
+            # PostgreSQL 99 Project Context Pack
+
+            This synthetic pack is orientation material for tests.
+
+            ## Source Pin
+
+            - PostgreSQL version: 99
+            - Branch: `SYNTHETIC_STABLE`
+            - Pinned commit: `{head}`
+            - Source checkout: `raw/postgres-99`
+            - Source checkout HEAD: `{head}`
+            - Context pack path: `.wiki-runtime/context/postgres-99`
+            - Build workspace path: `.wiki-runtime/build/postgres-99`
+
+            ## Commands Attempted
+
+            | Status | CWD | Command | Exit | Notes |
+            |---|---|---|---|---|
+            | ok | `.wiki-runtime/build/postgres-99` | `../../../raw/postgres-99/configure --prefix=/tmp/source-tools/.wiki-runtime/build/postgres-99/install` | 0 | raw/postgres-99/src/backend/storage/buffer/bufmgr.c:4:2: warning: synthetic diagnostic |
+
+            ## Artifact Status
+
+            | Artifact | Path | Status | Details |
+            |---|---|---|---|
+            | `manifest.md` | `.wiki-runtime/context/postgres-99/manifest.md` | `generated` | this manifest |
+            | `include-deps.txt` | `.wiki-runtime/context/postgres-99/include-deps.txt` | `generated` | synthetic include context |
+            | `compile_commands.json` | `.wiki-runtime/context/postgres-99/compile_commands.json` | `generated` | synthetic compile database |
+            """,
+        )
 
     def _initialise_source_git_repo(self) -> None:
         source = self.repo / "raw/postgres-99"
@@ -545,6 +591,46 @@ class SyntheticSourceToolsTest(unittest.TestCase):
             ],
         )
 
+    def test_source_context_check_walks_raw_dependencies_against_pack(self) -> None:
+        proc = self._script(
+            "source_context_check",
+            "--version",
+            "99",
+            "--path",
+            "src/backend/storage/buffer/bufmgr.c",
+            "--depth",
+            "3",
+            "--verbose",
+        )
+        self.assertIn("OK raw-dependencies", proc.stdout)
+        self.assertIn("errors=0 warnings=0", proc.stdout)
+        self.assertIn("raw_dependency_edges=6", proc.stdout)
+        self.assertIn("unresolved_raw_dependencies=1", proc.stdout)
+        self.assertIn("navigation_probes=", proc.stdout)
+
+    def test_source_context_check_reports_raw_dependency_pack_gap(self) -> None:
+        deps_path = self.repo / ".wiki-runtime/context/postgres-99/include-deps.txt"
+        original = deps_path.read_text(encoding="utf-8")
+        deps_path.write_text(
+            original.replace("raw/postgres-99/src/include/storage/bufmgr.h: storage/block.h\n", ""),
+            encoding="utf-8",
+        )
+
+        proc = self._script(
+            "source_context_check",
+            "--version",
+            "99",
+            "--path",
+            "src/backend/storage/buffer/bufmgr.c",
+            "--depth",
+            "3",
+            "--strict",
+            check=False,
+        )
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("WARN raw-dependencies", proc.stdout)
+        self.assertIn("context pack does not record raw dependency source raw/postgres-99/src/include/storage/bufmgr.h", proc.stdout)
+
 
 class SourceContextEndToEndTest(unittest.TestCase):
     """Exercise scripts/source_context against a synthetic source tree.
@@ -759,6 +845,10 @@ class SourceContextEndToEndTest(unittest.TestCase):
         context_dir.mkdir(parents=True)
         source_file = self.repo / "raw/postgres-99/src/backend/storage/buffer/bufmgr.c"
         raw_include = self.repo / "raw/postgres-99/src/include"
+        symlink_dir = self.repo / ".wiki-runtime/build/postgres-99/src/bin/synthetic"
+        symlink_dir.mkdir(parents=True, exist_ok=True)
+        symlink_file = symlink_dir / "bufmgr.c"
+        symlink_file.symlink_to(source_file)
         compile_db = [
             {
                 "file": str(source_file),
@@ -771,7 +861,19 @@ class SourceContextEndToEndTest(unittest.TestCase):
                     "-c",
                     str(source_file),
                 ],
-            }
+            },
+            {
+                "file": "bufmgr.c",
+                "directory": str(symlink_dir),
+                "arguments": [
+                    "cc",
+                    "-DFRONTEND",
+                    "-I",
+                    str(raw_include),
+                    "-c",
+                    "bufmgr.c",
+                ],
+            },
         ]
         (context_dir / "compile_commands.json").write_text(
             json.dumps(compile_db, indent=2), encoding="utf-8"
@@ -788,6 +890,10 @@ class SourceContextEndToEndTest(unittest.TestCase):
         self.assertIn(
             "raw/postgres-99/src/backend/storage/buffer/bufmgr.c: postgres.h",
             deps_text,
+        )
+        self.assertEqual(
+            deps_text.count("raw/postgres-99/src/backend/storage/buffer/bufmgr.c: postgres.h"),
+            1,
         )
 
         consumed = self._script(

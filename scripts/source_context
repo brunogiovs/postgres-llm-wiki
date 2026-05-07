@@ -499,12 +499,14 @@ def generate_include_deps_from_compile_db(run: PackRun, compile_db: Path, target
             return normalise_arg(path_text)
         return normalise_arg(str(directory / path))
 
-    files: set[Path] = set()
+    files_by_label: dict[str, Path] = {}
     include_dirs: set[str] = set()
     for entry in entries:
         file_name = entry.get("file")
         if isinstance(file_name, str) and file_name:
-            files.add(resolve_entry_path(entry, file_name))
+            file_path = resolve_entry_path(entry, file_name).resolve()
+            source_label = normalise_arg(str(file_path))
+            files_by_label.setdefault(source_label, file_path)
 
         directory = entry_directory(entry)
         args = entry.get("arguments")
@@ -528,11 +530,10 @@ def generate_include_deps_from_compile_db(run: PackRun, compile_db: Path, target
     lines.extend(f"- `{path}`" for path in sorted(include_dirs))
     lines.extend(["", "## Direct Include Edges", ""])
 
-    for path in sorted(files):
+    for source_label, path in sorted(files_by_label.items()):
         includes = read_include_directives(path)
         if not includes:
             continue
-        source_label = normalise_arg(str(path))
         for include in includes:
             lines.append(f"{source_label}: {include}")
 

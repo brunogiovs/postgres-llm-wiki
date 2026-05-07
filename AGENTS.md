@@ -261,6 +261,8 @@ scripts/test_source_tools
 scripts/source_context --version 18 --dry-run
 scripts/source_context --version 18 --refresh --skip-callgraphs
 scripts/source_context --all --skip-callgraphs
+scripts/source_context_check --version 18 --path src/backend/executor/execMain.c --depth 3
+scripts/source_context_check --all --strict
 scripts/version_diff --from 18 --to 17 --path src/backend/executor/execMain.c
 scripts/source_update --list
 scripts/source_update --version 18
@@ -273,7 +275,9 @@ scripts/source_update --version 18 --branch REL_18_STABLE --commit <sha>
 
 `scripts/source_context` generates `.wiki-runtime/context/postgres-NN/` packs and requires an explicit scope. Use `--version NN` for one version, `--all` for every supported version, `--refresh` to clear existing generated context/build output first, `--skip-callgraphs` to avoid cflow/doxygen callgraph work, and `--dry-run` to show target paths without writing. When no compiler database can be produced, it can still generate include dependencies by textual scanning of tracked `.c` / `.h` files; those packs support include queries but not compile-unit queries.
 
-`scripts/test_source_tools` builds a synthetic temporary wiki/source/context environment and runs end-to-end checks for `source_lookup`, `source_deps`, and the `source_context` producer/consumer contract. `scripts/version_diff` requires both source checkouts to exist under `raw/postgres-NN/`. `scripts/source_update` clones or updates a checkout to the commit pinned in `wiki/versions.md`; use `--list` for checkout status and pass `--branch` / `--commit` to override the manifest values.
+`scripts/source_context_check` sanity-checks a context pack from the raw checkout outward. It starts from `--path` or all tracked raw `.c` / `.h` files, walks live include dependencies through the pack's compile/include context, cross-checks the raw-derived dependency graph against `include-deps.txt`, scans every context artifact for wrong-version or missing project references, validates manifest/build-config/compile-db/callgraph consistency, and exercises the source navigation commands. Use `--strict` when raw dependency coverage warnings should fail the command.
+
+`scripts/test_source_tools` builds a synthetic temporary wiki/source/context environment and runs end-to-end checks for `source_lookup`, `source_deps`, `source_context`, and `source_context_check` contracts. `scripts/version_diff` requires both source checkouts to exist under `raw/postgres-NN/`. `scripts/source_update` clones or updates a checkout to the commit pinned in `wiki/versions.md`; use `--list` for checkout status and pass `--branch` / `--commit` to override the manifest values.
 
 ## Version Control
 

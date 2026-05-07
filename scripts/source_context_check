@@ -1,0 +1,1133 @@
+#!/usr/bin/env python3
+"""Sanity-check generated PostgreSQL source-context packs from raw source.
+
+The raw/postgres-NN/ checkout is the root of truth.  The checker starts from a
+selected raw artifact, or all tracked raw C/header artifacts, walks live
+#include dependencies, and then cross-checks that raw-derived dependency model
+against the generated .wiki-runtime/context/postgres-NN/ pack.  It also scans
+every context-pack artifact for wrong-version or missing project references and
+probes the project-local source navigation commands.
+
+Examples:
+  scripts/source_context_check --version 18
+  scripts/source_context_check --version 18 --path src/backend/executor/execMain.c
+  scripts/source_context_check --all
+  scripts/source_context_check --version 12 --strict
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import shlex
+import subprocess
+import sys
+from collections import OrderedDict, deque
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Iterable
+
+sys.dont_write_bytecode = True
+
+from wiki_tooling import (
+    REPO_ROOT,
+    RUNTIME_ROOT,
+    append_tool_log,
+    die,
+    load_versions,
+    parse_compiler_include_dirs,
+    read_include_directives,
+    redact_args,
+    render_repo_path,
+    source_checkout,
+)
+
+
+REFERENCE_RE = re.compile(
+    r"(?P<path>(?:raw|\.wiki-runtime/(?:build|context))/postgres-(?P<version>\d+)"
+    r"(?:/[^\s`'\"<>|,:\])}]*)?)"
+)
+TABLE_LINE_RE = re.compile(r"^\|(.+)\|$")
+BACKTICK_ITEM_RE = re.compile(r"^-\s+`(.+)`\s*$")
+CFLOW_REF_RE = re.compile(r"\bat\s+([^:<>]+):(\d+)>")
+SOURCE_FILE_GLOBS = ("*.c", "*.h")
+
+
+@dataclass(frozen=True)
+class Issue:
+    level: str
+    check: str
+    message: str
+
+
+@dataclass(frozen=True)
+class ArtifactRow:
+    name: str
+    path: str
+    status: str
+    details: str
+
+
+@dataclass
+class IncludeContext:
+    include_dirs: list[str]
+    edges_by_source: "OrderedDict[str, list[str]]"
+    derived_from_compile_db: bool
+
+
+@dataclass(frozen=True)
+class RawDependencyEdge:
+    source: str
+    include: str
+    resolved: str | None
+    kind: str
+    depth: int
+
+
+@dataclass
+class CheckContext:
+    version: str
+    info: dict[str, str]
+    source: Path
+    context_dir: Path
+    build_dir: Path
+    manifest_path: Path
+    manifest_text: str = ""
+    artifact_rows: list[ArtifactRow] | None = None
+    compile_entries: list[dict[str, object]] | None = None
+    compile_files_with_includes: dict[str, list[str]] | None = None
+    include_context: IncludeContext | None = None
+    raw_roots: list[str] | None = None
+    raw_includes_by_source: "OrderedDict[str, list[str]]" | None = None
+    raw_dependency_edges: list[RawDependencyEdge] | None = None
+    visited_files: set[Path] | None = None
+    checked_raw_artifacts: int = 0
+    checked_raw_dependency_edges: int = 0
+    unresolved_raw_dependencies: int = 0
+    checked_include_sources: int = 0
+    checked_compile_entries: int = 0
+    checked_build_config_files: int = 0
+    checked_callgraph_refs: int = 0
+    navigation_probes: int = 0
+
+
+class Reporter:
+    def __init__(self, *, max_issues: int, verbose: bool) -> None:
+        self.max_issues = max_issues
+        self.verbose = verbose
+        self.issues: list[Issue] = []
+        self.counts: dict[str, int] = {"ERROR": 0, "WARN": 0}
+        self.suppressed = 0
+        self.ok_messages: list[str] = []
+
+    def add(self, level: str, check: str, message: str) -> None:
+        self.counts[level] = self.counts.get(level, 0) + 1
+        if len(self.issues) < self.max_issues:
+            self.issues.append(Issue(level, check, message))
+        else:
+            self.suppressed += 1
+
+    def error(self, check: str, message: str) -> None:
+        self.add("ERROR", check, message)
+
+    def warn(self, check: str, message: str) -> None:
+        self.add("WARN", check, message)
+
+    def ok(self, check: str, message: str) -> None:
+        if self.verbose:
+            self.ok_messages.append(f"OK {check}: {message}")
+
+    def count(self, level: str) -> int:
+        return self.counts.get(level, 0)
+
+    def has_errors(self) -> bool:
+        return self.count("ERROR") > 0
+
+
+def render_path(path: Path | str) -> str:
+    return render_repo_path(path)
+
+
+def strip_table_cell(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == "`" and value[-1] == "`":
+        return value[1:-1]
+    return value
+
+
+def path_from_context(text: str) -> Path:
+    path = Path(text)
+    if path.is_absolute():
+        return path.resolve()
+    return (REPO_ROOT / path).resolve()
+
+
+def repo_relative_if_inside(path: Path) -> str | None:
+    try:
+        return path.resolve().relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return None
+
+
+def is_allowed_project_path(ctx: CheckContext, path: Path) -> bool:
+    rel = repo_relative_if_inside(path)
+    if rel is None:
+        return False
+    return rel.startswith(f"raw/postgres-{ctx.version}/") or rel.startswith(
+        f".wiki-runtime/build/postgres-{ctx.version}/"
+    )
+
+
+def is_repo_reference(path_text: str) -> bool:
+    return path_text.startswith("raw/") or path_text.startswith(".wiki-runtime/")
+
+
+def normalize_reference_text(text: str) -> str:
+    return text.replace(str(REPO_ROOT) + "/", "").replace("\\", "/")
+
+
+def clean_reference(path_text: str) -> str:
+    path_text = re.sub(r"(?::\d+){1,2}$", "", path_text)
+    while path_text.endswith((".", ";", ":", ")")):
+        path_text = path_text[:-1]
+    return path_text
+
+
+def is_optional_build_reference(ctx: CheckContext, path_text: str) -> bool:
+    install_prefix = f".wiki-runtime/build/postgres-{ctx.version}/install"
+    return path_text == install_prefix or path_text.startswith(f"{install_prefix}/")
+
+
+def scan_references(ctx: CheckContext, reporter: Reporter, artifact: Path, text: str) -> None:
+    normalized = normalize_reference_text(text)
+    for match in REFERENCE_RE.finditer(normalized):
+        rel_text = clean_reference(match.group("path"))
+        ref_version = match.group("version")
+        if ref_version != ctx.version:
+            reporter.error(
+                "reference-scan",
+                f"{render_path(artifact)} references postgres-{ref_version}, expected postgres-{ctx.version}: {rel_text}",
+            )
+            continue
+        if is_repo_reference(rel_text):
+            if is_optional_build_reference(ctx, rel_text):
+                continue
+            path = path_from_context(rel_text)
+            if not path.exists():
+                reporter.error(
+                    "reference-scan",
+                    f"{render_path(artifact)} references missing project path: {rel_text}",
+                )
+
+
+def read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def parse_manifest_values(text: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for line in text.splitlines():
+        if not line.startswith("- ") or ":" not in line:
+            continue
+        key, value = line[2:].split(":", 1)
+        values[key.strip()] = strip_table_cell(value.strip())
+    return values
+
+
+def parse_artifact_rows(text: str) -> list[ArtifactRow]:
+    rows: list[ArtifactRow] = []
+    in_section = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped == "## Artifact Status":
+            in_section = True
+            continue
+        if in_section and stripped.startswith("## "):
+            break
+        if not in_section or not stripped.startswith("|"):
+            continue
+        if stripped.startswith("|---") or "Artifact" in stripped and "Status" in stripped:
+            continue
+        match = TABLE_LINE_RE.match(stripped)
+        if not match:
+            continue
+        cells = [strip_table_cell(cell) for cell in stripped.strip("|").split("|")]
+        if len(cells) < 4:
+            continue
+        rows.append(ArtifactRow(name=cells[0], path=cells[1], status=cells[2], details=cells[3]))
+    return rows
+
+
+def parse_inventory_items(text: str) -> tuple[list[str], list[str]]:
+    copied: list[str] = []
+    missing: list[str] = []
+    section = ""
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped == "## Copied Inputs":
+            section = "copied"
+            continue
+        if stripped == "## Missing Expected Inputs":
+            section = "missing"
+            continue
+        if stripped.startswith("## "):
+            section = ""
+            continue
+        match = BACKTICK_ITEM_RE.match(stripped)
+        if not match:
+            continue
+        if section == "copied":
+            copied.append(match.group(1))
+        elif section == "missing":
+            missing.append(match.group(1))
+    return copied, missing
+
+
+def parse_include_context(path: Path) -> IncludeContext:
+    include_dirs: list[str] = []
+    edges_by_source: "OrderedDict[str, list[str]]" = OrderedDict()
+    text = read_text(path)
+    derived_from_compile_db = "Derived from compile_commands.json" in text
+    section = ""
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped == "## Build Include Directories":
+            section = "include_dirs"
+            continue
+        if stripped == "## Direct Include Edges":
+            section = "edges"
+            continue
+        if stripped.startswith("## "):
+            section = ""
+            continue
+        if section == "include_dirs":
+            match = BACKTICK_ITEM_RE.match(stripped)
+            if match:
+                include_dirs.append(match.group(1))
+            continue
+        if section == "edges" and stripped and not stripped.startswith("#"):
+            try:
+                source, include = stripped.split(": ", 1)
+            except ValueError:
+                continue
+            edges_by_source.setdefault(source, []).append(include)
+    return IncludeContext(include_dirs=include_dirs, edges_by_source=edges_by_source, derived_from_compile_db=derived_from_compile_db)
+
+
+def entry_directory(entry: dict[str, object]) -> Path:
+    raw = entry.get("directory")
+    if isinstance(raw, str) and raw:
+        path = Path(raw)
+        if path.is_absolute():
+            return path.resolve()
+        return (REPO_ROOT / path).resolve()
+    return REPO_ROOT
+
+
+def entry_file(entry: dict[str, object]) -> Path | None:
+    raw = entry.get("file")
+    if not isinstance(raw, str) or not raw:
+        return None
+    path = Path(raw)
+    if path.is_absolute():
+        return path.resolve()
+    return (entry_directory(entry) / path).resolve()
+
+
+def entry_args(entry: dict[str, object]) -> list[str]:
+    args = entry.get("arguments")
+    if isinstance(args, list):
+        return [str(arg) for arg in args]
+    command = entry.get("command")
+    if isinstance(command, str):
+        return shlex.split(command)
+    return []
+
+
+def unique_paths(paths: Iterable[Path]) -> list[Path]:
+    seen: set[str] = set()
+    result: list[Path] = []
+    for path in paths:
+        resolved = path.resolve()
+        key = str(resolved)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(resolved)
+    return result
+
+
+def entry_include_dirs(entry: dict[str, object]) -> list[Path]:
+    directory = entry_directory(entry)
+    include_dirs: list[Path] = []
+    for raw_dir in parse_compiler_include_dirs(entry_args(entry)):
+        path = Path(raw_dir)
+        if path.is_absolute():
+            include_dirs.append(path)
+        else:
+            include_dirs.append(directory / path)
+    return unique_paths(include_dirs)
+
+
+def compile_entries_by_file(ctx: CheckContext) -> dict[str, list[dict[str, object]]]:
+    entries_by_file: dict[str, list[dict[str, object]]] = {}
+    for entry in ctx.compile_entries or []:
+        path = entry_file(entry)
+        if path is None:
+            continue
+        entries_by_file.setdefault(render_path(path), []).append(entry)
+    return entries_by_file
+
+
+def context_include_dirs(ctx: CheckContext) -> list[Path]:
+    dirs: list[Path] = []
+    if ctx.include_context is not None:
+        dirs.extend(path_from_context(raw_dir) for raw_dir in ctx.include_context.include_dirs)
+    dirs.extend([ctx.source / "src/include", ctx.build_dir / "src/include"])
+    return unique_paths(dirs)
+
+
+def search_dirs_for_source(ctx: CheckContext, source_label: str) -> list[Path]:
+    entries = compile_entries_by_file(ctx).get(source_label, [])
+    if entries:
+        return entry_include_dirs(entries[0])
+    return context_include_dirs(ctx)
+
+
+def classify_project_path(ctx: CheckContext, path: Path | None) -> str:
+    if path is None:
+        return "unresolved"
+    rel = repo_relative_if_inside(path)
+    if rel is None:
+        return "outside"
+    if rel.startswith(f"raw/postgres-{ctx.version}/"):
+        return "raw"
+    if rel.startswith(f".wiki-runtime/build/postgres-{ctx.version}/"):
+        return "build"
+    return "project"
+
+
+def resolve_raw_include(
+    ctx: CheckContext,
+    source_path: Path,
+    include: str,
+    search_dirs: list[Path],
+) -> tuple[str | None, str]:
+    candidates = [source_path.parent / include]
+    candidates.extend(include_dir / include for include_dir in search_dirs)
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved.is_file() and is_allowed_project_path(ctx, resolved):
+            return render_path(resolved), classify_project_path(ctx, resolved)
+    return None, "unresolved"
+
+
+def source_like(path: Path) -> bool:
+    return path.suffix in {".c", ".h"}
+
+
+def run_command(argv: list[str], *, cwd: Path = REPO_ROOT) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(argv, cwd=cwd, text=True, capture_output=True)
+
+
+def git_head(source: Path) -> str | None:
+    proc = run_command(["git", "-C", render_path(source), "rev-parse", "HEAD"])
+    if proc.returncode != 0:
+        return None
+    return proc.stdout.strip()
+
+
+def validate_manifest(ctx: CheckContext, reporter: Reporter) -> None:
+    if not ctx.manifest_path.is_file():
+        reporter.error("manifest", f"missing manifest: {render_path(ctx.manifest_path)}")
+        return
+
+    ctx.manifest_text = read_text(ctx.manifest_path)
+    ctx.artifact_rows = parse_artifact_rows(ctx.manifest_text)
+    values = parse_manifest_values(ctx.manifest_text)
+    scan_references(ctx, reporter, ctx.manifest_path, ctx.manifest_text)
+
+    expected_commit = ctx.info.get("commit", "")
+    manifest_commit = values.get("Pinned commit")
+    if manifest_commit != expected_commit:
+        reporter.error(
+            "manifest",
+            f"manifest pinned commit {manifest_commit!r} does not match wiki/versions.md {expected_commit!r}",
+        )
+
+    head = git_head(ctx.source)
+    if head is None:
+        reporter.error("manifest", f"could not read git HEAD for {render_path(ctx.source)}")
+    else:
+        if head != expected_commit:
+            reporter.error(
+                "manifest",
+                f"{render_path(ctx.source)} HEAD {head} does not match wiki/versions.md pinned commit {expected_commit}",
+            )
+        manifest_head = values.get("Source checkout HEAD")
+        if manifest_head and manifest_head != head:
+            reporter.error(
+                "manifest",
+                f"manifest source HEAD {manifest_head} does not match checkout HEAD {head}",
+            )
+
+    expected_paths = {
+        "Source checkout": render_path(ctx.source),
+        "Context pack path": render_path(ctx.context_dir),
+        "Build workspace path": render_path(ctx.build_dir),
+    }
+    for key, expected in expected_paths.items():
+        actual = values.get(key)
+        if actual and actual.rstrip("/") != expected.rstrip("/"):
+            reporter.error("manifest", f"{key} is {actual!r}, expected {expected!r}")
+    if not ctx.artifact_rows:
+        reporter.error("manifest", "manifest has no parseable Artifact Status rows")
+    else:
+        reporter.ok("manifest", f"parsed {len(ctx.artifact_rows)} artifact row(s)")
+
+
+def recorded_artifact_paths(ctx: CheckContext) -> list[Path]:
+    rows = ctx.artifact_rows or []
+    result: list[Path] = []
+    for row in rows:
+        if row.path:
+            result.append(path_from_context(row.path))
+    return result
+
+
+def path_under_any(path: Path, roots: Iterable[Path]) -> bool:
+    resolved = path.resolve()
+    for root in roots:
+        try:
+            resolved.relative_to(root.resolve())
+            return True
+        except ValueError:
+            continue
+    return False
+
+
+def validate_artifacts(ctx: CheckContext, reporter: Reporter) -> None:
+    if not ctx.context_dir.is_dir():
+        reporter.error("artifacts", f"missing context directory: {render_path(ctx.context_dir)}")
+        return
+
+    visited: set[Path] = set()
+    for path in sorted(ctx.context_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        visited.add(path.resolve())
+        try:
+            text = read_text(path)
+        except OSError as exc:
+            reporter.error("artifacts", f"could not read {render_path(path)}: {exc}")
+            continue
+        scan_references(ctx, reporter, path, text)
+    ctx.visited_files = visited
+
+    rows = ctx.artifact_rows or []
+    for row in rows:
+        artifact_path = path_from_context(row.path)
+        expected_under_context = artifact_path == ctx.context_dir or path_under_any(artifact_path, [ctx.context_dir])
+        if not expected_under_context:
+            reporter.error(
+                "artifacts",
+                f"artifact {row.name} points outside {render_path(ctx.context_dir)}: {row.path}",
+            )
+        if row.status == "generated" and not artifact_path.exists():
+            reporter.error("artifacts", f"generated artifact is missing: {row.name} at {row.path}")
+
+    recorded = recorded_artifact_paths(ctx)
+    for file_path in sorted(visited):
+        if not path_under_any(file_path, recorded):
+            reporter.warn("artifacts", f"context file is not covered by manifest artifact rows: {render_path(file_path)}")
+    reporter.ok("artifacts", f"visited {len(visited)} context artifact file(s)")
+
+
+def validate_tree(ctx: CheckContext, reporter: Reporter) -> None:
+    path = ctx.context_dir / "tree-L4.txt"
+    if not path.is_file():
+        return
+    first = next((line.strip() for line in read_text(path).splitlines() if line.strip()), "")
+    expected = render_path(ctx.source)
+    if first.rstrip("/") != expected.rstrip("/"):
+        reporter.error("tree-L4.txt", f"first tree root is {first!r}, expected {expected!r}")
+
+
+def validate_build_config(ctx: CheckContext, reporter: Reporter) -> None:
+    build_config = ctx.context_dir / "build-config"
+    if not build_config.is_dir():
+        return
+    inventory = build_config / "inventory.md"
+    copied: list[str] = []
+    missing: list[str] = []
+    if inventory.is_file():
+        copied, missing = parse_inventory_items(read_text(inventory))
+
+    for rel in copied:
+        source_path = (ctx.source / rel).resolve()
+        context_path = (build_config / rel).resolve()
+        if not source_path.is_file():
+            reporter.error("build-config", f"inventory copied input is missing from source: {rel}")
+            continue
+        if not context_path.is_file():
+            reporter.error("build-config", f"inventory copied input is missing from context: build-config/{rel}")
+            continue
+        if source_path.read_bytes() != context_path.read_bytes():
+            reporter.error("build-config", f"copied build input differs from source: {rel}")
+        ctx.checked_build_config_files += 1
+
+    for rel in missing:
+        if "*" in rel or " or " in rel:
+            continue
+        if (ctx.source / rel).exists():
+            reporter.warn("build-config", f"inventory lists existing source input as missing: {rel}")
+
+    for path in sorted(build_config.rglob("*")):
+        if not path.is_file() or path.name == "inventory.md":
+            continue
+        rel = path.relative_to(build_config).as_posix()
+        if rel in copied:
+            continue
+        source_path = ctx.source / rel
+        if not source_path.is_file():
+            reporter.error("build-config", f"unmapped build-config file has no source counterpart: {rel}")
+            continue
+        if source_path.read_bytes() != path.read_bytes():
+            reporter.error("build-config", f"unmapped build-config file differs from source: {rel}")
+        ctx.checked_build_config_files += 1
+    reporter.ok("build-config", f"checked {ctx.checked_build_config_files} copied build input file(s)")
+
+
+def validate_compile_commands(ctx: CheckContext, reporter: Reporter) -> None:
+    path = ctx.context_dir / "compile_commands.json"
+    if not path.is_file():
+        return
+    try:
+        payload = json.loads(read_text(path))
+    except json.JSONDecodeError as exc:
+        reporter.error("compile_commands.json", f"could not parse JSON: {exc}")
+        return
+    if not isinstance(payload, list):
+        reporter.error("compile_commands.json", "compile_commands.json is not a JSON array")
+        return
+
+    ctx.compile_entries = [entry for entry in payload if isinstance(entry, dict)]
+    ctx.compile_files_with_includes = {}
+    for index, entry in enumerate(ctx.compile_entries, start=1):
+        file_path = entry_file(entry)
+        if file_path is None:
+            reporter.error("compile_commands.json", f"entry {index} has no file")
+            continue
+        directory = entry_directory(entry)
+        if not directory.is_dir():
+            reporter.error("compile_commands.json", f"entry {index} directory is missing: {render_path(directory)}")
+        if not is_allowed_project_path(ctx, file_path):
+            reporter.error(
+                "compile_commands.json",
+                f"entry {index} file is outside raw/build postgres-{ctx.version}: {render_path(file_path)}",
+            )
+            continue
+        if not file_path.is_file():
+            reporter.error("compile_commands.json", f"entry {index} file is missing: {render_path(file_path)}")
+            continue
+        includes = read_include_directives(file_path)
+        if includes:
+            ctx.compile_files_with_includes[render_path(file_path)] = includes
+
+        for include_dir in parse_compiler_include_dirs(entry_args(entry)):
+            include_path = Path(include_dir)
+            if not include_path.is_absolute():
+                include_path = directory / include_path
+            resolved = include_path.resolve()
+            rel = repo_relative_if_inside(resolved)
+            if rel is None:
+                continue
+            if f"postgres-{ctx.version}" not in rel:
+                reporter.error(
+                    "compile_commands.json",
+                    f"entry {index} include directory references another version or workspace: {rel}",
+                )
+            elif (rel.startswith(f"raw/postgres-{ctx.version}/") or rel.startswith(f".wiki-runtime/build/postgres-{ctx.version}/")) and not resolved.is_dir():
+                reporter.error("compile_commands.json", f"entry {index} include directory is missing: {rel}")
+
+    ctx.checked_compile_entries = len(ctx.compile_entries)
+    reporter.ok("compile_commands.json", f"checked {ctx.checked_compile_entries} compile entry(ies)")
+
+
+def expected_textual_include_sources(ctx: CheckContext, reporter: Reporter) -> dict[str, list[str]]:
+    proc = run_command(["git", "-C", render_path(ctx.source), "ls-files", *SOURCE_FILE_GLOBS])
+    rel_files: list[str] = []
+    if proc.returncode == 0:
+        rel_files = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    if not rel_files:
+        rel_files = []
+        for glob in SOURCE_FILE_GLOBS:
+            rel_files.extend(path.relative_to(ctx.source).as_posix() for path in ctx.source.rglob(glob) if path.is_file())
+        reporter.warn("include-deps.txt", "git ls-files returned no C/header files; used rglob fallback")
+
+    expected: dict[str, list[str]] = {}
+    for rel in sorted(set(rel_files)):
+        path = ctx.source / rel
+        includes = read_include_directives(path)
+        if includes:
+            expected[render_path(path)] = includes
+    return expected
+
+
+def all_tracked_raw_source_files(ctx: CheckContext, reporter: Reporter) -> list[Path]:
+    proc = run_command(["git", "-C", render_path(ctx.source), "ls-files", *SOURCE_FILE_GLOBS])
+    rel_files: list[str] = []
+    if proc.returncode == 0:
+        rel_files = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    if not rel_files:
+        reporter.warn("raw-dependencies", "git ls-files returned no C/header files; used rglob fallback")
+        files: list[Path] = []
+        for glob in SOURCE_FILE_GLOBS:
+            files.extend(path for path in ctx.source.rglob(glob) if path.is_file())
+        return sorted(set(path.resolve() for path in files))
+    return sorted((ctx.source / rel).resolve() for rel in set(rel_files))
+
+
+def resolve_raw_path_arg(ctx: CheckContext, value: str) -> Path:
+    raw = Path(value)
+    if raw.is_absolute():
+        resolved = raw.resolve()
+    else:
+        text = value.replace("\\", "/")
+        prefix = f"raw/postgres-{ctx.version}/"
+        if text.startswith(prefix):
+            resolved = (REPO_ROOT / text).resolve()
+        else:
+            resolved = (ctx.source / text).resolve()
+    try:
+        resolved.relative_to(ctx.source.resolve())
+    except ValueError:
+        die(f"--path must stay inside raw/postgres-{ctx.version}/")
+    if not resolved.exists():
+        die(f"--path does not exist in raw/postgres-{ctx.version}/: {value}")
+    return resolved
+
+
+def selected_raw_roots(ctx: CheckContext, reporter: Reporter, args: argparse.Namespace) -> list[Path]:
+    if args.path:
+        root = resolve_raw_path_arg(ctx, args.path)
+        if root.is_dir():
+            roots: list[Path] = []
+            for glob in SOURCE_FILE_GLOBS:
+                roots.extend(path for path in root.rglob(glob) if path.is_file())
+            if not roots:
+                reporter.warn("raw-dependencies", f"selected directory has no C/header files: {render_path(root)}")
+            return sorted(set(path.resolve() for path in roots))
+        return [root.resolve()]
+    return all_tracked_raw_source_files(ctx, reporter)
+
+
+def build_raw_dependency_model(ctx: CheckContext, reporter: Reporter, args: argparse.Namespace) -> None:
+    roots = selected_raw_roots(ctx, reporter, args)
+    ctx.raw_roots = [render_path(path) for path in roots]
+    includes_by_source: "OrderedDict[str, list[str]]" = OrderedDict()
+    edges: list[RawDependencyEdge] = []
+    max_depth = max(args.depth, 0)
+    unlimited = max_depth == 0
+
+    queue: deque[tuple[Path, int, list[Path]]] = deque()
+    for root in roots:
+        label = render_path(root)
+        queue.append((root, 0, search_dirs_for_source(ctx, label)))
+
+    expanded: set[Path] = set()
+    while queue:
+        source_path, depth, search_dirs = queue.popleft()
+        resolved_source = source_path.resolve()
+        if resolved_source in expanded:
+            continue
+        expanded.add(resolved_source)
+
+        if not resolved_source.is_file():
+            reporter.error("raw-dependencies", f"selected or resolved raw dependency is missing: {render_path(resolved_source)}")
+            continue
+        if not is_allowed_project_path(ctx, resolved_source):
+            reporter.error(
+                "raw-dependencies",
+                f"selected or resolved dependency is outside raw/build postgres-{ctx.version}: {render_path(resolved_source)}",
+            )
+            continue
+
+        source_label = render_path(resolved_source)
+        includes = read_include_directives(resolved_source)
+        includes_by_source[source_label] = includes
+        ctx.checked_raw_artifacts += 1
+        for include in includes:
+            resolved_label, kind = resolve_raw_include(ctx, resolved_source, include, search_dirs)
+            edges.append(
+                RawDependencyEdge(
+                    source=source_label,
+                    include=include,
+                    resolved=resolved_label,
+                    kind=kind,
+                    depth=depth + 1,
+                )
+            )
+            if resolved_label is None:
+                ctx.unresolved_raw_dependencies += 1
+                continue
+            dependency_path = path_from_context(resolved_label)
+            if kind in {"raw", "build"} and source_like(dependency_path) and (unlimited or depth + 1 < max_depth):
+                queue.append((dependency_path, depth + 1, search_dirs))
+
+    ctx.raw_includes_by_source = includes_by_source
+    ctx.raw_dependency_edges = edges
+    ctx.checked_raw_dependency_edges = len(edges)
+    reporter.ok(
+        "raw-dependencies",
+        f"walked {ctx.checked_raw_artifacts} raw/build source artifact(s) and {ctx.checked_raw_dependency_edges} include edge(s)",
+    )
+
+
+def validate_include_deps(ctx: CheckContext, reporter: Reporter, args: argparse.Namespace) -> None:
+    path = ctx.context_dir / "include-deps.txt"
+    if not path.is_file():
+        return
+    include_context = parse_include_context(path)
+    ctx.include_context = include_context
+
+    for include_dir in include_context.include_dirs:
+        include_path = path_from_context(include_dir)
+        rel = repo_relative_if_inside(include_path)
+        if rel is None:
+            continue
+        if f"postgres-{ctx.version}" not in rel:
+            reporter.error("include-deps.txt", f"include directory references another version or workspace: {rel}")
+        elif (rel.startswith(f"raw/postgres-{ctx.version}/") or rel.startswith(f".wiki-runtime/build/postgres-{ctx.version}/")) and not include_path.is_dir():
+            reporter.error("include-deps.txt", f"include directory is missing: {rel}")
+
+    for source_label, recorded_includes in include_context.edges_by_source.items():
+        source_path = path_from_context(source_label)
+        if not is_allowed_project_path(ctx, source_path):
+            reporter.error(
+                "include-deps.txt",
+                f"edge source is outside raw/build postgres-{ctx.version}: {source_label}",
+            )
+            continue
+        if not source_path.is_file():
+            reporter.error("include-deps.txt", f"edge source file is missing: {source_label}")
+            continue
+        current_includes = read_include_directives(source_path)
+        if current_includes != recorded_includes:
+            reporter.error(
+                "include-deps.txt",
+                f"{source_label} include directives differ from live file: recorded {recorded_includes!r}, live {current_includes!r}",
+            )
+        ctx.checked_include_sources += 1
+
+    build_raw_dependency_model(ctx, reporter, args)
+    for source_label, live_includes in (ctx.raw_includes_by_source or {}).items():
+        if not live_includes:
+            continue
+        recorded_includes = include_context.edges_by_source.get(source_label)
+        if recorded_includes is None:
+            reporter.warn(
+                "raw-dependencies",
+                f"context pack does not record raw dependency source {source_label}; live file has {live_includes!r}",
+            )
+            continue
+        if recorded_includes != live_includes:
+            reporter.error(
+                "raw-dependencies",
+                f"context pack differs from raw dependency source {source_label}: recorded {recorded_includes!r}, live {live_includes!r}",
+            )
+
+    reporter.ok("include-deps.txt", f"checked {ctx.checked_include_sources} recorded source file(s)")
+
+
+def validate_callgraphs(ctx: CheckContext, reporter: Reporter) -> None:
+    callgraphs = ctx.context_dir / "callgraphs"
+    if not callgraphs.is_dir():
+        return
+    line_counts: dict[Path, int] = {}
+    for path in sorted(callgraphs.glob("*.cflow.txt")):
+        text = read_text(path)
+        if not text.strip():
+            reporter.error("callgraphs", f"callgraph is empty: {render_path(path)}")
+            continue
+        root = path.name.removesuffix(".cflow.txt")
+        if root not in text:
+            reporter.warn("callgraphs", f"callgraph {path.name} does not mention root symbol {root}")
+        for match in CFLOW_REF_RE.finditer(text):
+            rel_path = match.group(1)
+            line_number = int(match.group(2))
+            source_path = (ctx.source / rel_path).resolve()
+            if not source_path.is_file():
+                reporter.error("callgraphs", f"{path.name} references missing source file: {rel_path}")
+                continue
+            if source_path not in line_counts:
+                line_counts[source_path] = sum(1 for _ in source_path.open("r", encoding="utf-8", errors="replace"))
+            if line_number < 1 or line_number > line_counts[source_path]:
+                reporter.error(
+                    "callgraphs",
+                    f"{path.name} references out-of-range line {rel_path}:{line_number}",
+                )
+            ctx.checked_callgraph_refs += 1
+    reporter.ok("callgraphs", f"checked {ctx.checked_callgraph_refs} callgraph source reference(s)")
+
+
+def raw_rel_from_label(ctx: CheckContext, label: str) -> str | None:
+    path = path_from_context(label)
+    try:
+        return path.resolve().relative_to(ctx.source.resolve()).as_posix()
+    except ValueError:
+        return None
+
+
+def choose_probe_source(ctx: CheckContext) -> tuple[str | None, str | None]:
+    preferred = [
+        "src/backend/executor/execMain.c",
+        "src/backend/tcop/postgres.c",
+        "src/backend/storage/buffer/bufmgr.c",
+    ]
+    root_labels = list(ctx.raw_roots or [])
+    compile_labels = list((ctx.compile_files_with_includes or {}).keys())
+    include_labels = list((ctx.include_context.edges_by_source if ctx.include_context else {}).keys())
+    raw_labels = [label for label in [render_path(ctx.source / rel) for rel in preferred] if (REPO_ROOT / label).is_file()]
+    raw_labels.extend(label for label in root_labels + compile_labels + include_labels if label.startswith(f"raw/postgres-{ctx.version}/"))
+
+    for label in raw_labels:
+        rel = raw_rel_from_label(ctx, label)
+        if rel:
+            return label, rel
+    return None, None
+
+
+def choose_probe_include(ctx: CheckContext, source_label: str | None) -> str | None:
+    if ctx.include_context is None:
+        return None
+    candidates: list[str] = []
+    if source_label:
+        candidates.extend(ctx.include_context.edges_by_source.get(source_label, []))
+    for includes in ctx.include_context.edges_by_source.values():
+        candidates.extend(includes)
+    for include in candidates:
+        if include == "postgres.h":
+            return include
+    for include in candidates:
+        if include.endswith(".h") and "/" in include:
+            return include
+    return candidates[0] if candidates else None
+
+
+def script_path(name: str) -> Path:
+    return REPO_ROOT / "scripts" / name
+
+
+def run_probe(ctx: CheckContext, reporter: Reporter, check: str, argv: list[str], *, accept: set[int] | None = None) -> None:
+    accept = accept or {0}
+    proc = run_command(argv)
+    rendered = " ".join(shlex.quote(arg) for arg in redact_args(argv))
+    if proc.returncode not in accept:
+        stderr = proc.stderr.strip().splitlines()
+        stdout = proc.stdout.strip().splitlines()
+        detail = stderr[0] if stderr else stdout[0] if stdout else f"exit {proc.returncode}"
+        reporter.error(check, f"probe failed: {rendered}: {detail}")
+    else:
+        ctx.navigation_probes += 1
+        reporter.ok(check, f"probe ok: {rendered}")
+
+
+def exercise_navigation(ctx: CheckContext, reporter: Reporter, versions: dict[str, dict[str, str]]) -> None:
+    source_label, rel_source = choose_probe_source(ctx)
+    include = choose_probe_include(ctx, source_label)
+
+    if rel_source:
+        run_probe(
+            ctx,
+            reporter,
+            "source_lookup",
+            [sys.executable, str(script_path("source_lookup")), "--version", ctx.version, "--path", rel_source, "--start", "1", "--limit", "5"],
+        )
+        run_probe(
+            ctx,
+            reporter,
+            "source_lookup",
+            [sys.executable, str(script_path("source_lookup")), "--version", ctx.version, "--symbol", "#include", "--limit", "5"],
+        )
+        run_probe(
+            ctx,
+            reporter,
+            "source_lookup",
+            [sys.executable, str(script_path("source_lookup")), "--version", ctx.version, "--symbol", r"#\s*include", "--regex", "--limit", "5"],
+        )
+        if (ctx.source / ".git").is_dir():
+            run_probe(
+                ctx,
+                reporter,
+                "source_lookup",
+                [sys.executable, str(script_path("source_lookup")), "--version", ctx.version, "--log", rel_source, "--limit", "3"],
+            )
+    else:
+        reporter.warn("navigation", "could not choose a raw source file for source_lookup probes")
+
+    if source_label and rel_source:
+        run_probe(
+            ctx,
+            reporter,
+            "source_deps",
+            [sys.executable, str(script_path("source_deps")), "--version", ctx.version, "--includes", rel_source, "--format", "json", "--limit", "0"],
+        )
+        run_probe(
+            ctx,
+            reporter,
+            "source_deps",
+            [sys.executable, str(script_path("source_deps")), "--version", ctx.version, "--transitive-includes", rel_source, "--depth", "2", "--limit", "20"],
+        )
+        if (ctx.context_dir / "compile_commands.json").is_file():
+            run_probe(
+                ctx,
+                reporter,
+                "source_deps",
+                [sys.executable, str(script_path("source_deps")), "--version", ctx.version, "--compile-unit", rel_source, "--full-command"],
+            )
+    if include:
+        run_probe(
+            ctx,
+            reporter,
+            "source_deps",
+            [sys.executable, str(script_path("source_deps")), "--version", ctx.version, "--included-by", include, "--limit", "20"],
+        )
+    else:
+        reporter.warn("navigation", "could not choose an include directive for source_deps --included-by probe")
+
+    if script_path("source_context").is_file():
+        run_probe(
+            ctx,
+            reporter,
+            "source_context",
+            [sys.executable, str(script_path("source_context")), "--version", ctx.version, "--dry-run"],
+        )
+
+    other_versions = [version for version in sorted(versions, key=int) if version != ctx.version]
+    for other in other_versions:
+        if rel_source and (REPO_ROOT / "raw" / f"postgres-{other}" / rel_source).is_file():
+            run_probe(
+                ctx,
+                reporter,
+                "version_diff",
+                [
+                    sys.executable,
+                    str(script_path("version_diff")),
+                    "--from",
+                    ctx.version,
+                    "--to",
+                    other,
+                    "--path",
+                    rel_source,
+                    "--context",
+                    "1",
+                ],
+                accept={0, 1},
+            )
+            break
+    reporter.ok("navigation", f"ran {ctx.navigation_probes} source navigation probe(s)")
+
+
+def print_version_report(ctx: CheckContext, reporter: Reporter) -> None:
+    print(f"# Source Context Check v{ctx.version}")
+    print(f"source: {render_path(ctx.source)}")
+    print(f"context: {render_path(ctx.context_dir)}")
+    print(f"build: {render_path(ctx.build_dir)}")
+    print("")
+
+    for message in reporter.ok_messages:
+        print(message)
+
+    for issue in reporter.issues:
+        print(f"{issue.level} {issue.check}: {issue.message}")
+    if reporter.suppressed:
+        print(f"... suppressed {reporter.suppressed} additional issue(s); raise --max-issues to see more")
+
+    visited = len(ctx.visited_files or set())
+    print("")
+    print(
+        "summary: "
+        f"errors={reporter.count('ERROR')} warnings={reporter.count('WARN')} "
+        f"visited_artifacts={visited} "
+        f"raw_artifacts={ctx.checked_raw_artifacts} "
+        f"raw_dependency_edges={ctx.checked_raw_dependency_edges} "
+        f"unresolved_raw_dependencies={ctx.unresolved_raw_dependencies} "
+        f"compile_entries={ctx.checked_compile_entries} "
+        f"include_sources={ctx.checked_include_sources} "
+        f"build_config_files={ctx.checked_build_config_files} "
+        f"callgraph_refs={ctx.checked_callgraph_refs} "
+        f"navigation_probes={ctx.navigation_probes}"
+    )
+    print("")
+
+
+def check_version(version: str, info: dict[str, str], versions: dict[str, dict[str, str]], args: argparse.Namespace) -> bool:
+    source = source_checkout(version).resolve()
+    ctx = CheckContext(
+        version=version,
+        info=info,
+        source=source,
+        context_dir=(RUNTIME_ROOT / "context" / f"postgres-{version}").resolve(),
+        build_dir=(RUNTIME_ROOT / "build" / f"postgres-{version}").resolve(),
+        manifest_path=(RUNTIME_ROOT / "context" / f"postgres-{version}" / "manifest.md").resolve(),
+        artifact_rows=[],
+        compile_entries=[],
+        compile_files_with_includes={},
+        visited_files=set(),
+    )
+    reporter = Reporter(max_issues=args.max_issues, verbose=args.verbose)
+
+    validate_manifest(ctx, reporter)
+    validate_artifacts(ctx, reporter)
+    validate_tree(ctx, reporter)
+    validate_build_config(ctx, reporter)
+    validate_compile_commands(ctx, reporter)
+    validate_include_deps(ctx, reporter, args)
+    validate_callgraphs(ctx, reporter)
+    exercise_navigation(ctx, reporter, versions)
+    print_version_report(ctx, reporter)
+
+    return not reporter.has_errors() and (not args.strict or reporter.count("WARN") == 0)
+
+
+def selected_versions(args: argparse.Namespace, versions: dict[str, dict[str, str]]) -> list[str]:
+    if args.all:
+        return sorted(versions, key=int, reverse=True)
+    if args.version not in versions:
+        die(f"unsupported PostgreSQL version: {args.version}")
+    return [args.version]
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    scope = parser.add_mutually_exclusive_group(required=True)
+    scope.add_argument("--version", help="PostgreSQL major version to check")
+    scope.add_argument("--all", action="store_true", help="check every supported version")
+    parser.add_argument(
+        "--path",
+        help="raw source artifact or directory to start from, relative to raw/postgres-NN/; defaults to all tracked .c/.h files",
+    )
+    parser.add_argument(
+        "--depth",
+        type=int,
+        default=0,
+        help="dependency walk depth for --path or all roots; 0 means unlimited",
+    )
+    parser.add_argument("--strict", action="store_true", help="return non-zero when warnings are reported")
+    parser.add_argument("--verbose", action="store_true", help="print successful check/probe lines")
+    parser.add_argument("--max-issues", type=int, default=100, help="maximum issues to print per version")
+    args = parser.parse_args(argv)
+
+    append_tool_log("source_context_check", sys.argv[1:])
+
+    versions = load_versions()
+    ok = True
+    for version in selected_versions(args, versions):
+        ok = check_version(version, versions[version], versions, args) and ok
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

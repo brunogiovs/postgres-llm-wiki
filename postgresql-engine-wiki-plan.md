@@ -71,6 +71,7 @@ scripts/
   source_lookup             # Version-pinned source lookup and source git history
   source_deps               # Version-pinned include/dependency and compile-unit lookup
   source_context            # Version-pinned context-pack generation
+  source_context_check      # Raw-source-rooted context-pack sanity checker
   source_update             # Clone/update pinned PostgreSQL source checkouts
   source_rebuild            # Rebuild a checkout at the latest release tag for a major
   version_diff              # Diff one source path across two explicit versions
@@ -92,8 +93,8 @@ The repository has moved beyond the original scaffold plan in these areas:
 
 - PostgreSQL 18 and PostgreSQL 12 are supported in `wiki/versions.md`, with pinned checkouts under `raw/postgres-18/` and `raw/postgres-12/`.
 - Both supported versions have generated project-context packs under `.wiki-runtime/context/postgres-NN/`, including manifests, bounded source trees, build configuration inventories, compiler databases, include dependency extracts, external dependency inventories, and focused callgraphs where available.
-- Source tooling is project-local and version-pinned. `scripts/source_lookup` and `scripts/source_deps` require `--version NN`; `scripts/source_context` requires `--version NN` or intentional `--all`; `scripts/version_diff` requires `--from NN --to MM`.
-- `scripts/test_source_tools` runs synthetic end-to-end tests that exercise lookup, dependency queries, context generation, fallback include scanning, compile database handling, and the explicit-version enforcement.
+- Source tooling is project-local and version-pinned. `scripts/source_lookup`, `scripts/source_deps`, and `scripts/source_context_check` require `--version NN`; `scripts/source_context` requires `--version NN` or intentional `--all`; `scripts/version_diff` requires `--from NN --to MM`.
+- `scripts/test_source_tools` runs synthetic end-to-end tests that exercise lookup, dependency queries, context generation, raw-rooted context-pack sanity checks, fallback include scanning, compile database handling, and the explicit-version enforcement.
 - `AGENTS.md` is the active maintenance contract. It now includes source-context evidence rules, citation discipline, GUC-change handling, production SQL snippet requirements, human and agent verification fields, unverified title hints, report-generation rules, lint checks, and the hard source-tool version-pin rule.
 
 ## Version Strategy
@@ -191,13 +192,15 @@ scripts/source_context --all --skip-callgraphs
 
 Agents query context packs through `scripts/source_deps --version NN` before doing ad hoc include chasing. It supports direct includes, reverse include users, per-file compile-unit context, bounded transitive include edges, text/JSON output, row limits, and full compiler-command display.
 
+Agents sanity-check context packs through `scripts/source_context_check --version NN`, optionally with `--path <raw-relative-path>` for a focused raw artifact. The checker starts from raw `.c` / `.h` files, walks live include dependencies through the pack's compile/include context, cross-checks the raw-derived graph against `include-deps.txt`, scans all context artifacts for missing or wrong-version project references, validates manifest/build-config/compile-db/callgraph consistency, and probes the source navigation commands. Use `--strict` when raw dependency coverage warnings should fail the command.
+
 ### Source Context Tool Testing Requirements
 
-The synthetic tests in `tests/test_source_tools.py` define the regression envelope for the source-context tools. Keep the tests synthetic enough to run quickly without depending on the real PostgreSQL checkouts, but realistic enough to exercise the producer/consumer contracts between `scripts/source_context`, `scripts/source_deps`, and `scripts/source_lookup`.
+The synthetic tests in `tests/test_source_tools.py` define the regression envelope for the source-context tools. Keep the tests synthetic enough to run quickly without depending on the real PostgreSQL checkouts, but realistic enough to exercise the producer/consumer contracts between `scripts/source_context`, `scripts/source_context_check`, `scripts/source_deps`, and `scripts/source_lookup`.
 
 The test suite should prove these high-level requirements:
 
-- **Explicit scope enforcement** - `scripts/source_lookup` and `scripts/source_deps` reject omitted `--version NN`; `scripts/source_context` rejects omitted `--version NN` or `--all`; unsupported versions fail before source or context artifacts are used.
+- **Explicit scope enforcement** - `scripts/source_lookup`, `scripts/source_deps`, and `scripts/source_context_check` reject omitted `--version NN`; `scripts/source_context` rejects omitted `--version NN` or `--all`; unsupported versions fail before source or context artifacts are used.
 - **Source lookup behavior** - `scripts/source_lookup --version NN` can print bounded source slices, search fixed symbols, search regular expressions, and show per-file git history from the selected `raw/postgres-NN/` checkout. Regex lookup should still work through the git-grep fallback path when `rg` is unavailable.
 - **Dependency resolution behavior** - `scripts/source_deps --version NN --includes` resolves raw headers, generated build headers, and unresolved system headers distinctly, and reports that distinction consistently in JSON output.
 - **Reverse and transitive dependency behavior** - reverse include lookup reports source users in a stable order that prioritizes repeated include directives, while transitive include lookup respects depth and limit controls and terminates cleanly on include cycles.
@@ -205,6 +208,7 @@ The test suite should prove these high-level requirements:
 - **Output contract behavior** - text and JSON modes both honor `--limit`; truncated text output tells the maintainer to raise the limit, and truncated JSON output sets a machine-readable `truncated` flag.
 - **Path safety and missing-pack behavior** - dependency queries reject paths outside the selected `raw/postgres-NN/` checkout and report missing context manifests with a clear `scripts/source_context --version NN` remediation path.
 - **Context-pack generation behavior** - `scripts/source_context --version NN --skip-callgraphs` writes a manifest and an `include-deps.txt` format consumable by `scripts/source_deps`, using compile-database-derived include edges when `compile_commands.json` exists and textual scanning of tracked `.c` and `.h` files when it does not.
+- **Raw-rooted context-pack check behavior** - `scripts/source_context_check --version NN --path <raw-file>` starts from the raw artifact, walks live include dependencies, reports pack coverage gaps against `include-deps.txt`, scans all context artifacts for stale references, and exercises `source_lookup`, `source_deps`, `source_context --dry-run`, and cross-version diff probes when applicable.
 - **Fallback status behavior** - textual fallback generation marks `compile_commands.json` as `deferred`, marks `include-deps.txt` as `generated`, marks skipped callgraphs as `skipped`, and makes compile-unit queries fail with a remediation message rather than silently inventing compile context.
 
 The context pack should include:
@@ -617,6 +621,8 @@ scripts/source_deps --version 18 --transitive-includes src/backend/executor/exec
 scripts/source_context --version 18 --dry-run
 scripts/source_context --version 18 --refresh --skip-callgraphs
 scripts/source_context --all --skip-callgraphs
+scripts/source_context_check --version 18 --path src/backend/executor/execMain.c --depth 3
+scripts/source_context_check --all --strict
 scripts/version_diff --from 18 --to 12 --path src/backend/executor/execMain.c
 scripts/source_update --list
 scripts/source_update --version 18
@@ -630,6 +636,7 @@ Implemented script responsibilities:
 - `scripts/source_lookup` searches symbols/text, prints source slices, and shows source git history for an explicit `--version NN`.
 - `scripts/source_deps` queries `.wiki-runtime/context/postgres-NN/include-deps.txt` and `compile_commands.json` for direct includes, reverse include users, compile-unit details, and transitive include edges. It supports text/JSON output, limits, and full compile command display.
 - `scripts/source_context` regenerates context packs with explicit `--version NN` or `--all`; it supports `--refresh`, `--skip-callgraphs`, and `--dry-run`.
+- `scripts/source_context_check` starts from raw source artifacts, walks live include dependencies, cross-checks the generated context pack, and exercises source navigation commands.
 - `scripts/source_update` clones or updates a checkout to the pin in `wiki/versions.md`, with optional branch/commit override.
 - `scripts/source_rebuild` reclones a checkout at the latest release tag for a major and updates the source pin.
 - `scripts/version_diff` compares one source path across two explicit source checkouts.
@@ -687,6 +694,7 @@ Implemented scripts:
 - `scripts/source_lookup` for version-pinned source search, source slices, and source git history.
 - `scripts/source_deps` for version-pinned include/dependency and compile-unit context queries over generated context packs.
 - `scripts/source_context` for per-version project-context pack generation and refresh.
+- `scripts/source_context_check` for raw-source-rooted source-context pack sanity checks.
 - `scripts/source_update` and `scripts/source_rebuild` for checkout lifecycle operations.
 - `scripts/version_diff` for explicit cross-version source path comparisons.
 - `scripts/test_source_tools` for source-tool regression coverage.

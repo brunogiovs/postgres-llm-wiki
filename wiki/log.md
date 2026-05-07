@@ -2,6 +2,12 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-07] tooling v12 | source context check false-positive cleanup
+
+- Fixed `scripts/source_context` so compile-database include dependency generation deduplicates source files that resolve through build-tree symlinks to the same raw checkout path.
+- Fixed `scripts/source_context_check` reference scanning so configured install prefixes and compiler diagnostic `path:line:column` text do not appear as missing project artifacts; issue counts now include suppressed diagnostics.
+- Regenerated the PostgreSQL 12 context pack without callgraphs and reran `scripts/source_context_check --version 12`; the check now exits successfully with only raw-dependency coverage warnings.
+
 ## [2026-05-07] filed v12 | WAL directory high throughput low latency disk improvements
 
 - Filed `wiki/v12/questions/wal-high-throughput-low-latency-disk-improvements.md` analyzing how fast WAL storage improves PostgreSQL 12 operations.
@@ -210,3 +216,9 @@ Use this prefix shape:
 - Moved data-page checksum and basebackup checksum-failure messages into an excluded enabled-checksum-only section, verified from `DataChecksumsEnabled()`, `PageIsVerified()`, basebackup gating, and `pg_checksums` mode checks.
 - Added checksum-disabled-relevant TOAST, B-tree half-dead internal page, control-file utility, and low-confidence internal-state messages with source citations and confidence scores.
 - Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md` coverage text.
+
+## [2026-05-07] tooling | raw-rooted source context sanity checker
+
+- Added `scripts/source_context_check`, a version-pinned context-pack sanity checker that starts from raw PostgreSQL source artifacts, walks live C/header include dependencies, cross-checks the raw-derived graph against `.wiki-runtime/context/postgres-NN/include-deps.txt`, scans context artifacts for missing or wrong-version project references, validates manifest/build-config/compile-db/callgraph consistency, and exercises the source navigation commands.
+- Added synthetic regression coverage for the checker, including raw dependency traversal and missing pack-coverage reporting.
+- Updated `AGENTS.md`, `wiki/index.md`, and `postgresql-engine-wiki-plan.md` so maintainers discover the new workflow.
