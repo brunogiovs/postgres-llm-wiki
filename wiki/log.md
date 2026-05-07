@@ -2,6 +2,27 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-07] filed v12 | Separate WAL disk full and replication slots
+
+- Filed `wiki/v12/questions/wal-separate-disk-full-replication-slots.md` for PostgreSQL 12 WAL-on-separate-disk behavior when the WAL filesystem fills.
+- Grounded the answer in pinned source for replication-slot `restart_lsn` retention, checkpoint WAL cleanup boundaries, full `pg_wal` PANIC behavior, WAL-before-data enforcement, slot persistence under `pg_replslot`, and `pg_replication_slots` monitoring.
+- Added a production-safe retained-WAL diagnostic query with inline trace tag and session-scoped timeouts.
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md`.
+
+## [2026-05-07] filed v12 | Azure disk configuration recommendations
+
+- Filed `wiki/v12/questions/azure-disk-configuration-recommendations.md` (unverified) for prompt-provided Azure Ultra Disk, Premium SSD v2, Premium SSD, Standard SSD, and Standard HDD options.
+- Grounded PG 12 recommendations in pinned source for planner storage costs, `effective_io_concurrency`, checkpoint/WAL pacing, bgwriter/writeback, temp spill placement, durability settings, `pg_settings`, `pg_stat_database`, and `pg_stat_bgwriter`.
+- Added production-safe SQL snippets with inline trace tags and session timeouts, plus context-reviewed/evidence-map/open-question sections.
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md`.
+
+## [2026-05-07] review v12 | Bgwriter backend-write-share thresholds
+
+- Expanded `wiki/v12/questions/bgwriter-tuning-recommendations.md` with a source-grounded explanation of `buffers_backend / (buffers_clean + buffers_backend + buffers_checkpoint)`.
+- Added practical backend-write-share heuristic bands (`0%`-`2%`, `>2%`-`5%`, `>5%`-`10%`, `>10%`-`20%`, `>20%`-`40%`, `>40%`) and per-band actions for `bgwriter_lru_maxpages`, `bgwriter_lru_multiplier`, and `bgwriter_delay`.
+- Added `buffers_checkpoint` counter wiring, refreshed context-reviewed/evidence-map notes, and fixed production SQL snippets to use inline trace tags on every statement.
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md` coverage text.
+
 ## [2026-05-07] update v12 | Checkpoint configuration inventory query
 
 - Updated `wiki/v12/questions/checkpoint-monitoring-optimization-scenarios.md` to fold the follow-up into the `## Question` section and add a production-safe `pg_settings` query for checkpoint-related configuration inventory.

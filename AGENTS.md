@@ -49,6 +49,7 @@ For each question:
 - Confirm the target PostgreSQL version and use explicit version-scoped source tools for every source operation.
 - Read the matching context-pack manifest and note missing or stale artifacts before relying on the pack.
 - Locate the primary source files and symbols, then inspect adjacent callers, callees, structs, macros, includes, compile-unit flags, generated headers, and reverse include users through `scripts/source_lookup` and `scripts/source_deps`.
+- If any project-local source lookup or navigation tool used for evidence returns an error or cannot produce trustworthy output, abort the current analysis before drafting. Fix and rerun the command when feasible; otherwise stop and report the exact command, target version, and error instead of continuing from partial source evidence.
 - Check relevant tests, catalog definitions, grammar rules, documentation, error paths, GUC definitions, and extension/contrib boundaries when the question touches them.
 - Inspect file or symbol history when the user asks why something exists, when intent matters, or when a regression/change claim is being made.
 - Use `scripts/version_diff --from NN --to MM` only when the answer makes a cross-version claim or the user asks for a comparison.
@@ -248,6 +249,7 @@ scripts/recent_log --limit 20
 scripts/wiki_lint
 scripts/source_lookup --version 18 --symbol ExecutorRun
 scripts/source_lookup --version 18 --symbol 'Executor(Run|Start)' --regex --limit 20
+scripts/source_lookup --version 18 --symbol '\bExecutorRun\b' --regex --limit 20
 scripts/source_lookup --version 18 --path src/backend/executor/execMain.c --start 1 --limit 80
 scripts/source_lookup --version 18 --log src/backend/executor/execMain.c --limit 20
 scripts/source_deps --version 18 --includes src/backend/executor/execMain.c
@@ -265,7 +267,7 @@ scripts/source_update --version 18
 scripts/source_update --version 18 --branch REL_18_STABLE --commit <sha>
 ```
 
-`scripts/source_lookup` requires `--version NN`. Use `--symbol` for fixed-string search, add `--regex` for regular expressions, use `--path` with `--start` / `--limit` to print a source slice, and use `--log` to show git history for a path in the checkout.
+`scripts/source_lookup` requires `--version NN`. Use `--symbol` for fixed-string search, add `--regex` for regular expressions, use `--path` with `--start` / `--limit` to print a source slice, and use `--log` to show git history for a path in the checkout. Prefer single quotes around shell regex patterns so backslashes reach the regex engine. To find a standalone C symbol, put word boundaries on both sides, for example `'\bXLogRead\b'`; `XLogRead\b` only anchors the end and can also match suffix identifiers such as `XLogDumpXLogRead`. When invoking the command through JSON or an IDE runner, escape regex backslashes as `\\b`.
 
 `scripts/source_deps` requires `--version NN`. It reads `.wiki-runtime/context/postgres-NN/include-deps.txt` and, when present, `compile_commands.json`. Use `--includes` for direct include edges, `--included-by` for reverse include users, `--compile-unit` for compiler flags/defines/include directories, and `--transitive-includes` with `--depth` for bounded include traversal. Add `--format json` for machine-readable output, `--limit 0` for unlimited rows, and `--full-command` to print the compiler command in text output for `--compile-unit`. JSON compile-unit output always includes the full compile database entries. If a textual context pack has no compiler database, `--compile-unit` reports that gap; regenerate with `scripts/source_context --version NN` when compile flags are needed.
 
