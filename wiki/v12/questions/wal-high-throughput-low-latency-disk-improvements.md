@@ -6,7 +6,7 @@ verified: false
 verified_by_agent: not yet
 ---
 
-# WAL Directory on High Throughput, Low Latency Disk Improvements
+# WAL Directory on High Throughput, Low Latency Disk Improvements (unverified)
 
 ## Question
 
@@ -70,23 +70,21 @@ issue_xlog_fsync(openLogFile, openLogSegNo);
 
 Low-latency storage minimizes the pause during segment switches, which occur every 16MB by default.
 
-## Evidence
+## Source References
 
-### Source Citations
+- Source pin and context pack: [[raw/postgres-12/]], `.wiki-runtime/context/postgres-12/manifest.md`
+- Transaction commit flush path: `RecordTransactionCommit()` in [[raw/postgres-12/src/backend/access/transam/xact.c#RecordTransactionCommit|xact.c#RecordTransactionCommit]] and `XLogFlush()` in [[raw/postgres-12/src/backend/access/transam/xlog.c#XLogFlush|xlog.c#XLogFlush]].
+- Checkpoint WAL flush path: `CreateCheckPoint()` in [[raw/postgres-12/src/backend/access/transam/xlog.c#CreateCheckPoint|xlog.c#CreateCheckPoint]] and `XLogFlush()` in [[raw/postgres-12/src/backend/access/transam/xlog.c#XLogFlush|xlog.c#XLogFlush]].
+- Background WAL writing: `WalWriterMain()` in [[raw/postgres-12/src/backend/postmaster/walwriter.c#WalWriterMain|walwriter.c#WalWriterMain]] and `XLogBackgroundFlush()` in [[raw/postgres-12/src/backend/access/transam/xlog.c#XLogBackgroundFlush|xlog.c#XLogBackgroundFlush]].
+- WAL write and sync operations: `XLogWrite()` in [[raw/postgres-12/src/backend/access/transam/xlog.c#XLogWrite|xlog.c#XLogWrite]], segment-completion `issue_xlog_fsync()` calls in [[raw/postgres-12/src/backend/access/transam/xlog.c#XLogWrite|xlog.c#XLogWrite]], and `issue_xlog_fsync()` in [[raw/postgres-12/src/backend/access/transam/xlog.c#issue_xlog_fsync|xlog.c#issue_xlog_fsync]].
+- WAL wait-event identifiers: `WAIT_EVENT_WAL_WRITE` and `WAIT_EVENT_WAL_SYNC` in [[raw/postgres-12/src/include/pgstat.h#WAIT_EVENT_WAL_WRITE|pgstat.h#WAIT_EVENT_WAL_WRITE]].
 
-- **Transaction commits**: `XLogFlush()` called in `src/backend/access/transam/xact.c:1371` for commit records
-- **Checkpoint flushing**: `XLogFlush()` called in `src/backend/access/transam/xlog.c:8819` after checkpoint record insertion
-- **Background WAL writing**: `XLogBackgroundFlush()` in `src/backend/access/transam/xlog.c:2987` called by WAL writer in `src/backend/postmaster/walwriter.c:263`
-- **WAL segment fsync**: `issue_xlog_fsync()` in `src/backend/access/transam/xlog.c:2533` during segment completion
-- **WAL write operations**: `XLogWrite()` in `src/backend/access/transam/xlog.c:2376` uses `pg_pwrite()` and `pgstat_report_wait_start(WAIT_EVENT_WAL_WRITE)`
-- **WAL sync operations**: `issue_xlog_fsync()` in `src/backend/access/transam/xlog.c:10100` performs `pg_fsync()` with `pgstat_report_wait_start(WAIT_EVENT_WAL_SYNC)`
-
-### Performance Impact
+## Performance Impact
 
 The improvements are most significant for:
 - **High-frequency OLTP workloads** where commit latency directly affects response times
 - **Write-heavy applications** where WAL volume is high
-- **Systems with frequent checkpoints** due to high `checkpoint_segments` or small `shared_buffers`
+- **Systems with frequent checkpoints** where checkpoint WAL flush and sync work is visible in latency or throughput
 
 ## Context Reviewed
 

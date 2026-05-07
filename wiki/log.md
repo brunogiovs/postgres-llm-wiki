@@ -6,7 +6,8 @@ Append one entry after every scaffold change, version lifecycle event, ingest, t
 
 - Fixed `scripts/source_context` so compile-database include dependency generation deduplicates source files that resolve through build-tree symlinks to the same raw checkout path.
 - Fixed `scripts/source_context_check` reference scanning so configured install prefixes and compiler diagnostic `path:line:column` text do not appear as missing project artifacts; issue counts now include suppressed diagnostics.
-- Regenerated the PostgreSQL 12 context pack without callgraphs and reran `scripts/source_context_check --version 12`; the check now exits successfully with only raw-dependency coverage warnings.
+- Regenerated the PostgreSQL 12 context pack with focused callgraphs restored and reran `scripts/source_context_check --version 12`; the check now exits successfully with only raw-dependency coverage warnings.
+- Fixed the WAL high-throughput question's visible unverified title hint and `## Source References` section after `scripts/wiki_lint` flagged the missing source-reference section.
 
 ## [2026-05-07] filed v12 | WAL directory high throughput low latency disk improvements
 
