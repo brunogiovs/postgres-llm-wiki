@@ -7,7 +7,7 @@ This page indexes the PostgreSQL versions covered by the wiki.
 | Version | Status | Wiki Home | Branch | Pinned Commit | Coverage |
 |---|---|---|---|---|---|
 | 18 | primary | [[v18/index]] | `REL_18_STABLE` | `6cb307251c5c6261286c1566496920976640108e` | Graph-first source navigation under `.wiki-runtime/graph/postgres-18/`; raw source queries go through `scripts/source_graph_query --version 18`. |
-| 12 | legacy | [[v12/index]] | `REL_12_STABLE` | `45b88269a353ad93744772791feb6d01bc7e1e42` | AST-only Graphify graph generated under `.wiki-runtime/graph/postgres-12/`; filed operational questions cover storage, WAL, bgwriter/checkpoints, inheritance overhead including `force_generic_plan` impact, I/O timing, planning metrics and generic/custom plan visibility, and plan-cache mode including generic-plan validation, pinned to raw PostgreSQL 12 source citations. |
+| 12 | legacy | [[v12/index]] | `REL_12_STABLE` | `45b88269a353ad93744772791feb6d01bc7e1e42` | AST-only Graphify graph generated under `.wiki-runtime/graph/postgres-12/`; filed operational questions cover storage, WAL, bgwriter/checkpoints, inheritance overhead including `force_generic_plan` impact, I/O timing, planning metrics and generic/custom plan visibility, plan-cache mode including generic-plan validation, and a query-planner GUC inventory plus a non-default-settings `pg_settings` query covering every `Query Tuning / *` category, pinned to raw PostgreSQL 12 source citations. |
 
 ## Archived Versions
 

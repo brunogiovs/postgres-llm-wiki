@@ -2,6 +2,13 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-08] question v12 | Query planner settings inventory and non-default sampling
+
+- Filed `wiki/v12/questions/query-planner-settings-non-default-and-inventory.md` with a `pg_settings` query that flags non-default planner GUCs across the four `Query Tuning / *` categories (including the partitioned-table GUCs `enable_partitionwise_join`, `enable_partitionwise_aggregate`, `enable_partition_pruning`, and `constraint_exclusion`), plus a per-GUC inventory of every planner setting with defaults, ranges, enum options, and how each affects the planner.
+- Categories pinned via `config_group_names[]` at `guc.c#L681-L690`; `pg_settings` view shape via `system_views.sql#L512-L513` and the `pg_show_all_settings` declaration in `pg_proc.dat`. All planner GUCs are `PGC_USERSET`, so the page records that no planner setting requires restart.
+- Front matter set to `verified: false` / `verified_by_agent: not yet`; visible title and link text use `(unverified)`.
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md` to link the new page and reflect coverage.
+
 ## [2026-05-08] review v12 | Bgwriter tuning and Checkpoint monitoring scenarios
 
 - Re-reviewed `wiki/v12/questions/bgwriter-tuning-recommendations.md` and `wiki/v12/questions/checkpoint-monitoring-optimization-scenarios.md` against the pinned `raw/postgres-12/` checkout (`45b88269...`) via `scripts/source_graph_query --version 12`.
