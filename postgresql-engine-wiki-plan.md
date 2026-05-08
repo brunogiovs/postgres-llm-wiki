@@ -104,6 +104,7 @@ Graphify graph output is orientation material only. Every PostgreSQL behavior cl
 - Question pages are pinned to a single version.
 - Every behavioral claim needs a raw source citation.
 - Unverified managed pages must show `(unverified)` in visible title/link text.
+- Follow the tone and readability rules in [AGENTS.md](AGENTS.md) (`## Tone And Readability`): lead with the answer, plain language, short sentences, active voice, named conditions instead of vague hedges. Readability never overrides citation discipline.
 - New question pages use front matter in this order:
 
 ```yaml
@@ -140,6 +141,7 @@ verified_by_agent: not yet
 4. Draft from a claim-to-source evidence map.
 5. Put gaps under `## Open Questions`.
 6. File the answer and update indexes/log.
+7. Apply the tone and readability rules from [AGENTS.md](AGENTS.md) (`## Tone And Readability`) on the drafted prose before filing.
 
 ## Testing
 

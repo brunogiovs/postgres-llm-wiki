@@ -56,6 +56,20 @@ The minimum depth target for an engine-internals answer is: normal path, relevan
 - If a claim is not backed by a source file, symbol, documentation page, commit, or saved design discussion, do not write it as fact.
 - Put uncertainty under `## Open Questions` instead of guessing.
 
+## Tone And Readability
+
+Wiki pages are reference material for engineers under time pressure. Write so a reader can land cold on the page and leave with the answer.
+
+- Lead with the answer. Put the direct conclusion in the first one or two sentences of each section, then the supporting evidence and citations. Do not bury the result under setup.
+- Prefer plain language. When a PostgreSQL term of art is unavoidable (e.g. `relfrozenxid`, `XLogInsert`, `MultiXact`), define it on first use on the page or link to the page that does.
+- Short sentences over long ones. One claim per sentence. Break a multi-clause sentence into a list when it carries more than one idea.
+- Active voice and concrete subjects. "The checkpointer flushes dirty buffers" beats "Dirty buffers are flushed." Name the function, struct, or process doing the work.
+- Use lists, tables, and small code blocks to break up dense prose. A table of GUC contexts or a four-row state-transition list is easier to scan than a paragraph.
+- Make conditions explicit instead of vague. PostgreSQL behavior often genuinely depends on configuration, version, or state, so conditional phrasing is welcome — but name the condition. Prefer "when `wal_level >= replica`" over "generally," and "on a HOT update" over "tends to." If the condition itself is uncertain, move the claim under `## Open Questions`.
+- Skip filler. No "in this section we will," no "it is important to note that," no restating the page title in the first paragraph.
+- Examples earn their keep. A short SQL snippet, `EXPLAIN` fragment, or struct excerpt usually communicates faster than a paragraph describing the same thing — but every example must still be cited to the pinned `raw/postgres-NN/` source.
+- Readability never overrides citation discipline. If approachable phrasing would require dropping a citation or softening a verified claim into vagueness, keep the citation and the precision.
+
 ## GUC Configuration Changes
 
 - Whenever a wiki page suggests changing a GUC (`postgresql.conf`, `SET`, `ALTER SYSTEM`, etc.), state whether the change requires a restart, reload, or only session/transaction scope.

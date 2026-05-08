@@ -2,6 +2,13 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-08] review v12 | Enable I/O timing measurements on production
+
+- Re-reviewed `wiki/v12/questions/enable-io-timing-measurements-production.md` against the pinned `raw/postgres-12/` checkout (`45b88269...`). All behavioral claims verified through `scripts/source_graph_query --version 12` against `guc.c`, `bufmgr.c`, `pgstat.c`, `pgstatfuncs.c`, `system_views.sql`, `signalfuncs.c`, `utility.c`, `explain.c`, and `contrib/pg_stat_statements/`.
+- Added a note that `pg_stat_statements.control` pins `default_version = '1.7'` and that the 1.4 → 1.5 → 1.6 → 1.7 upgrade scripts do not change the view shape, so the `blk_read_time` / `blk_write_time` columns work regardless of installed version. Added the control file to the Evidence Map.
+- Tightened the Section 5 write-time interpretation to point at concrete write-count sources (`EXPLAIN ... BUFFERS`, `pg_stat_statements`, and `pg_stat_bgwriter` columns `buffers_clean`, `buffers_backend`, `buffers_checkpoint`).
+- Set `verified_by_agent: claude-opus-4-7 2026-05-08T16:52:54Z`; human `verified: false` unchanged.
+
 ## [2026-05-08] filed v12 | Planning metrics and generic/custom replanning visibility
 
 - Filed `wiki/v12/questions/planning-metrics-generic-custom-replans.md` (unverified) for PG 12 planning visibility and generic/custom prepared-plan monitoring.
