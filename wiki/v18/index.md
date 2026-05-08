@@ -10,10 +10,10 @@
 
 ## Coverage
 
-A generated project-context pack exists under `.wiki-runtime/context/postgres-18/`.
+Source navigation is graph-first. Raw source queries should use `scripts/source_graph_query --version 18 ...`.
 
-## Project Context
+## Graphify Source Graph
 
-- Manifest: `.wiki-runtime/context/postgres-18/manifest.md`
-- Generated artifacts: `.wiki-runtime/context/postgres-18/tree-L4.txt`, `.wiki-runtime/context/postgres-18/build-config/`, `.wiki-runtime/context/postgres-18/external-deps.txt`, `.wiki-runtime/context/postgres-18/compile_commands.json`, `.wiki-runtime/context/postgres-18/include-deps.txt`, and `.wiki-runtime/context/postgres-18/callgraphs/`
-- Deferred artifacts: none
+- Graph path: `.wiki-runtime/graph/postgres-18/`
+- Status: generated on demand by graph query commands when `graph.json` is absent, or explicitly by `scripts/source_graph --version 18 --refresh` using local AST-only generation by default.
+- Use graph output only as navigation context; behavioral claims still need citations under `raw/postgres-18/`.

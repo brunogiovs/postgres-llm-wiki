@@ -6,8 +6,8 @@ This page indexes the PostgreSQL versions covered by the wiki.
 
 | Version | Status | Wiki Home | Branch | Pinned Commit | Coverage |
 |---|---|---|---|---|---|
-| 18 | primary | [[v18/index]] | `REL_18_STABLE` | `6cb307251c5c6261286c1566496920976640108e` | Generated project-context pack with compiler database, include dependencies, and focused query-lifecycle callgraphs. |
-| 12 | legacy | [[v12/index]] | `REL_12_STABLE` | `45b88269a353ad93744772791feb6d01bc7e1e42` | Generated project-context pack with compiler database including appended contrib build capture, include dependencies, and focused callgraphs; one filed (unverified) Azure disk configuration question covering planner cost settings, `effective_io_concurrency`, checkpoints/WAL, bgwriter/writeback, temp spill placement, durability settings, rollout scope, and production-safe inventory queries; one filed (unverified) bgwriter tuning question covering the four bgwriter GUCs, `pg_stat_bgwriter` counter wiring, and practical backend-write-share threshold bands; one filed (unverified) checkpoint monitoring and optimization question covering `pg_stat_bgwriter`, `log_checkpoints`, a `pg_settings` checkpoint-configuration inventory query, checkpoint/WAL GUCs, and deployment scenarios; one agent-reviewed query-lifecycle disk-I/O review with exact `track_io_timing` scope boundaries; one agent-reviewed production `track_io_timing` enablement procedure; one agent-reviewed traditional-inheritance no-pruning overhead matrix; one agent-reviewed separate-WAL-disk question covering full `pg_wal` filesystem PANIC behavior, replication-slot WAL retention, and corruption-risk boundaries. |
+| 18 | primary | [[v18/index]] | `REL_18_STABLE` | `6cb307251c5c6261286c1566496920976640108e` | Graph-first source navigation under `.wiki-runtime/graph/postgres-18/`; raw source queries go through `scripts/source_graph_query --version 18`. |
+| 12 | legacy | [[v12/index]] | `REL_12_STABLE` | `45b88269a353ad93744772791feb6d01bc7e1e42` | AST-only Graphify graph generated under `.wiki-runtime/graph/postgres-12/`; filed operational questions cover storage, WAL, bgwriter/checkpoints, inheritance overhead including `force_generic_plan` impact, I/O timing, planning metrics and generic/custom plan visibility, and plan-cache mode including generic-plan validation, pinned to raw PostgreSQL 12 source citations. |
 
 ## Archived Versions
 
@@ -28,7 +28,7 @@ No PostgreSQL versions have been archived yet.
 - Pins must be exact commit hashes, not floating branch names.
 - Source checkouts must live under `raw/postgres-NN/`.
 - Version landing pages must live under `wiki/vNN/index.md`.
-- Generated runtime artifacts must live under `.wiki-runtime/`: search and symbol indexes under `.wiki-runtime/indexes/`, project-context packs under `.wiki-runtime/context/postgres-NN/`, and build trees under `.wiki-runtime/build/postgres-NN/`.
+- Generated runtime artifacts must live under `.wiki-runtime/`: Graphify source graphs under `.wiki-runtime/graph/postgres-NN/`, caches under `.wiki-runtime/cache/`, and logs under `.wiki-runtime/logs/`.
 
 ## Current Primary
 

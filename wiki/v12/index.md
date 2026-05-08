@@ -17,14 +17,16 @@ Questions filed:
 - [[v12/questions/checkpoint-monitoring-optimization-scenarios|Checkpoint monitoring and optimization scenarios (unverified)]] (PG 12 checkpoint monitoring and tuning workflow using `pg_stat_bgwriter`, `log_checkpoints`, a `pg_settings` checkpoint-configuration inventory query, checkpoint/WAL GUC reload semantics, and deployment scenarios for fast local disks and cloud block storage)
 - [[v12/questions/disk-io-before-after-query-plan-execution|Disk I/O before/after query planning and execution]] (agent-reviewed query-lifecycle I/O map covering catalog and relcache access, planner relation-size probes, shared-buffer hits versus storage reads, DML writes, hint bits, temp spills, WAL flushes, bgwriter/checkpointer writes, DDL/maintenance file operations, and the exact `track_io_timing` boundary around `smgrread` / `smgrwrite`)
 - [[v12/questions/enable-io-timing-measurements-production|Enable I/O timing measurements on production]] (agent-reviewed procedure for enabling `track_io_timing` on production, with host timing preflight, reload/session semantics, tagged SQL sampling, `pg_stat_database`, optional `pg_stat_statements`, and plan-level drill-down)
-- [[v12/questions/inheritance-partition-no-pruning-overhead|Inheritance partition query overhead when no pruning is possible]] (agent-reviewed matrix of PG 12 tunables that reduce or add overhead when a traditional-inheritance query must visit roughly 300 child tables because constraint exclusion cannot prune them)
+- [[v12/questions/inheritance-partition-no-pruning-overhead|Inheritance partition query overhead when no pruning is possible]] (agent-reviewed matrix of PG 12 tunables that reduce or add overhead when a traditional-inheritance query must visit roughly 300 child tables because constraint exclusion cannot prune them, including when `force_generic_plan` can reduce planning overhead and why it cannot reduce executor child visits)
+- [[v12/questions/planning-metrics-generic-custom-replans|Planning metrics and generic/custom replanning visibility (unverified)]] (PG 12 planning-metric inventory and practical visibility guide for generic versus custom prepared-plan choice, covering `EXPLAIN EXECUTE`, `pg_prepared_statements`, `pg_stat_statements`, `log_planner_stats`, `auto_explain`, plan-cache invalidation, and why exact generic/custom transition counts are not exposed by built-in SQL views)
+- [[v12/questions/plan-cache-mode-production-impact|Plan cache mode production impact (unverified)]] (source-grounded analysis of `plan_cache_mode` in PG 12 production use, covering `auto`, `force_custom_plan`, `force_generic_plan`, `CheckCachedPlan()` generic-plan validation, prepared-statement and PL/pgSQL/SPI boundaries, pros/cons by scenario, and slow random I/O storage)
 - [[v12/questions/wal-separate-disk-full-replication-slots|WAL on a separate full disk and replication slots]] (agent-reviewed analysis of full `pg_wal` filesystem PANIC behavior, replication-slot WAL retention and persistence, separate-WAL-disk corruption risk, and a production-safe retained-WAL diagnostic query)
 - [[v12/questions/wal-high-throughput-low-latency-disk-improvements|WAL directory on high throughput, low latency disk improvements (unverified)]] (source-grounded analysis of how fast WAL storage improves transaction commit latency, checkpoint performance, background WAL writing, and WAL segment switches)
 
-A generated project-context pack exists under `.wiki-runtime/context/postgres-12/`; its compiler database now includes the normal build plus an appended contrib build capture.
+Source navigation is graph-first. Raw source queries should use `scripts/source_graph_query --version 12 ...`.
 
-## Project Context
+## Graphify Source Graph
 
-- Manifest: `.wiki-runtime/context/postgres-12/manifest.md`
-- Generated artifacts: `.wiki-runtime/context/postgres-12/tree-L4.txt`, `.wiki-runtime/context/postgres-12/build-config/`, `.wiki-runtime/context/postgres-12/external-deps.txt`, `.wiki-runtime/context/postgres-12/compile_commands.json` (normal build plus appended contrib capture), `.wiki-runtime/context/postgres-12/include-deps.txt`, and `.wiki-runtime/context/postgres-12/callgraphs/`
-- Deferred artifacts: none
+- Graph path: `.wiki-runtime/graph/postgres-12/`
+- Status: AST-only graph generated with `scripts/source_graph --version 12 --refresh`; generated on demand by graph query commands when `graph.json` is absent.
+- Use graph output only as navigation context; behavioral claims still need citations under `raw/postgres-12/`.

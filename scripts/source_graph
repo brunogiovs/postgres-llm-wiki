@@ -1,0 +1,403 @@
+#!/usr/bin/env python3
+"""Generate per-version Graphify source graphs under .wiki-runtime/.
+
+The generated graph is source-orientation material for agents. It is not
+evidence for behavioral wiki claims; cite raw/postgres-NN/ for facts.
+
+Examples:
+  scripts/source_graph --version 18 --dry-run
+  scripts/source_graph --version 18 --refresh
+  scripts/source_graph --all
+  scripts/source_graph --version 12 --semantic --backend openai
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Iterable
+
+sys.dont_write_bytecode = True
+
+from wiki_tooling import (
+    REPO_ROOT,
+    RUNTIME_ROOT,
+    append_tool_log,
+    die,
+    ensure_private_dir,
+    load_versions,
+    redact_args,
+    render_repo_path,
+    source_checkout,
+    write_private_text,
+)
+
+
+GRAPHIFY_ARTIFACTS = (
+    ("graph.json", "required"),
+    ("GRAPH_REPORT.md", "required"),
+    ("graph.html", "optional"),
+    ("cache/", "optional"),
+)
+
+render_path = render_repo_path
+
+
+@dataclass
+class CommandAttempt:
+    argv: list[str]
+    cwd: Path
+    status: str
+    exit_code: int | None = None
+    stderr: str = ""
+    note: str = ""
+
+
+@dataclass
+class ArtifactStatus:
+    name: str
+    path: str
+    status: str
+    detail: str = ""
+    failures: list[str] = field(default_factory=list)
+
+
+@dataclass
+class GraphRun:
+    version: str
+    info: dict[str, str]
+    source: Path
+    graph_dir: Path
+    attempts: list[CommandAttempt] = field(default_factory=list)
+    tools: dict[str, str] = field(default_factory=dict)
+    artifacts: list[ArtifactStatus] = field(default_factory=list)
+
+    def add_artifact(
+        self,
+        name: str,
+        path: Path | str,
+        status: str,
+        detail: str = "",
+        failures: Iterable[str] = (),
+    ) -> ArtifactStatus:
+        rendered = render_path(path) if isinstance(path, Path) else path
+        artifact = ArtifactStatus(name, rendered, status, detail, list(failures))
+        self.artifacts.append(artifact)
+        return artifact
+
+
+def ensure_runtime_path(path: Path) -> None:
+    try:
+        path.resolve().relative_to(RUNTIME_ROOT)
+    except ValueError:
+        die(f"refusing to write outside .wiki-runtime: {path}")
+
+
+def write_runtime_text(path: Path, text: str) -> None:
+    ensure_runtime_path(path)
+    write_private_text(path, text)
+
+
+def render_command(argv: Iterable[str]) -> str:
+    rendered: list[str] = []
+    for arg in redact_args(argv):
+        try:
+            path = Path(arg)
+        except TypeError:
+            rendered.append(arg)
+            continue
+        if path.is_absolute():
+            try:
+                rendered.append(path.resolve().relative_to(REPO_ROOT).as_posix())
+                continue
+            except (OSError, ValueError):
+                pass
+        rendered.append(arg)
+    return " ".join(rendered)
+
+
+def summarise_stderr(stderr: str) -> str:
+    text = stderr.replace(str(REPO_ROOT), ".").strip()
+    if not text:
+        return ""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    summary = " / ".join(lines[:6])
+    if len(summary) > 700:
+        summary = summary[:697] + "..."
+    return summary
+
+
+def run_command(
+    run: GraphRun,
+    argv: list[str],
+    *,
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+    timeout: int = 3600,
+) -> subprocess.CompletedProcess[str] | None:
+    cwd = cwd or REPO_ROOT
+    command_env = os.environ.copy()
+    if env:
+        command_env.update(env)
+    try:
+        proc = subprocess.run(
+            argv,
+            cwd=cwd,
+            env=command_env,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+        )
+    except FileNotFoundError as exc:
+        run.attempts.append(CommandAttempt(argv=argv, cwd=cwd, status="failed", stderr=str(exc)))
+        return None
+    except subprocess.TimeoutExpired as exc:
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        note = f"timed out after {timeout}s"
+        run.attempts.append(CommandAttempt(argv=argv, cwd=cwd, status="failed", stderr=stderr, note=note))
+        return None
+
+    status = "ok" if proc.returncode == 0 else "failed"
+    run.attempts.append(
+        CommandAttempt(argv=argv, cwd=cwd, status=status, exit_code=proc.returncode, stderr=proc.stderr)
+    )
+    return proc
+
+
+def source_head(run: GraphRun) -> str:
+    proc = run_command(run, ["git", "-C", render_path(run.source), "rev-parse", "HEAD"], cwd=REPO_ROOT, timeout=30)
+    if proc is not None and proc.returncode == 0:
+        return proc.stdout.strip()
+    return "unknown"
+
+
+def probe_tools(run: GraphRun) -> None:
+    graphify = shutil.which("graphify")
+    if graphify:
+        proc = run_command(run, ["graphify", "--help"], cwd=REPO_ROOT, timeout=20)
+        output = ""
+        if proc is not None:
+            lines = (proc.stdout or proc.stderr).strip().splitlines()
+            output = lines[0] if lines else "version output unavailable"
+        status = output if proc is not None and proc.returncode == 0 else "help probe failed"
+        run.tools["graphify"] = f"{graphify} - {status}"
+    else:
+        run.tools["graphify"] = "missing"
+
+    git = shutil.which("git")
+    run.tools["git"] = git or "missing"
+
+
+def graphify_command(run: GraphRun, args: argparse.Namespace) -> tuple[list[str], dict[str, str] | None]:
+    rel_source = os.path.relpath(run.source, run.graph_dir)
+    if args.cluster_only:
+        argv = ["graphify", "cluster-only", ".", "--graph", "graphify-out/graph.json"]
+        if args.no_viz:
+            argv.append("--no-viz")
+        return argv, None
+
+    if not args.semantic:
+        env = {"GRAPHIFY_OUT": str(run.graph_dir / "graphify-out")}
+        return ["graphify", "update", str(run.source.resolve()), "--force"], env
+
+    argv = ["graphify", "extract", rel_source, "--out", "."]
+    if args.backend:
+        argv.extend(["--backend", args.backend])
+    if args.model:
+        argv.extend(["--model", args.model])
+    if args.no_cluster:
+        argv.append("--no-cluster")
+    return argv, None
+
+
+def copy_graphify_output(run: GraphRun) -> tuple[bool, list[str]]:
+    """Copy graphify-out/ contents into the version graph directory.
+
+    Graphify's documented terminal output directory is graphify-out/. Running
+    the command from the version graph directory keeps generated state scoped
+    under .wiki-runtime/graph/postgres-NN/.
+    """
+    failures: list[str] = []
+    output_dir = run.graph_dir / "graphify-out"
+    if not output_dir.is_dir():
+        failures.append("Graphify did not create graphify-out/ in the version graph directory")
+        return False, failures
+
+    copied = False
+    for child in sorted(output_dir.iterdir()):
+        target = run.graph_dir / child.name
+        ensure_runtime_path(target)
+        if target.exists():
+            if target.is_dir():
+                shutil.rmtree(target)
+            else:
+                target.unlink()
+        if child.is_dir():
+            shutil.copytree(child, target)
+        else:
+            shutil.copy2(child, target)
+        copied = True
+
+    if not copied:
+        failures.append("Graphify output directory was empty")
+    return copied, failures
+
+
+def generate_graph(run: GraphRun, args: argparse.Namespace) -> None:
+    if shutil.which("graphify") is None:
+        run.add_artifact(
+            "graph.json",
+            run.graph_dir / "graph.json",
+            "deferred",
+            "graphify is not installed; install package `graphifyy` to provide the `graphify` CLI",
+        )
+        run.add_artifact("GRAPH_REPORT.md", run.graph_dir / "GRAPH_REPORT.md", "deferred", "graphify is not installed")
+        if not args.no_viz:
+            run.add_artifact("graph.html", run.graph_dir / "graph.html", "deferred", "graphify is not installed")
+        return
+
+    argv, command_env = graphify_command(run, args)
+    proc = run_command(run, argv, cwd=run.graph_dir, env=command_env, timeout=args.timeout)
+    if proc is None or proc.returncode != 0:
+        detail = "graphify command failed"
+        run.add_artifact("graph.json", run.graph_dir / "graph.json", "deferred", detail, [detail])
+        run.add_artifact("GRAPH_REPORT.md", run.graph_dir / "GRAPH_REPORT.md", "deferred", detail, [detail])
+        return
+
+    copied, failures = copy_graphify_output(run)
+    if not copied:
+        run.add_artifact("graph.json", run.graph_dir / "graph.json", "deferred", "Graphify output not found", failures)
+        run.add_artifact("GRAPH_REPORT.md", run.graph_dir / "GRAPH_REPORT.md", "deferred", "Graphify output not found", failures)
+        return
+
+    for name, requirement in GRAPHIFY_ARTIFACTS:
+        path = run.graph_dir / name.rstrip("/")
+        exists = path.is_dir() if name.endswith("/") else path.is_file()
+        if exists:
+            run.add_artifact(name, path, "generated", "copied from Graphify graphify-out/")
+        elif requirement == "required":
+            run.add_artifact(name, path, "deferred", "Graphify did not produce this required artifact", failures)
+        else:
+            run.add_artifact(name, path, "skipped", "Graphify did not produce this optional artifact")
+
+
+def manifest_text(run: GraphRun, head: str) -> str:
+    lines = [
+        f"# PostgreSQL {run.version} Graphify Source Graph",
+        "",
+        "This graph is generated orientation material. It is not evidence for behavioral wiki claims.",
+        "",
+        "## Source Pin",
+        "",
+        f"- PostgreSQL version: {run.version}",
+        f"- Branch: `{run.info.get('branch', '')}`",
+        f"- Pinned commit: `{run.info.get('commit', '')}`",
+        f"- Source checkout: `{render_path(run.source)}`",
+        f"- Source checkout HEAD: `{head}`",
+        f"- Graph path: `{render_path(run.graph_dir)}`",
+        f"- Regenerated: `{datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}`",
+        "",
+        "## Tool Status",
+        "",
+        "| Tool | Status |",
+        "|---|---|",
+    ]
+    for tool, status in sorted(run.tools.items()):
+        lines.append(f"| `{tool}` | {status.replace('|', '\\|')} |")
+
+    lines.extend(["", "## Artifact Status", "", "| Artifact | Path | Status | Details |", "|---|---|---|---|"])
+    for artifact in run.artifacts:
+        detail = artifact.detail.replace("|", "\\|")
+        lines.append(f"| `{artifact.name}` | `{artifact.path}` | `{artifact.status}` | {detail} |")
+
+    lines.extend(["", "## Commands Attempted", "", "| Status | CWD | Command | Exit | Notes |", "|---|---|---|---|---|"])
+    for attempt in run.attempts:
+        exit_code = "" if attempt.exit_code is None else str(attempt.exit_code)
+        notes = (attempt.note or summarise_stderr(attempt.stderr)).replace("|", "\\|")
+        lines.append(
+            f"| {attempt.status} | `{render_path(attempt.cwd)}` | `{render_command(attempt.argv)}` | {exit_code} | {notes} |"
+        )
+
+    lines.extend(["", "## Deferred Or Failed Artifacts", ""])
+    deferred = [artifact for artifact in run.artifacts if artifact.status in {"deferred", "failed"} or artifact.failures]
+    if deferred:
+        for artifact in deferred:
+            lines.append(f"- `{artifact.name}`: {artifact.status} - {artifact.detail or 'no detail recorded'}")
+            for failure in artifact.failures:
+                lines.append(f"  - {failure}")
+    else:
+        lines.append("No deferred or failed artifacts.")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def generate_version(version: str, info: dict[str, str], args: argparse.Namespace) -> int:
+    source = source_checkout(version)
+    graph_dir = RUNTIME_ROOT / "graph" / f"postgres-{version}"
+    ensure_runtime_path(graph_dir)
+
+    if args.dry_run:
+        print(f"v{version}: would write {render_path(graph_dir)}")
+        if args.refresh:
+            print(f"v{version}: would refresh existing generated graph directory first")
+        return 0
+
+    if args.refresh and graph_dir.exists():
+        shutil.rmtree(graph_dir)
+
+    ensure_private_dir(graph_dir)
+    run = GraphRun(version=version, info=info, source=source, graph_dir=graph_dir)
+    probe_tools(run)
+    generate_graph(run, args)
+    head = source_head(run)
+    manifest = graph_dir / "manifest.md"
+    write_runtime_text(manifest, manifest_text(run, head))
+    print(f"v{version}: wrote {render_path(manifest)}")
+    for artifact in run.artifacts:
+        print(f"  {artifact.status:<9} {artifact.name} - {artifact.detail}")
+    return 0 if all(artifact.status != "deferred" for artifact in run.artifacts if artifact.name in {"graph.json", "GRAPH_REPORT.md"}) else 1
+
+
+def selected_versions(args: argparse.Namespace, versions: dict[str, dict[str, str]]) -> list[str]:
+    if args.all:
+        return sorted(versions, key=int, reverse=True)
+    if args.version not in versions:
+        die(f"unsupported PostgreSQL version: {args.version}")
+    return [args.version]
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    scope = parser.add_mutually_exclusive_group(required=True)
+    scope.add_argument("--version", help="PostgreSQL major version to graph")
+    scope.add_argument("--all", action="store_true", help="generate graphs for every supported version")
+    parser.add_argument("--refresh", action="store_true", help="clear the selected graph directory before generation")
+    parser.add_argument("--dry-run", action="store_true", help="show target paths without writing generated output")
+    parser.add_argument("--semantic", action="store_true", help="run LLM-backed `graphify extract`; default is local AST-only update")
+    parser.add_argument("--update", action="store_true", help="deprecated no-op; AST-only update is now the default")
+    parser.add_argument("--cluster-only", action="store_true", help="run `graphify cluster-only` against existing output")
+    parser.add_argument("--no-viz", action="store_true", default=True, help="pass --no-viz to Graphify cluster-only (default)")
+    parser.add_argument("--with-viz", action="store_false", dest="no_viz", help="allow cluster-only to generate graph.html")
+    parser.add_argument("--backend", choices=("gemini", "kimi", "claude", "openai", "ollama"), help="Graphify semantic extraction backend")
+    parser.add_argument("--model", help="Graphify semantic extraction model override")
+    parser.add_argument("--no-cluster", action="store_true", help="pass --no-cluster to semantic Graphify extract")
+    parser.add_argument("--timeout", type=int, default=3600, help="Graphify command timeout in seconds")
+    args = parser.parse_args(argv)
+
+    append_tool_log("source_graph", sys.argv[1:])
+    versions = load_versions()
+    status = 0
+    for version in selected_versions(args, versions):
+        result = generate_version(version, versions[version], args)
+        status = status or result
+    return status
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -2,6 +2,68 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-08] filed v12 | Planning metrics and generic/custom replanning visibility
+
+- Filed `wiki/v12/questions/planning-metrics-generic-custom-replans.md` (unverified) for PG 12 planning visibility and generic/custom prepared-plan monitoring.
+- Covered `EXPLAIN EXECUTE` as the source-documented per-sample classifier, `EXPLAIN` planning time, `pg_prepared_statements` column limits, `pg_stat_statements` execution-only counters in PG 12, `log_planner_stats`, `auto_explain`, and plan-cache invalidation boundaries.
+- Verified that PG 12 keeps `generic_cost`, `total_custom_cost`, and `num_custom_plans` in `CachedPlanSource`, but exposes no built-in SQL counter for generic/custom transitions.
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md`.
+
+## [2026-05-08] update v12 | Inheritance no-pruning force_generic_plan impact
+
+- Expanded `wiki/v12/questions/inheritance-partition-no-pruning-overhead.md` with a dedicated `force_generic_plan` analysis.
+- Clarified that `force_generic_plan` can reduce repeated planning overhead for saved prepared statements when all representative parameters still produce the same all-child plan, but it cannot reduce executor visits to surviving inheritance children.
+- Added source backing for `choose_custom_plan()`, `GetCachedPlan()`, `BuildCachedPlan()`, `CheckCachedPlan()`, `AcquireExecutorLocks()`, `PARAM_FLAG_CONST`, parameter substitution, and the PG 12 `plancache` regression case.
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md`.
+
+## [2026-05-08] update v12 | Plan cache mode CheckCachedPlan analysis
+
+- Expanded `wiki/v12/questions/plan-cache-mode-production-impact.md` with a comprehensive `CheckCachedPlan()` deep dive.
+- Covered `GetCachedPlan()` call order, `CachedPlanSource` / `CachedPlan` state, role-dependent invalidation, executor-lock acquisition and race recheck, transient-plan `TransactionXmin` invalidation, relcache/syscache invalidation callbacks, `ReleaseGenericPlan()`, and operational consequences for generic-plan reuse.
+- Added guidance that planner-cost GUC experiments against existing generic plans should deallocate/reprepare or use `DISCARD PLANS`, since valid generic plans are not rejected merely because cost GUCs changed.
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md`.
+
+## [2026-05-08] filed v12 | Plan cache mode production impact
+
+- Filed `wiki/v12/questions/plan-cache-mode-production-impact.md` (unverified) with a source-grounded PG 12 analysis of `plan_cache_mode` in production.
+- Covered `auto`, `force_custom_plan`, and `force_generic_plan`, including plan-cache decision thresholds, custom/generic pros and cons, prepared-statement and PL/pgSQL/SPI/extended-protocol boundaries, invalidation edge cases, and a production probe pattern.
+- Added a slow-random-I/O section tying plan-cache mode risk to PG 12 planner cost constants, index/seq scan costing, `random_page_cost`, `effective_cache_size`, and `effective_io_concurrency`.
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md`.
+
+## [2026-05-08] tooling | no-LLM Graphify generation default
+
+- Changed `scripts/source_graph` so graph generation uses Graphify's local AST-only update path by default and no longer requires an LLM backend/API key.
+- Kept LLM-backed semantic extraction available behind explicit `--semantic --backend ...` flags.
+- Generated the PostgreSQL 12 AST-only graph under `.wiki-runtime/graph/postgres-12/` and checked it with `scripts/source_graph_check --version 12`.
+- Verified graph querying with `scripts/source_graph_query --version 12 explain executor_execmain_executorrun`.
+- Updated docs and tests for the no-LLM default graph generation path.
+
+## [2026-05-08] tooling v12 | Graphify CLI compatibility
+
+- Updated `scripts/source_graph` to invoke the installed Graphify CLI with `graphify extract <source> --out .` and to probe `graphify --help` instead of the unsupported `--version` form.
+- Added Graphify backend/model pass-through options for extraction.
+- Reran `scripts/source_graph --version 12 --refresh`; the wrapper now reaches Graphify extraction, but `graph.json` remains deferred because no LLM API key/backend is configured.
+
+## [2026-05-08] tooling | source graph query cleanup
+
+- Trimmed `scripts/source_graph_query` so raw symbol searches prefer the pinned checkout's tracked Git file set before falling back to filesystem search tools.
+- Added test coverage that untracked files under `raw/postgres-NN/` do not leak into source symbol results.
+- Removed generated legacy source-context/build runtime directories and old source-context tool logs.
+- Ran `scripts/test_source_tools` and `scripts/wiki_lint`; both passed.
+
+## [2026-05-08] tooling | graph-only source navigation cutover
+
+- Removed the legacy source-context and source-lookup scripts (`source_context`, `source_context_check`, `source_deps`, and `source_lookup`) from the active tool surface.
+- Reworked `scripts/source_graph_query` as the graph-only source query entrypoint, with raw source subcommands for symbol search, file slices, source history, direct includes, and reverse include scans.
+- Made graph query subcommands force `graph.json` generation through `scripts/source_graph --version NN --refresh` when the graph is absent.
+- Replaced the old context-pack tests and active docs with graph-only source navigation guidance.
+
+## [2026-05-07] tooling | Graphify source graph wrappers
+
+- Added `scripts/source_graph`, `scripts/source_graph_query`, and `scripts/source_graph_check` as version-pinned wrappers for optional Graphify graph generation, query/path/explain lookup, and graph sanity checks under `.wiki-runtime/graph/postgres-NN/`.
+- Added synthetic test coverage with a fake `graphify` CLI for missing-tool handling, graph artifact copying, query wrappers, source-pin checks, and wrong-version graph references.
+- Updated `AGENTS.md`, `README.md`, `postgresql-engine-wiki-plan.md`, `wiki/index.md`, `wiki/overview.md`, `wiki/versions.md`, and version landing pages so Graphify is documented as an orientation layer while raw source citations remain mandatory evidence.
+
 ## [2026-05-07] tooling v12 | source context check false-positive cleanup
 
 - Fixed `scripts/source_context` so compile-database include dependency generation deduplicates source files that resolve through build-tree symlinks to the same raw checkout path.

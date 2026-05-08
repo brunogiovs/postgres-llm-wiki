@@ -14,17 +14,18 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
-class SyntheticSourceToolsTest(unittest.TestCase):
+class SourceGraphToolsTest(unittest.TestCase):
+    """Exercise the graph-only source navigation contract."""
+
     def setUp(self) -> None:
-        self.tmp = tempfile.TemporaryDirectory(prefix="source-tools-e2e-")
+        self.tmp = tempfile.TemporaryDirectory(prefix="source-graph-e2e-")
         self.repo = Path(self.tmp.name) / "synthetic-wiki"
         self.repo.mkdir()
         self._copy_scripts()
-        self._write_synthetic_wiki()
         self._write_synthetic_source()
-        self._write_synthetic_context()
         self._initialise_source_git_repo()
-        self._pin_context_to_source_head()
+        self.source_head = self._run(["git", "rev-parse", "HEAD"], cwd=self.repo / "raw/postgres-99").stdout.strip()
+        self._write_synthetic_wiki(self.source_head)
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
@@ -32,7 +33,7 @@ class SyntheticSourceToolsTest(unittest.TestCase):
     def _copy_scripts(self) -> None:
         scripts = self.repo / "scripts"
         scripts.mkdir()
-        for name in ("source_context", "source_context_check", "source_deps", "source_lookup", "wiki_tooling.py"):
+        for name in ("source_graph", "source_graph_check", "source_graph_query", "wiki_tooling.py"):
             source = REPO_ROOT / "scripts" / name
             target = scripts / name
             shutil.copy2(source, target)
@@ -44,10 +45,10 @@ class SyntheticSourceToolsTest(unittest.TestCase):
         path.write_text(textwrap.dedent(text).lstrip(), encoding="utf-8")
         return path
 
-    def _write_synthetic_wiki(self, commit: str = "abc123synthetic") -> None:
+    def _write_synthetic_wiki(self, commit: str) -> None:
         self._write(
             "wiki/versions.md",
-            """
+            f"""
             # PostgreSQL Versions
 
             ## Supported Versions
@@ -55,7 +56,7 @@ class SyntheticSourceToolsTest(unittest.TestCase):
             | Version | Status | Wiki Home | Branch | Pinned Commit | Coverage |
             |---|---|---|---|---|---|
             | 99 | primary | [[v99/index]] | `SYNTHETIC_STABLE` | `{commit}` | Synthetic test fixture. |
-            """.format(commit=commit),
+            """,
         )
 
     def _write_synthetic_source(self) -> None:
@@ -64,13 +65,12 @@ class SyntheticSourceToolsTest(unittest.TestCase):
             """
             #include "postgres.h"
             #include "storage/bufmgr.h"
-            #include "generated/config.h"
             #include <sys/types.h>
 
             int
             SyntheticThing(int input)
             {
-                return input + SYNTHETIC_FLAG;
+                return input + 1;
             }
             """,
         )
@@ -100,116 +100,6 @@ class SyntheticSourceToolsTest(unittest.TestCase):
             #define SYNTHETIC_BLOCK 42
             """,
         )
-        self._write(
-            ".wiki-runtime/build/postgres-99/src/include/generated/config.h",
-            """
-            #define SYNTHETIC_FLAG 7
-            """,
-        )
-        self._write(
-            "raw/postgres-99/configure",
-            """
-            #!/bin/sh
-            exit 0
-            """,
-        )
-
-    def _write_synthetic_context(self) -> None:
-        build_include = self.repo / ".wiki-runtime/build/postgres-99/src/include"
-        raw_include = self.repo / "raw/postgres-99/src/include"
-        buffer_dir = self.repo / ".wiki-runtime/build/postgres-99/src/backend/storage/buffer"
-        source_file = self.repo / "raw/postgres-99/src/backend/storage/buffer/bufmgr.c"
-        buffer_dir.mkdir(parents=True, exist_ok=True)
-        self._write(
-            ".wiki-runtime/context/postgres-99/manifest.md",
-            """
-            # PostgreSQL 99 Project Context Pack
-
-            This synthetic pack is orientation material for tests.
-            """,
-        )
-        self._write(
-            ".wiki-runtime/context/postgres-99/include-deps.txt",
-            """
-            # Include Dependencies for PostgreSQL 99
-
-            Derived from compile_commands.json source entries by recording direct #include directives.
-
-            ## Build Include Directories
-
-            - `.wiki-runtime/build/postgres-99/src/include`
-            - `raw/postgres-99/src/include`
-
-            ## Direct Include Edges
-
-            raw/postgres-99/src/backend/storage/buffer/bufmgr.c: postgres.h
-            raw/postgres-99/src/backend/storage/buffer/bufmgr.c: storage/bufmgr.h
-            raw/postgres-99/src/backend/storage/buffer/bufmgr.c: generated/config.h
-            raw/postgres-99/src/backend/storage/buffer/bufmgr.c: sys/types.h
-            raw/postgres-99/src/include/postgres.h: c.h
-            raw/postgres-99/src/include/storage/bufmgr.h: storage/block.h
-            """,
-        )
-        compile_db = [
-            {
-                "file": str(source_file),
-                "directory": str(buffer_dir),
-                "output": "bufmgr.o",
-                "arguments": [
-                    "cc",
-                    "-DBUILDING_SYNTHETIC",
-                    "-DSYNTHETIC_MODE=1",
-                    f"-DVAL_CONFIGURE=\"'--prefix={self.repo / '.wiki-runtime/build/postgres-99/install'}'\"",
-                    "-I",
-                    str(build_include),
-                    "-I",
-                    str(raw_include),
-                    "-c",
-                    str(source_file),
-                    "-o",
-                    "bufmgr.o",
-                ],
-            }
-        ]
-        path = self.repo / ".wiki-runtime/context/postgres-99/compile_commands.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(compile_db, indent=2), encoding="utf-8")
-
-    def _pin_context_to_source_head(self) -> None:
-        head = self._run(["git", "rev-parse", "HEAD"], cwd=self.repo / "raw/postgres-99").stdout.strip()
-        self._write_synthetic_wiki(commit=head)
-        self._write(
-            ".wiki-runtime/context/postgres-99/manifest.md",
-            f"""
-            # PostgreSQL 99 Project Context Pack
-
-            This synthetic pack is orientation material for tests.
-
-            ## Source Pin
-
-            - PostgreSQL version: 99
-            - Branch: `SYNTHETIC_STABLE`
-            - Pinned commit: `{head}`
-            - Source checkout: `raw/postgres-99`
-            - Source checkout HEAD: `{head}`
-            - Context pack path: `.wiki-runtime/context/postgres-99`
-            - Build workspace path: `.wiki-runtime/build/postgres-99`
-
-            ## Commands Attempted
-
-            | Status | CWD | Command | Exit | Notes |
-            |---|---|---|---|---|
-            | ok | `.wiki-runtime/build/postgres-99` | `../../../raw/postgres-99/configure --prefix=/tmp/source-tools/.wiki-runtime/build/postgres-99/install` | 0 | raw/postgres-99/src/backend/storage/buffer/bufmgr.c:4:2: warning: synthetic diagnostic |
-
-            ## Artifact Status
-
-            | Artifact | Path | Status | Details |
-            |---|---|---|---|
-            | `manifest.md` | `.wiki-runtime/context/postgres-99/manifest.md` | `generated` | this manifest |
-            | `include-deps.txt` | `.wiki-runtime/context/postgres-99/include-deps.txt` | `generated` | synthetic include context |
-            | `compile_commands.json` | `.wiki-runtime/context/postgres-99/compile_commands.json` | `generated` | synthetic compile database |
-            """,
-        )
 
     def _initialise_source_git_repo(self) -> None:
         source = self.repo / "raw/postgres-99"
@@ -219,9 +109,9 @@ class SyntheticSourceToolsTest(unittest.TestCase):
             [
                 "git",
                 "-c",
-                "user.name=Source Tools Test",
+                "user.name=Source Graph Test",
                 "-c",
-                "user.email=source-tools@example.invalid",
+                "user.email=source-graph@example.invalid",
                 "commit",
                 "-m",
                 "initial synthetic source",
@@ -272,36 +162,92 @@ class SyntheticSourceToolsTest(unittest.TestCase):
             except OSError:
                 shutil.copy2(tool, target)
                 target.chmod(Path(tool).stat().st_mode)
-
         env = os.environ.copy()
         env["PATH"] = str(tool_dir)
         return env
 
-    def test_source_lookup_requires_explicit_supported_version(self) -> None:
-        missing = self._script("source_lookup", "--symbol", "SyntheticThing", check=False)
+    def _fake_graphify_env(self) -> dict[str, str]:
+        tool_dir = self.repo / "tool-path"
+        tool_dir.mkdir(exist_ok=True)
+        graphify = tool_dir / "graphify"
+        graphify.write_text(
+            textwrap.dedent(
+                f"""
+                #!{sys.executable}
+                import json
+                import os
+                import pathlib
+                import sys
+
+                args = sys.argv[1:]
+                if args == ["--help"]:
+                    print("Usage: graphify <command>")
+                    raise SystemExit(0)
+
+                if args and args[0] in {{"query", "path", "explain"}}:
+                    if "--graph" not in args:
+                        print("missing --graph", file=sys.stderr)
+                        raise SystemExit(2)
+                    graph_path = pathlib.Path(args[args.index("--graph") + 1])
+                    if not graph_path.is_file():
+                        print("missing graph", file=sys.stderr)
+                        raise SystemExit(2)
+                    command = args[0]
+                    if command == "query":
+                        print("QUERY " + args[1])
+                    elif command == "path":
+                        print("PATH " + args[1] + " -> " + args[2])
+                    else:
+                        print("EXPLAIN " + args[1])
+                    raise SystemExit(0)
+
+                if args and args[0] == "update":
+                    out = pathlib.Path(os.environ.get("GRAPHIFY_OUT", pathlib.Path(args[1]) / "graphify-out"))
+                elif args and args[0] == "extract":
+                    out_base = pathlib.Path(args[args.index("--out") + 1]) if "--out" in args else pathlib.Path(args[1])
+                    out = out_base / "graphify-out"
+                else:
+                    print("unexpected graphify command: " + " ".join(args), file=sys.stderr)
+                    raise SystemExit(2)
+
+                out.mkdir(parents=True, exist_ok=True)
+                graph = {{
+                    "nodes": [
+                        {{"id": "SyntheticThing", "path": "raw/postgres-99/src/backend/storage/buffer/bufmgr.c"}}
+                    ],
+                    "edges": []
+                }}
+                (out / "graph.json").write_text(json.dumps(graph, indent=2), encoding="utf-8")
+                (out / "GRAPH_REPORT.md").write_text(
+                    "# Synthetic Graph\\n\\nSource: raw/postgres-99/src/backend/storage/buffer/bufmgr.c\\n",
+                    encoding="utf-8",
+                )
+                (out / "cache").mkdir(exist_ok=True)
+                print("synthetic graphify build")
+                """
+            ).lstrip(),
+            encoding="utf-8",
+        )
+        graphify.chmod(0o755)
+        env = os.environ.copy()
+        env["PATH"] = str(tool_dir) + os.pathsep + env.get("PATH", "")
+        return env
+
+    def test_source_graph_requires_explicit_scope_and_supported_version(self) -> None:
+        missing = self._script("source_graph", check=False)
         self.assertEqual(missing.returncode, 2)
         self.assertIn("--version", missing.stderr)
 
-        unsupported = self._script("source_lookup", "--version", "100", "--symbol", "SyntheticThing", check=False)
+        unsupported = self._script("source_graph", "--version", "100", "--dry-run", check=False)
         self.assertEqual(unsupported.returncode, 2)
         self.assertIn("unsupported PostgreSQL version: 100", unsupported.stderr)
 
-    def test_source_deps_requires_explicit_version(self) -> None:
-        missing = self._script(
-            "source_deps",
-            "--includes",
-            "src/backend/storage/buffer/bufmgr.c",
-            check=False,
-        )
-        self.assertEqual(missing.returncode, 2)
-        self.assertIn("--version", missing.stderr)
-
-    def test_source_lookup_symbol_path_and_log(self) -> None:
+    def test_source_graph_query_raw_symbol_file_log_and_includes(self) -> None:
         by_path = self._script(
-            "source_lookup",
+            "source_graph_query",
             "--version",
             "99",
-            "--path",
+            "file",
             "src/backend/storage/buffer/bufmgr.c",
             "--start",
             "1",
@@ -311,99 +257,52 @@ class SyntheticSourceToolsTest(unittest.TestCase):
         self.assertIn('#include "postgres.h"', by_path.stdout)
         self.assertIn("#include <sys/types.h>", by_path.stdout)
 
-        by_symbol = self._script("source_lookup", "--version", "99", "--symbol", "SyntheticThing", "--limit", "10")
+        by_symbol = self._script("source_graph_query", "--version", "99", "symbol", "SyntheticThing", "--limit", "10")
         self.assertIn("src/backend/storage/buffer/bufmgr.c", by_symbol.stdout)
         self.assertIn("SyntheticThing", by_symbol.stdout)
 
-        by_log = self._script("source_lookup", "--version", "99", "--log", "src/backend/storage/buffer/bufmgr.c")
+        by_log = self._script("source_graph_query", "--version", "99", "log", "src/backend/storage/buffer/bufmgr.c")
         self.assertIn("initial synthetic source", by_log.stdout)
 
-    def test_source_deps_direct_includes_resolve_raw_build_and_system_headers(self) -> None:
-        proc = self._script(
-            "source_deps",
+        includes = self._script(
+            "source_graph_query",
             "--version",
             "99",
-            "--includes",
+            "includes",
             "src/backend/storage/buffer/bufmgr.c",
             "--format",
             "json",
         )
-        payload = json.loads(proc.stdout)
-        rows = {row["include"]: row for row in payload["includes"]}
+        include_rows = {row["include"]: row for row in json.loads(includes.stdout)["includes"]}
+        self.assertEqual(include_rows["postgres.h"]["resolved"], "raw/postgres-99/src/include/postgres.h")
+        self.assertEqual(include_rows["storage/bufmgr.h"]["resolved"], "raw/postgres-99/src/include/storage/bufmgr.h")
+        self.assertIsNone(include_rows["sys/types.h"]["resolved"])
 
-        self.assertEqual(rows["postgres.h"]["resolved"], "raw/postgres-99/src/include/postgres.h")
-        self.assertEqual(rows["postgres.h"]["kind"], "raw")
-        self.assertEqual(rows["generated/config.h"]["resolved"], ".wiki-runtime/build/postgres-99/src/include/generated/config.h")
-        self.assertEqual(rows["generated/config.h"]["kind"], "build")
-        self.assertIsNone(rows["sys/types.h"]["resolved"])
-        self.assertEqual(rows["sys/types.h"]["kind"], "unresolved")
-
-    def test_source_deps_reverse_lookup_compile_unit_and_transitive_tree(self) -> None:
         included_by = self._script(
-            "source_deps",
+            "source_graph_query",
             "--version",
             "99",
-            "--included-by",
+            "included-by",
             "storage/bufmgr.h",
             "--format",
             "json",
         )
-        payload = json.loads(included_by.stdout)
-        self.assertEqual(payload["resolved_target"], "raw/postgres-99/src/include/storage/bufmgr.h")
+        sources = json.loads(included_by.stdout)["sources"]
         self.assertEqual(
-            payload["sources"],
+            sources,
             [{"include_directives": 1, "source": "raw/postgres-99/src/backend/storage/buffer/bufmgr.c"}],
         )
 
-        compile_unit = self._script(
-            "source_deps",
-            "--version",
-            "99",
-            "--compile-unit",
-            "src/backend/storage/buffer/bufmgr.c",
-        )
-        self.assertIn("BUILDING_SYNTHETIC", compile_unit.stdout)
-        self.assertIn("SYNTHETIC_MODE=1", compile_unit.stdout)
-        self.assertIn("raw/postgres-99/src/include", compile_unit.stdout)
-
-        transitive = self._script(
-            "source_deps",
-            "--version",
-            "99",
-            "--transitive-includes",
-            "src/backend/storage/buffer/bufmgr.c",
-            "--depth",
-            "2",
-            "--limit",
-            "20",
-        )
-        self.assertIn("[1] raw/postgres-99/src/backend/storage/buffer/bufmgr.c: storage/bufmgr.h", transitive.stdout)
-        self.assertIn("[2] raw/postgres-99/src/include/storage/bufmgr.h: storage/block.h", transitive.stdout)
-
-    def test_source_lookup_regex_search(self) -> None:
-        # Pattern is valid in ripgrep, git grep -E, and Python re alike.
-        match = self._script(
-            "source_lookup",
-            "--version",
-            "99",
-            "--symbol",
-            "Synthetic[A-Z][a-zA-Z]+",
-            "--regex",
-            "--limit",
-            "5",
-        )
-        self.assertIn("SyntheticThing", match.stdout)
-
-    def test_source_lookup_regex_search_uses_git_ere_when_ripgrep_is_unavailable(self) -> None:
+    def test_source_graph_query_regex_uses_git_when_ripgrep_is_unavailable(self) -> None:
         env = self._env_with_only_tools("git")
         self.assertIsNone(shutil.which("rg", path=env["PATH"]))
         self.assertIsNotNone(shutil.which("git", path=env["PATH"]))
 
         match = self._script(
-            "source_lookup",
+            "source_graph_query",
             "--version",
             "99",
-            "--symbol",
+            "symbol",
             "Synthetic(A|Thing)+",
             "--regex",
             "--limit",
@@ -412,514 +311,103 @@ class SyntheticSourceToolsTest(unittest.TestCase):
         )
         self.assertIn("SyntheticThing", match.stdout)
 
-    def test_source_deps_includes_text_truncation_message(self) -> None:
-        proc = self._script(
-            "source_deps",
-            "--version",
-            "99",
-            "--includes",
-            "src/backend/storage/buffer/bufmgr.c",
-            "--limit",
-            "2",
-        )
-        self.assertIn("truncated", proc.stdout)
-        self.assertIn("raise --limit", proc.stdout)
-
-    def test_source_deps_includes_json_honours_limit(self) -> None:
-        proc = self._script(
-            "source_deps",
-            "--version",
-            "99",
-            "--includes",
-            "src/backend/storage/buffer/bufmgr.c",
-            "--format",
-            "json",
-            "--limit",
-            "2",
-        )
-        payload = json.loads(proc.stdout)
-        self.assertTrue(payload["truncated"])
-        self.assertEqual(len(payload["includes"]), 2)
-
-    def test_source_deps_compile_unit_missing_returns_error_in_both_formats(self) -> None:
-        text = self._script(
-            "source_deps",
-            "--version",
-            "99",
-            "--compile-unit",
-            "src/include/postgres.h",
-            check=False,
-        )
-        self.assertEqual(text.returncode, 1)
-        self.assertIn("no compile_commands.json entry", text.stderr)
-
-        as_json = self._script(
-            "source_deps",
-            "--version",
-            "99",
-            "--compile-unit",
-            "src/include/postgres.h",
-            "--format",
-            "json",
-            check=False,
-        )
-        self.assertEqual(as_json.returncode, 1)
-        payload = json.loads(as_json.stdout)
-        self.assertEqual(payload["compile_entries"], [])
-
-    def test_source_deps_compile_unit_full_command_in_text_mode(self) -> None:
-        proc = self._script(
-            "source_deps",
-            "--version",
-            "99",
-            "--compile-unit",
-            "src/backend/storage/buffer/bufmgr.c",
-            "--full-command",
-        )
-        self.assertIn("## Command", proc.stdout)
-        self.assertIn("-DBUILDING_SYNTHETIC", proc.stdout)
-
-    def test_source_deps_path_outside_raw_is_rejected(self) -> None:
-        outside = self.repo / "outside.c"
-        outside.write_text('#include "postgres.h"\n', encoding="utf-8")
-        proc = self._script(
-            "source_deps",
-            "--version",
-            "99",
-            "--includes",
-            str(outside),
-            check=False,
-        )
-        self.assertEqual(proc.returncode, 2)
-        self.assertIn("could not resolve", proc.stderr)
-
-    def test_source_deps_missing_context_pack_reports_actionable_error(self) -> None:
-        manifest = self.repo / ".wiki-runtime/context/postgres-99/manifest.md"
-        manifest.unlink()
-        proc = self._script(
-            "source_deps",
-            "--version",
-            "99",
-            "--includes",
-            "src/backend/storage/buffer/bufmgr.c",
-            check=False,
-        )
-        self.assertEqual(proc.returncode, 2)
-        self.assertIn("missing context manifest", proc.stderr)
-        self.assertIn("scripts/source_context", proc.stderr)
-
-    def test_source_deps_transitive_handles_cycles(self) -> None:
-        cycle_path = self.repo / ".wiki-runtime/context/postgres-99/include-deps.txt"
-        original = cycle_path.read_text(encoding="utf-8")
-        cycle_path.write_text(
-            original
-            + "raw/postgres-99/src/include/cycle_a.h: cycle_b.h\n"
-            + "raw/postgres-99/src/include/cycle_b.h: cycle_a.h\n",
-            encoding="utf-8",
-        )
+    def test_source_graph_query_symbol_ignores_untracked_checkout_files(self) -> None:
         self._write(
-            "raw/postgres-99/src/include/cycle_a.h",
+            "raw/postgres-99/wiki/noise.md",
             """
-            #include "cycle_b.h"
-            """,
-        )
-        self._write(
-            "raw/postgres-99/src/include/cycle_b.h",
-            """
-            #include "cycle_a.h"
-            """,
-        )
-        proc = self._script(
-            "source_deps",
-            "--version",
-            "99",
-            "--transitive-includes",
-            "src/include/cycle_a.h",
-            "--depth",
-            "5",
-            "--limit",
-            "20",
-            "--format",
-            "json",
-        )
-        payload = json.loads(proc.stdout)
-        rows = payload["includes"]
-        self.assertFalse(payload["truncated"])
-        self.assertEqual(len(rows), 2)
-        sources = {row["source"] for row in rows}
-        self.assertEqual(
-            sources,
-            {
-                "raw/postgres-99/src/include/cycle_a.h",
-                "raw/postgres-99/src/include/cycle_b.h",
-            },
-        )
-
-    def test_source_deps_included_by_sorts_by_count_desc(self) -> None:
-        deps_path = self.repo / ".wiki-runtime/context/postgres-99/include-deps.txt"
-        original = deps_path.read_text(encoding="utf-8")
-        # heavy.c has three directives that resolve to bufmgr.h, light.c has one.
-        # Alphabetically, heavy.c sorts after light.c, so a count-desc sort must
-        # put heavy.c first to verify the ranking.
-        extra = (
-            "raw/postgres-99/src/backend/storage/buffer/heavy.c: storage/bufmgr.h\n"
-            "raw/postgres-99/src/backend/storage/buffer/heavy.c: bufmgr.h\n"
-            "raw/postgres-99/src/backend/storage/buffer/heavy.c: storage/bufmgr.h\n"
-            "raw/postgres-99/src/backend/storage/buffer/light.c: storage/bufmgr.h\n"
-        )
-        deps_path.write_text(original + extra, encoding="utf-8")
-        self._write("raw/postgres-99/src/backend/storage/buffer/heavy.c", "")
-        self._write("raw/postgres-99/src/backend/storage/buffer/light.c", "")
-
-        proc = self._script(
-            "source_deps",
-            "--version",
-            "99",
-            "--included-by",
-            "storage/bufmgr.h",
-            "--format",
-            "json",
-        )
-        payload = json.loads(proc.stdout)
-        ordered = [entry["source"] for entry in payload["sources"]]
-        self.assertEqual(
-            ordered,
-            [
-                "raw/postgres-99/src/backend/storage/buffer/heavy.c",
-                "raw/postgres-99/src/backend/storage/buffer/bufmgr.c",
-                "raw/postgres-99/src/backend/storage/buffer/light.c",
-            ],
-        )
-
-    def test_source_context_check_walks_raw_dependencies_against_pack(self) -> None:
-        proc = self._script(
-            "source_context_check",
-            "--version",
-            "99",
-            "--path",
-            "src/backend/storage/buffer/bufmgr.c",
-            "--depth",
-            "3",
-            "--verbose",
-        )
-        self.assertIn("OK raw-dependencies", proc.stdout)
-        self.assertIn("errors=0 warnings=0", proc.stdout)
-        self.assertIn("raw_dependency_edges=6", proc.stdout)
-        self.assertIn("unresolved_raw_dependencies=1", proc.stdout)
-        self.assertIn("navigation_probes=", proc.stdout)
-
-    def test_source_context_check_reports_raw_dependency_pack_gap(self) -> None:
-        deps_path = self.repo / ".wiki-runtime/context/postgres-99/include-deps.txt"
-        original = deps_path.read_text(encoding="utf-8")
-        deps_path.write_text(
-            original.replace("raw/postgres-99/src/include/storage/bufmgr.h: storage/block.h\n", ""),
-            encoding="utf-8",
-        )
-
-        proc = self._script(
-            "source_context_check",
-            "--version",
-            "99",
-            "--path",
-            "src/backend/storage/buffer/bufmgr.c",
-            "--depth",
-            "3",
-            "--strict",
-            check=False,
-        )
-        self.assertEqual(proc.returncode, 1)
-        self.assertIn("WARN raw-dependencies", proc.stdout)
-        self.assertIn("context pack does not record raw dependency source raw/postgres-99/src/include/storage/bufmgr.h", proc.stdout)
-
-
-class SourceContextEndToEndTest(unittest.TestCase):
-    """Exercise scripts/source_context against a synthetic source tree.
-
-    The fixture has no meson.build, no configure script, and no .git, so the
-    pack generator must fall through to the textual include scan.  These tests
-    pin the producer/consumer contract: source_context writes the structured
-    `## Build Include Directories` / `## Direct Include Edges` format that
-    source_deps parses, regardless of which generation path fires.
-    """
-
-    def setUp(self) -> None:
-        self.tmp = tempfile.TemporaryDirectory(prefix="source-context-e2e-")
-        self.repo = Path(self.tmp.name) / "synthetic-wiki"
-        self.repo.mkdir()
-        self._copy_scripts()
-        self._write_synthetic_wiki()
-        self._write_synthetic_source()
-
-    def tearDown(self) -> None:
-        self.tmp.cleanup()
-
-    def _copy_scripts(self) -> None:
-        scripts = self.repo / "scripts"
-        scripts.mkdir()
-        for name in ("source_context", "source_deps", "wiki_tooling.py"):
-            source = REPO_ROOT / "scripts" / name
-            target = scripts / name
-            shutil.copy2(source, target)
-            target.chmod(source.stat().st_mode)
-
-    def _write(self, rel_path: str, text: str) -> Path:
-        path = self.repo / rel_path
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(textwrap.dedent(text).lstrip(), encoding="utf-8")
-        return path
-
-    def _write_synthetic_wiki(self) -> None:
-        self._write(
-            "wiki/versions.md",
-            """
-            # PostgreSQL Versions
-
-            ## Supported Versions
-
-            | Version | Status | Wiki Home | Branch | Pinned Commit | Coverage |
-            |---|---|---|---|---|---|
-            | 99 | primary | [[v99/index]] | `SYNTHETIC_STABLE` | `abc123synthetic` | Synthetic test fixture. |
+            This untracked file mentions SyntheticThing, but it is not part of
+            the pinned source checkout.
             """,
         )
 
-    def _write_synthetic_source(self) -> None:
-        self._write(
-            "raw/postgres-99/src/backend/storage/buffer/bufmgr.c",
-            """
-            #include "postgres.h"
-            #include "storage/bufmgr.h"
+        match = self._script("source_graph_query", "--version", "99", "symbol", "SyntheticThing", "--limit", "20")
+        self.assertIn("src/backend/storage/buffer/bufmgr.c", match.stdout)
+        self.assertNotIn("wiki/noise.md", match.stdout)
 
-            int SyntheticThing(int input) { return input + 1; }
-            """,
-        )
-        self._write(
-            "raw/postgres-99/src/include/postgres.h",
-            """
-            #define POSTGRES_SYNTHETIC 1
-            """,
-        )
-        self._write(
-            "raw/postgres-99/src/include/storage/bufmgr.h",
-            """
-            int SyntheticThing(int input);
-            """,
-        )
+    def test_source_graph_generates_and_queries_fake_graphify_output(self) -> None:
+        env = self._fake_graphify_env()
+        generated = self._script("source_graph", "--version", "99", "--refresh", env=env)
+        self.assertIn("generated graph.json", generated.stdout)
 
-    def _run(self, argv: list[str], *, cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
-        proc = subprocess.run(argv, cwd=cwd or self.repo, text=True, capture_output=True)
-        if check and proc.returncode != 0:
-            self.fail(
-                "command failed\n"
-                f"argv: {' '.join(argv)}\n"
-                f"cwd: {cwd or self.repo}\n"
-                f"stdout:\n{proc.stdout}\n"
-                f"stderr:\n{proc.stderr}"
-            )
-        return proc
-
-    def _script(self, name: str, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-        return self._run([sys.executable, str(self.repo / "scripts" / name), *args], check=check)
-
-    def _initialise_source_git_repo(self) -> None:
-        source = self.repo / "raw/postgres-99"
-        self._run(["git", "init"], cwd=source)
-        self._run(["git", "add", "."], cwd=source)
-        self._run(
-            [
-                "git",
-                "-c",
-                "user.name=Source Context Test",
-                "-c",
-                "user.email=source-context@example.invalid",
-                "commit",
-                "-m",
-                "initial synthetic source",
-            ],
-            cwd=source,
-        )
-
-    def _read_artifact_status(self, manifest_text: str, artifact: str) -> str:
-        for line in manifest_text.splitlines():
-            if line.startswith(f"| `{artifact}` |"):
-                cells = [cell.strip().strip("`") for cell in line.strip("|").split("|")]
-                # | name | path | status | details |
-                if len(cells) >= 3:
-                    return cells[2]
-        return ""
-
-    def test_source_context_requires_explicit_scope(self) -> None:
-        proc = self._script("source_context", "--skip-callgraphs", check=False)
-        self.assertEqual(proc.returncode, 2)
-        self.assertIn("--version", proc.stderr)
-
-    def test_textual_fallback_writes_format_consumable_by_source_deps(self) -> None:
-        self._script("source_context", "--version", "99", "--skip-callgraphs")
-
-        context_dir = self.repo / ".wiki-runtime/context/postgres-99"
-        manifest = context_dir / "manifest.md"
-        deps = context_dir / "include-deps.txt"
+        graph_dir = self.repo / ".wiki-runtime/graph/postgres-99"
+        manifest = graph_dir / "manifest.md"
+        graph = graph_dir / "graph.json"
+        report = graph_dir / "GRAPH_REPORT.md"
         self.assertTrue(manifest.is_file())
-        self.assertTrue(deps.is_file())
+        self.assertTrue(graph.is_file())
+        self.assertTrue(report.is_file())
+        self.assertIn("Pinned commit", manifest.read_text(encoding="utf-8"))
 
-        deps_text = deps.read_text(encoding="utf-8")
-        self.assertIn("## Build Include Directories", deps_text)
-        self.assertIn("## Direct Include Edges", deps_text)
-        self.assertIn("textual scan", deps_text)
-        self.assertIn(
-            "raw/postgres-99/src/backend/storage/buffer/bufmgr.c: postgres.h",
-            deps_text,
-        )
-        self.assertIn(
-            "raw/postgres-99/src/backend/storage/buffer/bufmgr.c: storage/bufmgr.h",
-            deps_text,
-        )
+        query = self._script("source_graph_query", "--version", "99", "explain", "SyntheticThing", env=env)
+        self.assertIn("EXPLAIN SyntheticThing", query.stdout)
 
-        manifest_text = manifest.read_text(encoding="utf-8")
-        self.assertEqual(self._read_artifact_status(manifest_text, "compile_commands.json"), "deferred")
-        self.assertEqual(self._read_artifact_status(manifest_text, "include-deps.txt"), "generated")
-        self.assertEqual(self._read_artifact_status(manifest_text, "callgraphs/"), "skipped")
-
-        consumed = self._script(
-            "source_deps",
+        check = self._script(
+            "source_graph_check",
             "--version",
             "99",
-            "--includes",
-            "src/backend/storage/buffer/bufmgr.c",
-            "--format",
-            "json",
+            "--probe-node",
+            "SyntheticThing",
+            env=env,
         )
-        payload = json.loads(consumed.stdout)
-        rows = {row["include"]: row for row in payload["includes"]}
-        self.assertEqual(
-            rows["postgres.h"]["resolved"],
-            "raw/postgres-99/src/include/postgres.h",
-        )
-        self.assertEqual(rows["postgres.h"]["kind"], "raw")
+        self.assertIn("errors=0 warnings=0", check.stdout)
 
-        missing_compile_db = self._script(
-            "source_deps",
-            "--version",
-            "99",
-            "--compile-unit",
-            "src/backend/storage/buffer/bufmgr.c",
-            check=False,
-        )
-        self.assertEqual(missing_compile_db.returncode, 2)
-        self.assertIn("compile_commands.json is not present", missing_compile_db.stderr)
-        self.assertIn("scripts/source_context --version 99", missing_compile_db.stderr)
+    def test_source_graph_missing_tool_writes_deferred_manifest(self) -> None:
+        empty_path = self.repo / "empty-path"
+        empty_path.mkdir()
+        env = os.environ.copy()
+        env["PATH"] = str(empty_path)
 
-    def test_textual_fallback_uses_git_tracked_c_and_h_files_when_checkout_has_git(self) -> None:
+        generated = self._script("source_graph", "--version", "99", "--refresh", env=env, check=False)
+        self.assertEqual(generated.returncode, 1)
+        manifest = self.repo / ".wiki-runtime/graph/postgres-99/manifest.md"
+        self.assertTrue(manifest.is_file())
+        text = manifest.read_text(encoding="utf-8")
+        self.assertIn("graphify is not installed", text)
+        self.assertIn("`graph.json`", text)
+
+    def test_graph_query_generates_missing_graph_before_querying(self) -> None:
+        env = self._fake_graphify_env()
+        query = self._script("source_graph_query", "--version", "99", "explain", "SyntheticThing", env=env)
+        self.assertIn("EXPLAIN SyntheticThing", query.stdout)
+        self.assertTrue((self.repo / ".wiki-runtime/graph/postgres-99/graph.json").is_file())
+
+    def test_graph_query_missing_tool_reports_generation_failure(self) -> None:
+        empty_path = self.repo / "empty-path"
+        empty_path.mkdir()
+        env = os.environ.copy()
+        env["PATH"] = str(empty_path)
+        proc = self._script("source_graph_query", "--version", "99", "explain", "SyntheticThing", env=env, check=False)
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("graphify is not installed", proc.stderr)
+        self.assertIn("could not generate Graphify graph", proc.stderr)
+
+    def test_source_graph_check_rejects_wrong_version_reference(self) -> None:
+        graph_dir = self.repo / ".wiki-runtime/graph/postgres-99"
+        graph_dir.mkdir(parents=True)
         self._write(
-            "raw/postgres-99/src/include/storage/bufmgr.h",
-            """
-            #include "postgres.h"
-            int SyntheticThing(int input);
+            ".wiki-runtime/graph/postgres-99/manifest.md",
+            f"""
+            # PostgreSQL 99 Graphify Source Graph
+
+            ## Source Pin
+
+            - PostgreSQL version: 99
+            - Branch: `SYNTHETIC_STABLE`
+            - Pinned commit: `{self.source_head}`
+            - Source checkout: `raw/postgres-99`
+            - Source checkout HEAD: `{self.source_head}`
+            - Graph path: `.wiki-runtime/graph/postgres-99`
             """,
         )
-        self._initialise_source_git_repo()
-        self._write(
-            "raw/postgres-99/src/include/untracked.h",
-            """
-            #include "postgres.h"
-            """,
+        (graph_dir / "graph.json").write_text(
+            json.dumps({"nodes": [{"id": "wrong", "path": "raw/postgres-98/src/wrong.c"}]}),
+            encoding="utf-8",
         )
+        self._write(".wiki-runtime/graph/postgres-99/GRAPH_REPORT.md", "# Synthetic Graph\n")
 
-        self._script("source_context", "--version", "99", "--skip-callgraphs")
-
-        deps_text = (self.repo / ".wiki-runtime/context/postgres-99/include-deps.txt").read_text(encoding="utf-8")
-        self.assertIn(
-            "raw/postgres-99/src/backend/storage/buffer/bufmgr.c: storage/bufmgr.h",
-            deps_text,
-        )
-        self.assertIn(
-            "raw/postgres-99/src/include/storage/bufmgr.h: postgres.h",
-            deps_text,
-        )
-        self.assertNotIn(
-            "raw/postgres-99/src/include/untracked.h: postgres.h",
-            deps_text,
-        )
-
-    def test_compile_db_path_writes_format_consumable_by_source_deps(self) -> None:
-        context_dir = self.repo / ".wiki-runtime/context/postgres-99"
-        context_dir.mkdir(parents=True)
-        source_file = self.repo / "raw/postgres-99/src/backend/storage/buffer/bufmgr.c"
-        raw_include = self.repo / "raw/postgres-99/src/include"
-        symlink_dir = self.repo / ".wiki-runtime/build/postgres-99/src/bin/synthetic"
-        symlink_dir.mkdir(parents=True, exist_ok=True)
-        symlink_file = symlink_dir / "bufmgr.c"
-        symlink_file.symlink_to(source_file)
-        compile_db = [
-            {
-                "file": str(source_file),
-                "directory": str(source_file.parent),
-                "arguments": [
-                    "cc",
-                    "-DBUILDING_SYNTHETIC",
-                    "-I",
-                    str(raw_include),
-                    "-c",
-                    str(source_file),
-                ],
-            },
-            {
-                "file": "bufmgr.c",
-                "directory": str(symlink_dir),
-                "arguments": [
-                    "cc",
-                    "-DFRONTEND",
-                    "-I",
-                    str(raw_include),
-                    "-c",
-                    "bufmgr.c",
-                ],
-            },
-        ]
-        (context_dir / "compile_commands.json").write_text(
-            json.dumps(compile_db, indent=2), encoding="utf-8"
-        )
-
-        self._script("source_context", "--version", "99", "--skip-callgraphs")
-
-        deps_text = (context_dir / "include-deps.txt").read_text(encoding="utf-8")
-        self.assertIn("Derived from compile_commands.json", deps_text)
-        self.assertIn(
-            f"- `{raw_include.relative_to(self.repo).as_posix()}`",
-            deps_text,
-        )
-        self.assertIn(
-            "raw/postgres-99/src/backend/storage/buffer/bufmgr.c: postgres.h",
-            deps_text,
-        )
-        self.assertEqual(
-            deps_text.count("raw/postgres-99/src/backend/storage/buffer/bufmgr.c: postgres.h"),
-            1,
-        )
-
-        consumed = self._script(
-            "source_deps",
-            "--version",
-            "99",
-            "--includes",
-            "src/backend/storage/buffer/bufmgr.c",
-            "--format",
-            "json",
-        )
-        payload = json.loads(consumed.stdout)
-        rows = {row["include"]: row for row in payload["includes"]}
-        self.assertEqual(
-            rows["postgres.h"]["resolved"],
-            "raw/postgres-99/src/include/postgres.h",
-        )
-
-        compile_unit = self._script(
-            "source_deps",
-            "--version",
-            "99",
-            "--compile-unit",
-            "src/backend/storage/buffer/bufmgr.c",
-        )
-        self.assertIn("BUILDING_SYNTHETIC", compile_unit.stdout)
+        proc = self._script("source_graph_check", "--version", "99", check=False)
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("references postgres-98, expected postgres-99", proc.stdout)
 
 
 if __name__ == "__main__":
