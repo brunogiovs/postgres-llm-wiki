@@ -179,16 +179,7 @@ def source_head(run: GraphRun) -> str:
 
 def probe_tools(run: GraphRun) -> None:
     graphify = shutil.which("graphify")
-    if graphify:
-        proc = run_command(run, ["graphify", "--help"], cwd=REPO_ROOT, timeout=20)
-        output = ""
-        if proc is not None:
-            lines = (proc.stdout or proc.stderr).strip().splitlines()
-            output = lines[0] if lines else "version output unavailable"
-        status = output if proc is not None and proc.returncode == 0 else "help probe failed"
-        run.tools["graphify"] = f"{graphify} - {status}"
-    else:
-        run.tools["graphify"] = "missing"
+    run.tools["graphify"] = graphify or "missing"
 
     git = shutil.which("git")
     run.tools["git"] = git or "missing"
@@ -197,13 +188,13 @@ def probe_tools(run: GraphRun) -> None:
 def graphify_command(run: GraphRun, args: argparse.Namespace) -> tuple[list[str], dict[str, str] | None]:
     rel_source = os.path.relpath(run.source, run.graph_dir)
     if args.cluster_only:
-        argv = ["graphify", "cluster-only", ".", "--graph", "graphify-out/graph.json"]
+        argv = ["graphify", "cluster-only", ".", "--graph", "graph.json"]
         if args.no_viz:
             argv.append("--no-viz")
         return argv, None
 
+    env = {"GRAPHIFY_OUT": str(run.graph_dir / "graphify-out")}
     if not args.semantic:
-        env = {"GRAPHIFY_OUT": str(run.graph_dir / "graphify-out")}
         return ["graphify", "update", str(run.source.resolve()), "--force"], env
 
     argv = ["graphify", "extract", rel_source, "--out", "."]
@@ -213,15 +204,16 @@ def graphify_command(run: GraphRun, args: argparse.Namespace) -> tuple[list[str]
         argv.extend(["--model", args.model])
     if args.no_cluster:
         argv.append("--no-cluster")
-    return argv, None
+    return argv, env
 
 
 def copy_graphify_output(run: GraphRun) -> tuple[bool, list[str]]:
-    """Copy graphify-out/ contents into the version graph directory.
+    """Move graphify-out/ contents into the version graph directory.
 
-    Graphify's documented terminal output directory is graphify-out/. Running
-    the command from the version graph directory keeps generated state scoped
-    under .wiki-runtime/graph/postgres-NN/.
+    Graphify writes to <cwd>/graphify-out/. We promote the contents up one
+    level so the version graph directory holds graph.json, GRAPH_REPORT.md,
+    and cache/ directly, then drop the now-empty graphify-out/ to avoid
+    keeping a duplicate copy on disk.
     """
     failures: list[str] = []
     output_dir = run.graph_dir / "graphify-out"
@@ -229,7 +221,7 @@ def copy_graphify_output(run: GraphRun) -> tuple[bool, list[str]]:
         failures.append("Graphify did not create graphify-out/ in the version graph directory")
         return False, failures
 
-    copied = False
+    moved = False
     for child in sorted(output_dir.iterdir()):
         target = run.graph_dir / child.name
         ensure_runtime_path(target)
@@ -238,15 +230,15 @@ def copy_graphify_output(run: GraphRun) -> tuple[bool, list[str]]:
                 shutil.rmtree(target)
             else:
                 target.unlink()
-        if child.is_dir():
-            shutil.copytree(child, target)
-        else:
-            shutil.copy2(child, target)
-        copied = True
+        shutil.move(str(child), str(target))
+        moved = True
 
-    if not copied:
+    if not moved:
         failures.append("Graphify output directory was empty")
-    return copied, failures
+        return False, failures
+
+    shutil.rmtree(output_dir, ignore_errors=True)
+    return True, failures
 
 
 def generate_graph(run: GraphRun, args: argparse.Namespace) -> None:
@@ -280,7 +272,7 @@ def generate_graph(run: GraphRun, args: argparse.Namespace) -> None:
         path = run.graph_dir / name.rstrip("/")
         exists = path.is_dir() if name.endswith("/") else path.is_file()
         if exists:
-            run.add_artifact(name, path, "generated", "copied from Graphify graphify-out/")
+            run.add_artifact(name, path, "generated", "promoted from Graphify graphify-out/")
         elif requirement == "required":
             run.add_artifact(name, path, "deferred", "Graphify did not produce this required artifact", failures)
         else:

@@ -40,7 +40,8 @@ Append one entry after every scaffold change, version lifecycle event, ingest, t
 
 ## [2026-05-08] tooling v12 | Graphify CLI compatibility
 
-- Updated `scripts/source_graph` to invoke the installed Graphify CLI with `graphify extract <source> --out .` and to probe `graphify --help` instead of the unsupported `--version` form.
+- Updated `scripts/source_graph` to invoke the installed Graphify CLI with `graphify update <source> --force` by default; semantic `graphify extract` is opt-in via `--semantic --backend ...`. Tool status now records the resolved binary path or `missing` rather than parsing `graphify --help`.
+- `scripts/source_graph` now moves `graphify-out/` contents up into the version graph directory and removes the now-empty `graphify-out/`, eliminating the duplicate on-disk copy that previously doubled graph state.
 - Added Graphify backend/model pass-through options for extraction.
 - Reran `scripts/source_graph --version 12 --refresh`; the wrapper now reaches Graphify extraction, but `graph.json` remains deferred because no LLM API key/backend is configured.
 

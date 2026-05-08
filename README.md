@@ -13,6 +13,8 @@ Source navigation is graph-first:
 - If a graph subcommand needs `graph.json` and it is absent, `scripts/source_graph_query` forces generation via `scripts/source_graph --version NN --refresh`.
 - `scripts/source_graph_check` validates generated graph artifacts.
 
+The pipx package is `graphifyy` (two y's); the CLI it installs is `graphify` (one y). Install with `pipx install graphifyy`.
+
 ## Supported Versions
 
 | Version | Status | Branch |
