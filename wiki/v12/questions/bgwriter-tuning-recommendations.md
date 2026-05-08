@@ -3,10 +3,10 @@ type: question
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
 verified: false
-verified_by_agent: not yet
+verified_by_agent: claude-opus-4-7 2026-05-08T00:00:00Z
 ---
 
-# Bgwriter tuning recommendations (unverified)
+# Bgwriter tuning recommendations
 
 ## Question
 
@@ -33,7 +33,7 @@ All four are `PGC_SIGHUP`. To apply changes use `ALTER SYSTEM SET ...; SELECT pg
 
 The shipped sample defaults match: [[raw/postgres-12/src/backend/utils/misc/postgresql.conf.sample#L168|postgresql.conf.sample#L168]]. Setting `bgwriter_lru_maxpages = 0` disables background writing entirely; checkpoints are unaffected ([[raw/postgres-12/doc/src/sgml/config.sgml#L2080-L2088|config.sgml#L2080]]).
 
-`PGC_SIGHUP` reload semantics per AGENTS.md: change via `postgresql.conf` + `SIGHUP` (or `pg_reload_conf()` / `ALTER SYSTEM`); no restart, no session-scope `SET` because none of these GUCs are user-settable.
+`PGC_SIGHUP` reload semantics: change via `postgresql.conf` + `SIGHUP` (or `pg_reload_conf()` / `ALTER SYSTEM`). No restart, and no session-scope `SET` because none of these GUCs are user-settable.
 
 ### Tuning scenarios (source-documented direction of change)
 
@@ -109,7 +109,7 @@ Iterative bgwriter tuning loop, grounded in those counters:
 4. If `buffers_clean` is high but `buffers_backend` is near zero, the bgwriter may be doing more work than necessary → push toward the "read-mostly" column (smaller `bgwriter_lru_maxpages` / `bgwriter_lru_multiplier`).
 5. If `checkpoint_sync_time` spikes during checkpoints on Linux, leave `bgwriter_flush_after` non-zero (default `512kB`) and verify on representative storage; if the workload matches the documented regression case (bigger than `shared_buffers`, smaller than OS page cache), set `bgwriter_flush_after = 0`.
 
-Sample diagnostic snippet (read-only, follows AGENTS.md SQL discipline — inline tag, session-scoped timeouts):
+Sample diagnostic snippet (read-only):
 
 ```sql
 SET /* wiki_bgwriter_statement_timeout */ statement_timeout = '30s';
@@ -160,7 +160,7 @@ ALTER /* wiki_set_bgwriter_lru_maxpages */ SYSTEM SET bgwriter_lru_maxpages = 10
 SELECT /* wiki_reload_conf */ pg_reload_conf();
 ```
 
-`statement_timeout` / `lock_timeout` are session-scoped (`SET`); pick values appropriate for the operation (these defaults suit the diagnostic snippet only — `ALTER SYSTEM` itself is fast, but the tag/timeout discipline applies to the whole session).
+`statement_timeout` and `lock_timeout` are session-scoped; the values shown suit the diagnostic snippet. `ALTER SYSTEM` itself is fast, but the inline tag and timeout discipline applies to every statement in the session.
 
 ## Context Reviewed
 

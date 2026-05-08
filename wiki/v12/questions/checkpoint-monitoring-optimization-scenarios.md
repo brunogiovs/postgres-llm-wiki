@@ -3,10 +3,10 @@ type: question
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
 verified: false
-verified_by_agent: not yet
+verified_by_agent: claude-opus-4-7 2026-05-08T00:00:00Z
 ---
 
-# Checkpoint monitoring and optimization scenarios (unverified)
+# Checkpoint monitoring and optimization scenarios
 
 ## Question
 

@@ -3,7 +3,7 @@ type: question
 version: 12
 pinned_commit: 45b88269a353ad93744772791feb6d01bc7e1e42
 verified: false
-verified_by_agent: claude-opus-4-7 2026-05-08T16:52:54Z
+verified_by_agent: claude-opus-4-7 2026-05-08T17:52:54Z
 ---
 
 # Enable I/O timing measurements on production
@@ -14,17 +14,23 @@ In PostgreSQL 12, recommend a production procedure to enable I/O timing measurem
 
 ## Answer
 
-Assumption: "PostgreSQL 12" means the local source checkout pinned to `45b88269a353ad93744772791feb6d01bc7e1e42`.
+Procedure for a bounded production observation window:
 
-The short recommendation is: enable `track_io_timing` for a bounded production observation window, do it with `ALTER SYSTEM` plus a configuration reload when you need cluster-wide measurements, sample deltas from `pg_stat_database`, use `pg_stat_statements` only if it is already loaded, and use `EXPLAIN (ANALYZE, BUFFERS, TIMING OFF)` only for vetted statements. `track_io_timing` is off by default and is a `PGC_SUSET` boolean, so it does not require a restart; a reload is required only when applying a configuration-file or `ALTER SYSTEM` default, while a superuser can enable it in one session with `SET` [[raw/postgres-12/src/backend/utils/misc/guc.c#track_io_timing|guc.c#track_io_timing]], [[raw/postgres-12/src/include/utils/guc.h#GucContext|guc.h#GucContext]], [[raw/postgres-12/doc/src/sgml/catalogs.sgml#view-pg-settings|catalogs.sgml#view-pg-settings]].
+1. Preflight host clock overhead with `pg_test_timing`.
+2. Set `track_io_timing = on` cluster-wide via `ALTER SYSTEM` + `pg_reload_conf()`.
+3. Sample `pg_stat_database` deltas across the window.
+4. Drill into `pg_stat_statements` (only if already preloaded) or `EXPLAIN (ANALYZE, BUFFERS, TIMING OFF)` for vetted statements.
+5. `ALTER SYSTEM RESET track_io_timing` + reload to revert.
 
-PostgreSQL 12 documents the reason for caution: enabling `track_io_timing` repeatedly asks the operating system for the current time, and that can be expensive on some platforms. The same documentation points at `pg_test_timing` for host qualification and states that I/O timing is displayed in `pg_stat_database`, `EXPLAIN` with `BUFFERS`, and `pg_stat_statements` [[raw/postgres-12/doc/src/sgml/config.sgml#guc-track-io-timing|config.sgml#guc-track-io-timing]], [[raw/postgres-12/doc/src/sgml/ref/pgtesttiming.sgml#pgtesttiming|pgtesttiming.sgml#pgtesttiming]].
+`track_io_timing` is `PGC_SUSET` and defaults to off. No restart is needed. A reload applies a `postgresql.conf` or `ALTER SYSTEM` default; a superuser can also enable it in one session with `SET` [[raw/postgres-12/src/backend/utils/misc/guc.c#track_io_timing|guc.c#track_io_timing]], [[raw/postgres-12/src/include/utils/guc.h#GucContext|guc.h#GucContext]], [[raw/postgres-12/doc/src/sgml/catalogs.sgml#view-pg-settings|catalogs.sgml#view-pg-settings]].
+
+The cost: every measured read or write call asks the OS for the current time, which can be expensive on some platforms. Qualify the host with `pg_test_timing` first. The output surfaces once enabled are `pg_stat_database`, `EXPLAIN` with `BUFFERS`, and `pg_stat_statements` [[raw/postgres-12/doc/src/sgml/config.sgml#guc-track-io-timing|config.sgml#guc-track-io-timing]], [[raw/postgres-12/doc/src/sgml/ref/pgtesttiming.sgml#pgtesttiming|pgtesttiming.sgml#pgtesttiming]].
 
 ## Procedure
 
 ### 1. Choose the observation window
 
-Use a representative but bounded window, usually long enough to smooth stats-collector delay and short enough to roll back quickly if overhead is visible. PostgreSQL 12 rate-limits normal stats reports with `PGSTAT_STAT_INTERVAL = 500` ms, and `pgstat_report_stat()` skips non-forced sends until that interval has elapsed, so sub-second sampling is the wrong shape for this data [[raw/postgres-12/src/backend/postmaster/pgstat.c#PGSTAT_STAT_INTERVAL|pgstat.c#PGSTAT_STAT_INTERVAL]], [[raw/postgres-12/src/backend/postmaster/pgstat.c#pgstat_report_stat|pgstat.c#pgstat_report_stat]].
+Pick a window of at least several minutes — long enough that the stats-collector cadence does not dominate the deltas, short enough to roll back quickly if overhead becomes visible. PG 12 rate-limits normal stats reports with `PGSTAT_STAT_INTERVAL = 500` ms; `pgstat_report_stat()` skips non-forced sends until that interval has elapsed. Sub-second sampling is the wrong shape for this data [[raw/postgres-12/src/backend/postmaster/pgstat.c#PGSTAT_STAT_INTERVAL|pgstat.c#PGSTAT_STAT_INTERVAL]], [[raw/postgres-12/src/backend/postmaster/pgstat.c#pgstat_report_stat|pgstat.c#pgstat_report_stat]].
 
 Do not reset production statistics just to create a baseline. `pg_stat_reset()` zeros all counters for the current database, and that disrupts other monitoring; record start and end samples and compute deltas instead [[raw/postgres-12/doc/src/sgml/monitoring.sgml#pg_stat_reset|monitoring.sgml#pg_stat_reset]].
 
@@ -83,7 +89,7 @@ FROM pg_stat_database
 ORDER BY datid;
 ```
 
-`pg_settings` exposes each parameter's current value, context, source, and `pending_restart`; `pg_file_settings` shows configuration-file entries and whether they can be applied, but it reports current file contents rather than the last applied runtime value [[raw/postgres-12/src/backend/catalog/system_views.sql#pg_settings|system_views.sql#pg_settings]], [[raw/postgres-12/doc/src/sgml/catalogs.sgml#view-pg-settings|catalogs.sgml#view-pg-settings]], [[raw/postgres-12/src/backend/catalog/system_views.sql#pg_file_settings|system_views.sql#pg_file_settings]], [[raw/postgres-12/doc/src/sgml/catalogs.sgml#view-pg-file-settings|catalogs.sgml#view-pg-file-settings]].
+`pg_settings` exposes each parameter's current value, context, source, and `pending_restart`. `pg_file_settings` shows configuration-file entries and whether they can be applied. It reports current file contents, not the last applied runtime value [[raw/postgres-12/src/backend/catalog/system_views.sql#pg_settings|system_views.sql#pg_settings]], [[raw/postgres-12/doc/src/sgml/catalogs.sgml#view-pg-settings|catalogs.sgml#view-pg-settings]], [[raw/postgres-12/src/backend/catalog/system_views.sql#pg_file_settings|system_views.sql#pg_file_settings]], [[raw/postgres-12/doc/src/sgml/catalogs.sgml#view-pg-file-settings|catalogs.sgml#view-pg-file-settings]].
 
 Keep `track_counts` on. PG12 defines `track_counts` as the switch that collects database activity statistics and defaults it to on because autovacuum needs the collected information [[raw/postgres-12/src/backend/utils/misc/guc.c#track_counts|guc.c#track_counts]], [[raw/postgres-12/doc/src/sgml/config.sgml#guc-track-counts|config.sgml#guc-track-counts]].
 
@@ -106,7 +112,7 @@ FROM pg_settings
 WHERE name = 'track_io_timing';
 ```
 
-`ALTER SYSTEM` writes to `postgresql.auto.conf`; its changes take effect after configuration reload unless the target parameter is postmaster-only. It requires superuser privileges and is not allowed inside a transaction block [[raw/postgres-12/doc/src/sgml/ref/alter_system.sgml#ALTER-SYSTEM|alter_system.sgml#ALTER-SYSTEM]], [[raw/postgres-12/src/backend/utils/misc/guc.c#AlterSystemSetConfigFile|guc.c#AlterSystemSetConfigFile]]. `pg_reload_conf()` sends `SIGHUP` to the postmaster [[raw/postgres-12/src/backend/storage/ipc/signalfuncs.c#pg_reload_conf|signalfuncs.c#pg_reload_conf]].
+`ALTER SYSTEM` writes to `postgresql.auto.conf`; its changes take effect after configuration reload unless the target parameter is postmaster-only. It requires superuser privileges and is not allowed inside a transaction block or function [[raw/postgres-12/doc/src/sgml/ref/alter_system.sgml#ALTER-SYSTEM|alter_system.sgml#ALTER-SYSTEM]], [[raw/postgres-12/src/backend/utils/misc/guc.c#AlterSystemSetConfigFile|guc.c#AlterSystemSetConfigFile]]. `pg_reload_conf()` sends `SIGHUP` to the postmaster [[raw/postgres-12/src/backend/storage/ipc/signalfuncs.c#pg_reload_conf|signalfuncs.c#pg_reload_conf]].
 
 For a single controlled backend, such as a superuser session running a targeted plan probe, use session scope instead:
 
@@ -116,7 +122,7 @@ SHOW /* wiki_io_timing_session_show */ track_io_timing;
 RESET /* wiki_io_timing_session_reset */ track_io_timing;
 ```
 
-That session-level path does not reload the server. Because `track_io_timing` has `PGC_SUSET` context, only superusers can change it with `SET`; configuration-file changes affect existing sessions only when those sessions have not established a session-local value [[raw/postgres-12/src/backend/utils/misc/guc.c#track_io_timing|guc.c#track_io_timing]], [[raw/postgres-12/doc/src/sgml/catalogs.sgml#view-pg-settings|catalogs.sgml#view-pg-settings]].
+The session path does not reload the server. `track_io_timing` has `PGC_SUSET` context, so only a superuser can change it with `SET`. A configuration-file change reaches an existing session only if that session has not already set a session-local value [[raw/postgres-12/src/backend/utils/misc/guc.c#track_io_timing|guc.c#track_io_timing]], [[raw/postgres-12/doc/src/sgml/catalogs.sgml#view-pg-settings|catalogs.sgml#view-pg-settings]].
 
 ### 5. Collect database-level deltas
 
@@ -124,7 +130,7 @@ At the end of the window, run the `wiki_io_timing_database_baseline` query again
 
 Interpret deltas together:
 
-- `delta_blk_read_time / delta_blks_read` is the observed milliseconds per database block read call that reached PostgreSQL's measured buffer read path. A high value means time was spent waiting inside measured read calls; it is not proof by itself that the physical device, rather than OS cache or filesystem behavior, was the only cause, because PG12 measures elapsed time around PostgreSQL storage-manager read calls [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#ReadBuffer_common|bufmgr.c#ReadBuffer_common]].
+- `delta_blk_read_time / delta_blks_read` is the observed milliseconds per database block read call that reached PostgreSQL's measured buffer read path. A high value means time was spent waiting inside those measured calls. It is not proof on its own that the physical device was the bottleneck: PG 12 times the storage-manager read call, and that interval also covers OS cache and filesystem behavior [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#ReadBuffer_common|bufmgr.c#ReadBuffer_common]].
 - `delta_blk_write_time` cannot be normalized to time-per-write at `pg_stat_database` scope because the view exposes write time but no `blks_written` column in PG12. Pair the delta with write-call counts from `EXPLAIN ... BUFFERS`, `pg_stat_statements`, or `pg_stat_bgwriter` (`buffers_clean`, `buffers_backend`, `buffers_checkpoint`) to attribute the time [[raw/postgres-12/src/backend/catalog/system_views.sql#pg_stat_database|system_views.sql#pg_stat_database]], [[raw/postgres-12/doc/src/sgml/ref/explain.sgml#SQL-EXPLAIN|explain.sgml#SQL-EXPLAIN]].
 - `temp_files` and `temp_bytes` identify temporary-file pressure at database scope, but PG12's database view exposes temp volume separately from `blk_read_time` and `blk_write_time` [[raw/postgres-12/src/backend/catalog/system_views.sql#pg_stat_database|system_views.sql#pg_stat_database]], [[raw/postgres-12/doc/src/sgml/monitoring.sgml#pg-stat-database-view|monitoring.sgml#pg-stat-database-view]].
 
@@ -160,7 +166,11 @@ ORDER BY (blk_read_time + blk_write_time) DESC
 LIMIT 20;
 ```
 
-Only run the second query when the first query returns `pg_stat_statements` and the earlier `shared_preload_libraries` precheck shows that the module is loaded at server start. The PG12 control file pins `default_version = '1.7'`, so a fresh `CREATE EXTENSION pg_stat_statements` typically reports `extversion = 1.7`; the `blk_read_time` and `blk_write_time` columns have been part of the view since the 1.4 base file, applied through the 1.4 → 1.5 → 1.6 → 1.7 incremental scripts, so the same query works regardless of installed version [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.control|pg_stat_statements.control]], [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements--1.4.sql#pg_stat_statements|pg_stat_statements--1.4.sql#pg_stat_statements]]. The C code accumulates statement-level buffer-usage deltas into those columns in milliseconds [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.c#pgss_store|pg_stat_statements.c#pgss_store]], [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.c#pg_stat_statements_internal|pg_stat_statements.c#pg_stat_statements_internal]]. The PG12 docs state those statement I/O timing columns are zero when `track_io_timing` is not enabled [[raw/postgres-12/doc/src/sgml/pgstatstatements.sgml#pgstatstatements|pgstatstatements.sgml#pgstatstatements]].
+Only run the second query when the first one returns `pg_stat_statements` and the earlier `shared_preload_libraries` precheck shows the module is loaded at server start.
+
+The PG12 control file pins `default_version = '1.7'`, so a fresh `CREATE EXTENSION pg_stat_statements` typically reports `extversion = 1.7`. The `blk_read_time` and `blk_write_time` columns are defined by the 1.4 base file. The 1.4 → 1.5, 1.5 → 1.6, and 1.6 → 1.7 incremental scripts do not modify these columns; they only adjust `pg_stat_statements_reset()` grants and signature. The same query therefore works on any 1.4-through-1.7 install [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.control|pg_stat_statements.control]], [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements--1.4.sql#pg_stat_statements|pg_stat_statements--1.4.sql#pg_stat_statements]], [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements--1.4--1.5.sql|pg_stat_statements--1.4--1.5.sql]], [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements--1.5--1.6.sql|pg_stat_statements--1.5--1.6.sql]], [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements--1.6--1.7.sql|pg_stat_statements--1.6--1.7.sql]].
+
+The C code accumulates statement-level buffer-usage deltas into those columns in milliseconds [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.c#pgss_store|pg_stat_statements.c#pgss_store]], [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.c#pg_stat_statements_internal|pg_stat_statements.c#pg_stat_statements_internal]]. Both columns read zero when `track_io_timing` is off [[raw/postgres-12/doc/src/sgml/pgstatstatements.sgml#pgstatstatements|pgstatstatements.sgml#pgstatstatements]].
 
 Do not make `pg_stat_statements` a surprise dependency of this procedure. The module's `_PG_init()` only hooks into the system when loaded through `shared_preload_libraries`, and `shared_preload_libraries` is `PGC_POSTMASTER`, so adding it requires a server restart and should be planned as a separate change [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.c#_PG_init|pg_stat_statements.c#_PG_init]], [[raw/postgres-12/src/backend/utils/misc/guc.c#shared_preload_libraries|guc.c#shared_preload_libraries]], [[raw/postgres-12/doc/src/sgml/config.sgml#guc-shared-preload-libraries|config.sgml#guc-shared-preload-libraries]].
 
@@ -182,12 +192,12 @@ Use `ALTER SYSTEM RESET` rather than blindly setting `off` when you want to rest
 
 The source-visible timing sites are in the buffer manager. In `ReadBuffer_common`, when `track_io_timing` is enabled, PostgreSQL records the current time before `smgrread()`, records it again after the read returns, adds the elapsed microseconds to the stats collector counter, and adds the interval to `pgBufferUsage.blk_read_time` [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#ReadBuffer_common|bufmgr.c#ReadBuffer_common]], [[raw/postgres-12/src/include/pgstat.h#pgstat_count_buffer_read_time|pgstat.h#pgstat_count_buffer_read_time]]. In `FlushBuffer`, the same pattern wraps `smgrwrite()` and accumulates write time [[raw/postgres-12/src/backend/storage/buffer/bufmgr.c#FlushBuffer|bufmgr.c#FlushBuffer]], [[raw/postgres-12/src/include/pgstat.h#pgstat_count_buffer_write_time|pgstat.h#pgstat_count_buffer_write_time]].
 
-Those two streams feed two surfaces:
+PG 12 surfaces those two streams in two places:
 
 - Database-level stats: backend-local `pgStatBlockReadTime` and `pgStatBlockWriteTime` are sent in `PgStat_MsgTabstat`, then the stats collector adds them to `PgStat_StatDBEntry.n_block_read_time` and `n_block_write_time`; `pg_stat_get_db_blk_read_time()` and `pg_stat_get_db_blk_write_time()` expose the values in milliseconds [[raw/postgres-12/src/backend/postmaster/pgstat.c#pgstat_send_tabstat|pgstat.c#pgstat_send_tabstat]], [[raw/postgres-12/src/backend/postmaster/pgstat.c#pgstat_recv_tabstat|pgstat.c#pgstat_recv_tabstat]], [[raw/postgres-12/src/backend/utils/adt/pgstatfuncs.c#pg_stat_get_db_blk_read_time|pgstatfuncs.c#pg_stat_get_db_blk_read_time]].
 - Per-statement and plan stats: `BufferUsage` carries `blk_read_time` and `blk_write_time`; executor instrumentation and `pg_stat_statements` accumulate deltas from `pgBufferUsage`, and `EXPLAIN` displays "I/O Timings" when buffer usage has non-zero timing values [[raw/postgres-12/src/include/executor/instrument.h#BufferUsage|instrument.h#BufferUsage]], [[raw/postgres-12/src/backend/executor/instrument.c#BufferUsageAdd|instrument.c#BufferUsageAdd]], [[raw/postgres-12/contrib/pg_stat_statements/pg_stat_statements.c#pgss_store|pg_stat_statements.c#pgss_store]], [[raw/postgres-12/src/backend/commands/explain.c#show_buffer_usage|explain.c#show_buffer_usage]].
 
-The resulting numbers are PostgreSQL block I/O call timings. They are not a full host I/O profiler: they do not directly identify disk model, filesystem queue depth, controller latency, or kernel page-cache residency. Pair them with block counts, wait events, OS storage telemetry, and workload context before making a storage conclusion.
+These counters time PostgreSQL block I/O calls — they are not a full host I/O profiler. They do not directly identify disk model, filesystem queue depth, controller latency, or kernel page-cache residency. Pair them with block counts, wait events, OS storage telemetry, and workload context before drawing a storage conclusion.
 
 ## Restart, Reload, And Session Scope
 

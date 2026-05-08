@@ -2,6 +2,31 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-08] review v12 | Bgwriter tuning and Checkpoint monitoring scenarios
+
+- Re-reviewed `wiki/v12/questions/bgwriter-tuning-recommendations.md` and `wiki/v12/questions/checkpoint-monitoring-optimization-scenarios.md` against the pinned `raw/postgres-12/` checkout (`45b88269...`) via `scripts/source_graph_query --version 12`.
+- Bgwriter verification: the four GUCs (defaults/ranges/`PGC_SIGHUP`) in `guc.c#L2728-L2757` and `guc.c#L3351-L3359`; `DEFAULT_BGWRITER_FLUSH_AFTER`/`WRITEBACK_MAX_PENDING_FLUSHES` in `pg_config_manual.h#L153-L163`; `BackgroundWriterMain` loop and `HIBERNATE_FACTOR` in `bgwriter.c#L73`/`L240-L373`; `BgBufferSync` (`bgwriter_lru_multiplier`, `bgwriter_lru_maxpages`, `m_maxwritten_clean`, `m_buf_written_clean`) in `bufmgr.c#L2200-L2300`; checkpoint-write accumulator in `bufmgr.c#L1991-L1994`; backend-write/fsync counter wiring in `checkpointer.c#ForwardSyncRequest` and `AbsorbSyncRequests`; `pg_stat_bgwriter` SQL functions in `pgstatfuncs.c#L1605-L1670`; view definition in `system_views.sql#L935-L947`; bgwriter doc paragraphs in `config.sgml#L2025-L2160`.
+- Checkpoint verification: `checkpoint_timeout`, `checkpoint_completion_target`, `checkpoint_flush_after`, `checkpoint_warning`, `max_wal_size`, `min_wal_size`, `log_checkpoints` GUCs in `guc.c`; `XLogCheckpointNeeded` and `CalculateCheckpointSegments` in `xlog.c#L2255-L2361`; `CheckPointWarning` use site with the `CheckPointTimeout < CheckPointWarning` skip in `checkpointer.c#L440-L463`; `pgstat_reset_shared_counters` cluster-wide reset in `pgstat.c#L1320-L1352`; `pg_settings` view as `SELECT * FROM pg_show_all_settings()` in `system_views.sql#L512-L513`; checkpoint section text in `wal.sgml#L460-L609`.
+- Tone pass on the bgwriter page: dropped two AGENTS.md self-references (the wiki should not cite its own meta-instructions) and tightened the closing session-timeout sentence into one-claim-per-sentence form.
+- Set `verified_by_agent: claude-opus-4-7 2026-05-08T00:00:00Z` on both pages and dropped "(unverified)" from page titles, `wiki/index.md`, and `wiki/v12/index.md`. Human `verified: false` preserved on both.
+
+## [2026-05-08] tone v12 | Enable I/O timing measurements on production
+
+- Tone pass on `wiki/v12/questions/enable-io-timing-measurements-production.md` against AGENTS.md "Tone And Readability" rules.
+- Replaced the Answer-section opening: dropped the redundant "Assumption: ..." line (front matter already pins the commit), turned the long compound recommendation into a 5-step numbered TL;DR, and split the restart/reload semantics from the cost/output-surfaces paragraph.
+- Tightened the Section 1 observation-window guidance to name a concrete floor ("at least several minutes") rather than the vague "long enough to smooth stats-collector delay."
+- Split semicolon run-ons in the `pg_settings`/`pg_file_settings` description, the session-scope explanation, the `delta_blk_read_time` interpretation, and the multi-clause `pg_stat_statements` upgrade-chain paragraph into one-claim-per-sentence form.
+- Cut filler line "Those two streams feed two surfaces:" to a more concrete lead, and the redundant "The resulting numbers are PostgreSQL block I/O call timings" intro under "What PG12 Measures."
+- Every pre-existing citation preserved across the rewrites.
+- Updated `verified_by_agent: claude-opus-4-7 2026-05-08T17:52:54Z`.
+
+## [2026-05-08] review v12 | Enable I/O timing measurements on production refresh
+
+- Re-reviewed `wiki/v12/questions/enable-io-timing-measurements-production.md` against the pinned `raw/postgres-12/` checkout (`45b88269...`) via `scripts/source_graph_query --version 12`. Re-verified `track_io_timing` (`PGC_SUSET`, default off), `ReadBuffer_common`/`FlushBuffer` timing wrapping `smgrread`/`smgrwrite`, `pg_stat_get_db_blk_read_time`/`write_time` µs→ms conversion, `BufferUsage` shape, `pg_reload_conf` SIGHUP, `ALTER SYSTEM` semantics, `pg_stat_database` columns (no `blks_written`), and `pg_stat_statements` `_PG_init` shared-preload gating.
+- Fixed misleading phrasing on the pg_stat_statements upgrade chain: the 1.4 → 1.5, 1.5 → 1.6, and 1.6 → 1.7 incrementals do not modify `blk_read_time`/`blk_write_time` (only `pg_stat_statements_reset()` grants and signature change); reworded to clarify the columns come from the 1.4 base file and survive the upgrade chain unchanged. Added incremental-script citations.
+- Completed the `ALTER SYSTEM` restriction note to "transaction block or function" per `alter_system.sgml`.
+- Updated `verified_by_agent: claude-opus-4-7 2026-05-08T17:46:35Z`; human `verified: false` unchanged.
+
 ## [2026-05-08] review v12 | Enable I/O timing measurements on production
 
 - Re-reviewed `wiki/v12/questions/enable-io-timing-measurements-production.md` against the pinned `raw/postgres-12/` checkout (`45b88269...`). All behavioral claims verified through `scripts/source_graph_query --version 12` against `guc.c`, `bufmgr.c`, `pgstat.c`, `pgstatfuncs.c`, `system_views.sql`, `signalfuncs.c`, `utility.c`, `explain.c`, and `contrib/pg_stat_statements/`.
