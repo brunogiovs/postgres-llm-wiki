@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(scripts/*)",
-      "Bash(/Users/brunovds/repos/postgres-llm-wiki/scripts/source_graph_query *)",
-      "Bash(/Users/brunovds/repos/postgres-llm-wiki/scripts/wiki_lint)"
-    ]
-  }
-}
