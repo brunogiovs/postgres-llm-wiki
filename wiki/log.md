@@ -2,6 +2,17 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-09] filed v12 | Estimate avg_leaf_density without pgstattuple
+
+- Filed `wiki/v12/questions/avg-leaf-density-zero-io-estimate.md` (agent-verified) for a zero-index-I/O catalog-only estimator that reproduces `pgstatindex`'s `avg_leaf_density` for B-tree indexes, including partial indexes, in PostgreSQL 12.
+- Verified `pgstatindex` density formula via `pgstatindex_impl` in `contrib/pgstattuple/pgstatindex.c`: `max_avail = pd_special - SizeOfPageHeaderData` per leaf (L296), aggregate `100 * (max_avail - free_space) / max_avail` (L347-L349). Header (24 B) and BTPageOpaque (16 B) are *outside* `max_avail`, not part of the numerator — corrected an earlier draft formula that included them as "used."
+- Confirmed page-layout constants: `PageHeaderData` 24 B per `bufpage.h#L151-L164,L216`; `BTPageOpaqueData` 16 B (`btpo_prev` 4 + `btpo_next` 4 + `btpo` union 4 + `btpo_flags` 2 + `btpo_cycleid` 2) per `nbtree.h#L55-L66`; `BTREE_DEFAULT_FILLFACTOR = 90` per `nbtree.h#L169`. Per-leaf usable area is 8152 bytes on default `BLCKSZ`.
+- Confirmed `IndexTupleData` 8 B per `itup.h#L35-L51`; `IndexAttributeBitMapData` is a fixed `(INDEX_MAX_KEYS + 7) / 8` = 4 bytes regardless of natts (`INDEX_MAX_KEYS = 32` per `pg_config_manual.h#L52`); `IndexInfoFindDataOffset` returns 8 (no nulls) or 16 (any null) per `itup.h#L80-L90`; `index_form_tuple` ends with `size = MAXALIGN(size)` per `indextuple.c#L132-L133`.
+- Confirmed partial-index handling: VACUUM's `lazy_cleanup_index` writes `vac_update_relstats(indrel, stats->num_pages, stats->num_index_tuples, ...)` per `vacuumlazy.c#L1798-L1815`; B-tree's `btvacuumpage` accumulates live tuples as `maxoff - minoff + 1` per `nbtree.c#L1335`; ANALYZE's index path uses `tupleFract = numindexrows / numrows` per `analyze.c#L821-L822`. Both VACUUM and ANALYZE produce post-predicate `relpages` and `reltuples` for partial indexes. `pg_stats.avg_width` is computed table-wide, not predicate-scoped, per `system_views.sql#L196` and `analyze.c#L1784,L1964,L2344` — flagged as the only partial-index accuracy risk.
+- Recorded that B-tree VACUUM does *not* truncate the index file: `_bt_delitems_vacuum` only compacts pages via `PageIndexMultiDelete` per `nbtpage.c#L986-L1016`, and recyclable pages are recorded in the FSM per `nbtree.c#L1078-L1089`. Of in-tree index AMs, only SP-GiST calls `RelationTruncate` during vacuum per `spgvacuum.c#L882`. Corrected an earlier draft that conflated B-tree behavior with heap right-edge truncation.
+- Production-bound SQL embeds the `/* wiki_pg12_avg_leaf_density_zero_io */` inline tag on every leading verb. Open Questions retain expression-index handling, 32-bit MAXALIGN portability, non-default `BLCKSZ`, the per-tuple HasNulls vs. column-nullable mismatch, and a measured accuracy band.
+- Front matter set to `verified: false` / `verified_by_agent: claude-opus-4-7 2026-05-09T00:00:00Z`. Title, `wiki/index.md`, and `wiki/v12/index.md` link text use the agent-reviewed (no `(unverified)`) form.
+
 ## [2026-05-09] review v12 | Foreign key join optimization
 
 - Re-reviewed `wiki/v12/questions/foreign-key-join-optimization.md` against the pinned `raw/postgres-12/` checkout (`45b88269...`) via `scripts/source_graph_query --version 12`.
