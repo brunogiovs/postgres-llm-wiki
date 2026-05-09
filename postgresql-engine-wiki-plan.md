@@ -26,6 +26,7 @@ Build an LLM-maintained wiki for understanding PostgreSQL engine internals. Dura
   - `## Testing` — when test scenarios or the fake-graphify contract change.
   - `## Implementation Steps` — when the rebuild order changes (e.g. a new script becomes a dependency).
 - `README.md` and `AGENTS.md` follow this plan; update them in the same change when user-facing surfaces change.
+- This plan covers both script architecture and agent-behavior rules (reading protocol, deep inquiry, citation discipline, verification fields, GUC and SQL discipline, operating mode, bookkeeping, version control). AGENTS.md restates these rules for the agent's quick reference; any change to either document must update the other in the same change.
 - Reviewers should reject any pull request that touches `scripts/` without a corresponding edit to this plan, and vice versa.
 
 ## Repository Structure
@@ -149,6 +150,127 @@ verified: false
 verified_by_agent: not yet
 ```
 
+## Reading Protocol
+
+Before writing or editing any wiki content the agent must:
+
+- Read `wiki/versions.md` to identify supported versions and the primary version.
+- Read `wiki/index.md` to orient against the current wiki shape.
+- Read the most recent ~20 entries of `wiki/log.md` for recent activity.
+- Read the relevant `wiki/vNN/index.md` before editing any version-local page.
+- Query the matching `raw/postgres-NN/` checkout only through `scripts/source_graph_query --version NN ...`. If `.wiki-runtime/graph/postgres-NN/graph.json` is absent and a graph subcommand is needed, the wrapper regenerates it via `scripts/source_graph --version NN --refresh`.
+
+Treat `wiki/versions.md`, `wiki/index.md`, `wiki/log.md`, and version landing pages as navigation and bookkeeping context only — not independent evidence for PostgreSQL behavior. Do not use model memory, external websites, package documentation outside the repository, or uncited prior wiki prose as factual support for generated content.
+
+## Deep Inquiry Default
+
+All user questions, reports, and filed answers run in deep-inquiry mode unless the user explicitly asks for a quick answer.
+
+For each question:
+
+- Confirm the target PostgreSQL version and use explicit version-scoped source tools for every source operation.
+- Locate the primary source files and symbols, then inspect adjacent callers, callees, structs, macros, includes, generated headers visible in raw source, reverse include users, graph paths, relevant tests, docs, catalogs, grammar, error paths, GUC definitions, and extension/contrib boundaries through `scripts/source_graph_query`.
+- If any source or graph query used for evidence errors out or cannot produce trustworthy output, abort the current analysis before drafting. Fix and rerun when feasible; otherwise stop and report the exact command, target version, and error.
+- Inspect file or symbol history when intent matters or when a regression/change claim is being made.
+- Use `scripts/version_diff --from NN --to MM` only when the answer makes a cross-version claim or the user asks for a comparison.
+- Draft from a claim-to-source evidence map. Every behavioral claim needs a matching raw citation; unresolved claims go under `## Open Questions`.
+
+Minimum depth target for an engine-internals answer: normal path, relevant error or edge path, key data structures, caller/callee boundary, build or generated-header implications visible from raw source, and tests or explicit test absence. For planner, WAL, crash recovery, MVCC, storage, or corruption topics, missing caller/callee or data-structure context is a verification gap that must be resolved or recorded under `## Open Questions`.
+
+## Citation Discipline
+
+- Cite source paths and symbols for every behavioral claim.
+- Mandatory citation shape: `[[raw/postgres-NN/src/backend/executor/execMain.c#ExecutorRun]]`.
+- For non-Markdown files include the full file extension (`.c`, `.py`, `.java`, etc.).
+- Cite from the `raw/postgres-NN/` checkout matching the page's `version:` value.
+- Use the same citation format for all code references, function names, and symbols mentioned in the text.
+- Code references may use aliases for compact display: `[[raw/postgres-NN/path/file.c#symbol|file.c#symbol]]`.
+- If a claim is not backed by a source file, symbol, documentation page, commit, or saved design discussion, do not write it as fact.
+- Put uncertainty under `## Open Questions` instead of guessing.
+- Never answer about one PostgreSQL version using `raw/` files or `.wiki-runtime/graph/` artifacts from another version.
+- If a graph artifact conflicts with the pinned raw source, the raw source wins. Record the discrepancy under `## Open Questions` or regenerate the graph with `scripts/source_graph --version NN --refresh`.
+
+## Verification Fields
+
+Pages carry two distinct verification fields in front matter:
+
+- `verified:` — human-verified. Only a human reviewer may set, change, or remove this field.
+- `verified_by_agent:` — agent-verified. Agents may set or update this field only after re-checking every claim against the pinned raw source through graph scripts.
+
+Rules:
+
+- New question pages set `verified: false` and `verified_by_agent: not yet`.
+- Do not set `verified_by_agent:` if any claim cannot be verified. Fix the claim, move it under `## Open Questions`, or leave the field absent.
+- Unverified managed wiki documents must show `(unverified)` in the visible title and in index/landing-page link text until a human sets `verified: true`. The agent-set `verified_by_agent:` field does not affect the unverified tag — only the human-set `verified:` field does.
+
+Title rule (one-line check before creating, editing, or filing any wiki page):
+
+- If `verified:` is **not** `true`, the top-level title MUST end with ` (unverified)`.
+- If `verified:` is `true`, the title MUST NOT contain `(unverified)`.
+
+`verified_by_agent` format rule:
+
+- Must be present and follow one of these exact forms:
+  - Draft / not yet fully verified by agent: `verified_by_agent: not yet`
+  - Agent-verified (after deep-inquiry, all claims cited, no `## Open Questions`): `verified_by_agent: <LLM-model-name> | YYYY-MM-DD HH:MM`
+- Use the exact name of the model the agent is currently running and the current timestamp at filing time.
+
+## Operating Mode
+
+- Trace one source slice or question at a time using `scripts/source_graph_query` and the matching raw source checkout.
+- Prefer `scripts/source_graph_query --version NN symbol|file|includes|included-by ...` over ad hoc shell searches.
+- Do not create standalone call-chain or source-trace document families. Regenerate `.wiki-runtime/graph/postgres-NN/` when better graph navigation is needed.
+- Treat generated pages as drafts until their source references are checked.
+- Always use a unicode/ASCII tree for visual directory representations.
+
+## GUC Configuration Changes
+
+- Whenever a wiki page suggests changing a GUC (`postgresql.conf`, `SET`, `ALTER SYSTEM`, etc.), state whether the change requires a restart, reload, or only session/transaction scope.
+- Determine the requirement from the GUC's context in the pinned raw source (`raw/postgres-NN/src/backend/utils/misc/guc*.c` or the version's equivalent) or from a validated `pg_settings` definition in the same version. Cite the source.
+- Map context values explicitly:
+  - `postmaster` → restart required.
+  - `sighup` → reload.
+  - `superuser` / `user` / `backend` → session or transaction scope, no restart or reload beyond changing defaults.
+
+## Production SQL Snippets
+
+Whenever a wiki page proposes SQL intended to be executed against production:
+
+- Verify syntax, referenced catalogs, columns, functions, and GUCs against the pinned `raw/postgres-NN/` checkout before filing. If a snippet cannot be verified, move it under `## Open Questions`.
+- Embed an inline block-comment tag immediately after the leading verb in every production-bound statement:
+
+  ```sql
+  SELECT /* wiki_capture_plan_inputs */ ...;
+  UPDATE /* wiki_backfill_user_email */ users SET ...;
+  ```
+
+- Recommend reasonable session-scoped `statement_timeout` and `lock_timeout` values before the snippet, sized to the operation.
+
+## Bookkeeping
+
+After every meaningful wiki change:
+
+- Update `wiki/index.md` whenever a page is created or substantially changed.
+- Update `wiki/versions.md` whenever a supported version is added, removed, archived, re-pinned, or has a meaningful coverage change.
+- Update the relevant `wiki/vNN/index.md` whenever version-local pages are created or substantially changed.
+- Append an entry to `wiki/log.md` after each scaffold change, ingest, lint pass, filed answer, graph refresh, or version lifecycle event.
+
+Log entry headings use one of these forms:
+
+```md
+## [YYYY-MM-DD] <kind> v<NN> | <subject>
+```
+
+For version-agnostic work:
+
+```md
+## [YYYY-MM-DD] <kind> | <subject>
+```
+
+## Version Control
+
+- Never commit or push without asking for permission.
+
 ## Workflows
 
 ### Add A Supported Version
@@ -194,6 +316,7 @@ How this is currently realized:
 - Scripts run with the minimum permissions needed: read-only on `raw/postgres-NN/` checkouts, no network access except for explicit source-fetch and bootstrap operations, and no shell-out to commands that escalate privilege. Network-touching steps are gated behind explicit flags and logged.
 - Generated artifacts, caches, vendored binaries, the managed Python, and the venv all live under `.wiki-runtime/` and must be covered by `.gitignore`. Removing `.wiki-runtime/` is always a safe reset; rerunning `scripts/bootstrap_venv` reproduces the full environment from scratch.
 - `scripts/test_source_tools` and any future bootstrap script verify the venv exists, the interpreter resolves inside it, and required binaries are reachable from the project tree before doing real work.
+- Never use the `WIKI_ALLOW_SYSTEM_PYTHON=1` bypass for normal work. It exists only for the test wrapper, which copies scripts into a synthetic temp repo where the project-venv guard cannot resolve.
 
 ## Pinned Tooling
 
