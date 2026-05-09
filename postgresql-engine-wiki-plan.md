@@ -143,6 +143,19 @@ verified_by_agent: not yet
 6. File the answer and update indexes/log.
 7. Apply the tone and readability rules from [AGENTS.md](AGENTS.md) (`## Tone And Readability`) on the drafted prose before filing.
 
+## Environment Isolation
+
+All scripts and dependencies must have minimal impact on the host system. Anything that runs as part of this project stays scoped to this repository.
+
+- Python tooling runs inside a project-local virtual environment at `.wiki-runtime/venv/`. Never install Python packages into the system or user site-packages, and never use `sudo pip`, `pipx --global`, or `--user` installs for this project.
+- `requirements.txt` (or `pyproject.toml` + lockfile) at the repo root is the single source of truth for Python dependencies. Scripts must fail fast with a clear message if invoked outside the project venv.
+- Script shebangs and wrappers resolve the interpreter from `.wiki-runtime/venv/bin/python` when one exists, falling back to `#!/usr/bin/env python3` only for venv bootstrap.
+- Non-Python tooling (Graphify CLI, formatters, linters) is installed under `.wiki-runtime/` (e.g. `.wiki-runtime/bin/`, `.wiki-runtime/cache/`) rather than into `/usr/local`, Homebrew, or the user's global path. Document any unavoidable host requirement (Python version, compiler) in `README.md`.
+- Scripts read and write only inside this repository: `raw/`, `wiki/`, `.wiki-runtime/`, `scripts/`, `tests/`, and the project venv. They must not touch `$HOME` outside `~/.cache/<project>` (if strictly needed), must not mutate global git config, and must not require root.
+- Scripts run with the minimum permissions needed: read-only on `raw/postgres-NN/` checkouts, no network access except for explicit source-fetch operations (`source_update`, dependency install), and no shell-out to commands that escalate privilege. Network-touching steps are gated behind explicit flags and logged.
+- Generated artifacts, caches, and the venv live under `.wiki-runtime/` and must be covered by `.gitignore`. Removing `.wiki-runtime/` is always a safe reset.
+- `scripts/test_source_tools` and any future bootstrap script verify the venv exists, the interpreter resolves inside it, and required binaries are reachable from the project tree before doing real work.
+
 ## Testing
 
 `scripts/test_source_tools` runs synthetic tests for:

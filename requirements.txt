@@ -1,0 +1,8 @@
+# Python dependencies for the PostgreSQL engine wiki tooling.
+#
+# Scripts under scripts/ run inside .wiki-runtime/venv/ (see
+# scripts/bootstrap_venv). Add new dependencies here, with a pinned
+# version, before importing them from any script.
+#
+# All current scripts use only the Python standard library; this file
+# is intentionally empty so the venv stays minimal.

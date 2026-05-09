@@ -11,6 +11,18 @@ This repository is an LLM-maintained wiki for PostgreSQL engine internals. The a
 - For any question, answer, report, or generated document, query the matching `raw/postgres-NN/` checkout only through `scripts/source_graph_query --version NN ...`.
 - When graph exploration is useful, use `scripts/source_graph_query --version NN query|path|explain ...`; if `.wiki-runtime/graph/postgres-NN/graph.json` is absent, the query wrapper must generate it through `scripts/source_graph --version NN --refresh`.
 
+## Environment Isolation
+
+Tooling for this project must have minimal impact on the host system. Stay scoped to the repository.
+
+- All Python scripts run from the project venv at `.wiki-runtime/venv/`. Activate it (`source .wiki-runtime/venv/bin/activate`) or invoke scripts as `.wiki-runtime/venv/bin/python scripts/<name>`. Scripts hard-fail with a clear message when run outside the venv.
+- If the venv is missing, run `scripts/bootstrap_venv` to create it. That is the only script that may run with the host `python3`.
+- Add new Python dependencies to `requirements.txt` at the repo root, with a pinned version. Do not `pip install`, `pipx install`, or otherwise install Python packages globally, into user site-packages, or with `--user`. Do not install packages with `sudo`.
+- Read and write only inside this repository (`raw/`, `wiki/`, `.wiki-runtime/`, `scripts/`, `tests/`, `requirements.txt`, top-level docs). Do not touch `$HOME`, mutate global git config, or require root. Treat `raw/postgres-NN/` checkouts as read-only evidence.
+- Do not call commands that escalate privilege (`sudo`, `chown` outside the repo, `chmod` on host paths). Network access is allowed only for the explicit source-fetch operations in `scripts/source_update` and `scripts/bootstrap_venv`.
+- Never use the `WIKI_ALLOW_SYSTEM_PYTHON=1` bypass for normal work. It exists for the test wrapper, which copies scripts into a synthetic temp repo where the venv guard cannot resolve.
+- Generated artifacts, caches, and the venv live under `.wiki-runtime/`. Removing that directory is always a safe reset; rebuild with `scripts/bootstrap_venv` and `scripts/source_graph --version NN --refresh`.
+
 ## Evidence Scope
 
 For every answer, report, wiki page, diagram, or generated document, use only the target version's pinned checkout under `raw/postgres-NN/` as factual evidence. Graphify output under `.wiki-runtime/graph/postgres-NN/` is an orientation layer for finding likely files, symbols, and paths; it is not a citation source for PostgreSQL behavior.
@@ -193,7 +205,7 @@ For version-agnostic work:
 
 Check for broken links, orphan pages, missing source references, stale version pins, wrong-version citations, invalid verification fields, unverified title hints, and version landing pages missing links.
 
-Use the project-local scripts first:
+Use the project-local scripts first. The examples below assume the project venv is active (`source .wiki-runtime/venv/bin/activate`); otherwise prefix each Python script with `.wiki-runtime/venv/bin/python`.
 
 ```bash
 scripts/recent_log --limit 20

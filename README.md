@@ -15,6 +15,20 @@ Source navigation is graph-first:
 
 The pipx package is `graphifyy` (two y's); the CLI it installs is `graphify` (one y). Install with `pipx install graphifyy`.
 
+## Setup
+
+All Python tooling runs inside a project-local virtual environment under `.wiki-runtime/venv/`. Nothing is installed into the system or user site-packages.
+
+```bash
+./scripts/bootstrap_venv                     # creates .wiki-runtime/venv/ and installs requirements.txt
+source .wiki-runtime/venv/bin/activate       # activate (one option)
+.wiki-runtime/venv/bin/python scripts/<name> # or invoke directly
+```
+
+Scripts fail fast with a clear message when run outside the project venv. The bypass `WIKI_ALLOW_SYSTEM_PYTHON=1` exists for emergency use only — the test wrapper sets it because tests run scripts from a synthetic temp repo.
+
+Removing `.wiki-runtime/` is always a safe reset; rerun `scripts/bootstrap_venv` to rebuild.
+
 ## Supported Versions
 
 | Version | Status | Branch |
@@ -38,8 +52,10 @@ raw/
   postgres-18/                # PG 18 source checkout, pinned commit
   postgres-12/                # PG 12 source checkout, pinned commit
 .wiki-runtime/
+  venv/                       # Project-local Python venv (gitignored)
   graph/postgres-NN/          # Generated Graphify graph artifacts
 scripts/
+  bootstrap_venv              # Create/refresh .wiki-runtime/venv/ and install requirements.txt
   source_graph                # Generate per-version Graphify graphs
   source_graph_query          # Query raw source and Graphify graphs
   source_graph_check          # Validate graph artifacts

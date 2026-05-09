@@ -13,6 +13,7 @@ from typing import Iterable
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WIKI_ROOT = REPO_ROOT / "wiki"
 RUNTIME_ROOT = (REPO_ROOT / ".wiki-runtime").resolve()
+PROJECT_VENV = RUNTIME_ROOT / "venv"
 
 SECRET_KEY_RE = re.compile(r"(token|password|secret|api[_-]?key|authorization|bearer)", re.IGNORECASE)
 SECRET_VALUE_RE = re.compile(
@@ -142,6 +143,27 @@ def append_tool_log(tool: str, argv: Iterable[str]) -> None:
 def die(message: str, code: int = 2) -> None:
     print(f"error: {message}", file=sys.stderr)
     raise SystemExit(code)
+
+
+def require_project_venv() -> None:
+    if os.environ.get("WIKI_ALLOW_SYSTEM_PYTHON") == "1":
+        return
+    # sys.prefix points at the venv root; sys.executable can be a symlink
+    # to a system interpreter (e.g. Homebrew on macOS), so don't resolve it.
+    prefix = Path(sys.prefix)
+    expected = PROJECT_VENV
+    in_some_venv = sys.prefix != sys.base_prefix
+    if not in_some_venv or prefix != expected:
+        venv_rel = expected.relative_to(REPO_ROOT).as_posix()
+        die(
+            "this script must run inside the project venv "
+            f"({venv_rel}). Bootstrap with `scripts/bootstrap_venv`, then re-run via "
+            f"`{venv_rel}/bin/python scripts/<name>` or after `source {venv_rel}/bin/activate`. "
+            "Set WIKI_ALLOW_SYSTEM_PYTHON=1 to bypass (not recommended)."
+        )
+
+
+require_project_venv()
 
 
 def strip_ticks(value: str) -> str:
