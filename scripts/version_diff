@@ -37,6 +37,12 @@ def main(argv: list[str] | None = None) -> int:
     if not to_path.exists():
         print(f"error: target file does not exist: {to_path}", file=sys.stderr)
         return 2
+    if from_path.is_dir() or to_path.is_dir():
+        print(
+            f"error: --path must point to a file, not a directory: {args.path}",
+            file=sys.stderr,
+        )
+        return 2
 
     from_lines = from_path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
     to_lines = to_path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)

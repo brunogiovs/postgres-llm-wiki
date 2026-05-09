@@ -7,14 +7,12 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV_PY="$REPO_ROOT/.wiki-runtime/venv/bin/python"
 
-if [ -x "$VENV_PY" ]; then
-    PY="$VENV_PY"
-else
-    echo "warning: project venv missing at .wiki-runtime/venv; falling back to system python3." >&2
-    echo "         Run scripts/bootstrap_venv to create it." >&2
-    PY="python3"
+if [ ! -x "$VENV_PY" ]; then
+    echo "error: project venv missing at .wiki-runtime/venv/bin/python." >&2
+    echo "       Run scripts/bootstrap_venv to create it." >&2
+    exit 1
 fi
 
 cd "$REPO_ROOT"
 PYTHONDONTWRITEBYTECODE=1 WIKI_ALLOW_SYSTEM_PYTHON=1 \
-    "$PY" -m unittest discover -s tests -p 'test_source_tools.py'
+    "$VENV_PY" -m unittest discover -s tests -p 'test_source_tools.py'

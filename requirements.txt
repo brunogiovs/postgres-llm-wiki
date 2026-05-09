@@ -3,6 +3,8 @@
 # Scripts under scripts/ run inside .wiki-runtime/venv/ (see
 # scripts/bootstrap_venv). Add new dependencies here, with a pinned
 # version, before importing them from any script.
-#
-# All current scripts use only the Python standard library; this file
-# is intentionally empty so the venv stays minimal.
+
+# Provides the `graphify` CLI consumed by scripts/source_graph and the
+# graph subcommands of scripts/source_graph_query. Installed into the
+# project venv so the host system stays untouched.
+graphifyy==0.7.10

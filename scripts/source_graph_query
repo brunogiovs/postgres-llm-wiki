@@ -34,6 +34,7 @@ from wiki_tooling import (
     RUNTIME_ROOT,
     append_tool_log,
     die,
+    find_graphify,
     load_versions,
     read_include_directives,
     render_repo_path,
@@ -67,9 +68,10 @@ def ensure_graph(version: str) -> Path:
 
 
 def run_graphify(argv: list[str]) -> int:
-    if shutil.which("graphify") is None:
+    graphify_bin = find_graphify()
+    if graphify_bin is None:
         die("graphify is not installed; install package `graphifyy` to provide the `graphify` CLI")
-    proc = subprocess.run(argv, text=True, capture_output=True)
+    proc = subprocess.run([graphify_bin, *argv], text=True, capture_output=True)
     if proc.stdout:
         print(proc.stdout.rstrip())
     if proc.stderr:
@@ -320,7 +322,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "included-by":
         return show_included_by(args.version, args.target, limit=args.limit, as_json=args.format == "json")
 
-    command = ["graphify", args.command]
+    command = [args.command]
     if args.command == "query":
         command.append(args.question)
         if args.dfs:

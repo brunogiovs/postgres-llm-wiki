@@ -31,6 +31,7 @@ from wiki_tooling import (
     append_tool_log,
     die,
     ensure_private_dir,
+    find_graphify,
     load_versions,
     redact_args,
     render_repo_path,
@@ -178,26 +179,28 @@ def source_head(run: GraphRun) -> str:
 
 
 def probe_tools(run: GraphRun) -> None:
-    graphify = shutil.which("graphify")
+    graphify = find_graphify()
     run.tools["graphify"] = graphify or "missing"
 
     git = shutil.which("git")
     run.tools["git"] = git or "missing"
 
 
-def graphify_command(run: GraphRun, args: argparse.Namespace) -> tuple[list[str], dict[str, str] | None]:
+def graphify_command(
+    run: GraphRun, args: argparse.Namespace, graphify_bin: str
+) -> tuple[list[str], dict[str, str] | None]:
     rel_source = os.path.relpath(run.source, run.graph_dir)
     if args.cluster_only:
-        argv = ["graphify", "cluster-only", ".", "--graph", "graph.json"]
+        argv = [graphify_bin, "cluster-only", ".", "--graph", "graph.json"]
         if args.no_viz:
             argv.append("--no-viz")
         return argv, None
 
     env = {"GRAPHIFY_OUT": str(run.graph_dir / "graphify-out")}
     if not args.semantic:
-        return ["graphify", "update", str(run.source.resolve()), "--force"], env
+        return [graphify_bin, "update", str(run.source.resolve()), "--force"], env
 
-    argv = ["graphify", "extract", rel_source, "--out", "."]
+    argv = [graphify_bin, "extract", rel_source, "--out", "."]
     if args.backend:
         argv.extend(["--backend", args.backend])
     if args.model:
@@ -242,7 +245,8 @@ def copy_graphify_output(run: GraphRun) -> tuple[bool, list[str]]:
 
 
 def generate_graph(run: GraphRun, args: argparse.Namespace) -> None:
-    if shutil.which("graphify") is None:
+    graphify_path = find_graphify()
+    if graphify_path is None:
         run.add_artifact(
             "graph.json",
             run.graph_dir / "graph.json",
@@ -254,7 +258,7 @@ def generate_graph(run: GraphRun, args: argparse.Namespace) -> None:
             run.add_artifact("graph.html", run.graph_dir / "graph.html", "deferred", "graphify is not installed")
         return
 
-    argv, command_env = graphify_command(run, args)
+    argv, command_env = graphify_command(run, args, graphify_path)
     proc = run_command(run, argv, cwd=run.graph_dir, env=command_env, timeout=args.timeout)
     if proc is None or proc.returncode != 0:
         detail = "graphify command failed"
@@ -301,7 +305,8 @@ def manifest_text(run: GraphRun, head: str) -> str:
         "|---|---|",
     ]
     for tool, status in sorted(run.tools.items()):
-        lines.append(f"| `{tool}` | {status.replace('|', '\\|')} |")
+        escaped_status = status.replace("|", "\\|")
+        lines.append(f"| `{tool}` | {escaped_status} |")
 
     lines.extend(["", "## Artifact Status", "", "| Artifact | Path | Status | Details |", "|---|---|---|---|"])
     for artifact in run.artifacts:

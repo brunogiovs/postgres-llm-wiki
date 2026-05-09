@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +15,23 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 WIKI_ROOT = REPO_ROOT / "wiki"
 RUNTIME_ROOT = (REPO_ROOT / ".wiki-runtime").resolve()
 PROJECT_VENV = RUNTIME_ROOT / "venv"
+
+
+def find_graphify() -> str | None:
+    """Locate the graphify CLI.
+
+    PATH first so callers can override (and tests can isolate by clearing
+    PATH). Falls back to the project venv's bin/, which `bootstrap_venv`
+    populates — this lets scripts invoked via `.wiki-runtime/venv/bin/python`
+    find graphify even when the venv is not activated.
+    """
+    found = shutil.which("graphify")
+    if found:
+        return found
+    venv_bin = PROJECT_VENV / "bin" / "graphify"
+    if venv_bin.is_file() and os.access(venv_bin, os.X_OK):
+        return str(venv_bin)
+    return None
 
 SECRET_KEY_RE = re.compile(r"(token|password|secret|api[_-]?key|authorization|bearer)", re.IGNORECASE)
 SECRET_VALUE_RE = re.compile(
