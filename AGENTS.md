@@ -101,7 +101,7 @@ Rules:
 
 - When creating new question pages, set `verified: false` and `verified_by_agent: not yet`.
 - Do not set `verified_by_agent:` if any claim cannot be verified. Fix the claim, move it under `## Open Questions`, or leave the field absent.
-- Unverified managed wiki documents must show `(unverified)` in the visible title and in index or landing-page link text until a human sets `verified: true` or an agent writes a valid `verified_by_agent:` timestamp.
+- Unverified managed wiki documents must show `(unverified)` in the visible title and in index or landing-page link text until a human sets `verified: true`. `verified_by_agent:` does not affect this tag — only the human-set `verified:` field does.
 - For question pages under `wiki/vNN/questions/`, front matter must use exactly this order:
 
   ```yaml

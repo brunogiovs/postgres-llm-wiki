@@ -2,6 +2,60 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-09] review v12 | Foreign key join optimization
+
+- Re-reviewed `wiki/v12/questions/foreign-key-join-optimization.md` against the pinned `raw/postgres-12/` checkout (`45b88269...`) via `scripts/source_graph_query --version 12`.
+- Verified `get_relation_foreign_keys()` at `plancat.c#L476` (FK collection, inheritance-parent skip at `L498`); `match_foreign_keys_to_quals()` at `initsplan.c#L2413` (EC match via `match_eclasses_to_foreign_key_col` then loose-qual fallback over `con_rel->joininfo`); `get_foreign_key_join_selectivity()` at `costsize.c#L4709` with the `1.0 / Max(ref_rel->tuples, 1.0)` payoff at `L4900`, the JOIN_SEMI/JOIN_ANTI `ref_rel->rows / ref_tuples` branch at `L4888`, and the restrictlist `list_delete_cell()` removal at `L4816`; `calc_joinrel_size_estimate()` call site at `costsize.c#L4589`.
+- Tightened the "FK-matched clauses removed" citation from the imprecise `costsize.c#4765` (worklist shallow-copy guard) to the L4759-L4821 removal block, with the failed-removal punt at L4842 also captured.
+- Replaced "via equivalence classes or direct qual matching" with the source term of art ("loose quals"), and broadened the inner-join scope statement to include JOIN_LEFT/JOIN_FULL since the same `1/tuples` formula applies to all non-semi/anti joins.
+- Promoted the inheritance Open Question into a dedicated `## Inheritance Interaction` section grounded in the `plancat.c#L498-L499` parent skip, the `initsplan.c#L2445-L2447` `RELOPT_BASEREL` requirement, and the `costsize.c#L4862-L4870` XXX comment about FK-covers-children estimation.
+- Set `verified_by_agent: claude-opus-4-7 2026-05-09T00:00:00Z`; human `verified: false` preserved. Dropped "(unverified)" from the title and from `wiki/index.md` and `wiki/v12/index.md` link text.
+
+## [2026-05-09] filed v12 | REINDEX CONCURRENTLY disk space requirements
+
+- Filed `wiki/v12/questions/reindex-concurrently-disk-space.md` (unverified) for the disk-space cost of `REINDEX INDEX CONCURRENTLY` on a 10 GB heap with a 5 GB B-tree index.
+- Mapped the six phases of `ReindexRelationConcurrently()` to disk impact: phase 1 catalog `_ccnew` row, phase 2 `index_concurrently_build()` → `btbuild()` → `_bt_leafbuild()` build with `tuplesort_performsort()` and `_bt_blwritepage()` WAL via `log_newpage`, phase 3 `validate_index()` heap rescan and TID `tuplesort_begin_datum`, phase 4 `index_concurrently_swap()` `indisvalid` flip, phase 5 dead-mark, phase 6 `performMultipleDeletions(... PERFORM_DELETION_CONCURRENT_LOCK ...)` drop.
+- Verified that `index_concurrently_create_copy()` passes `indexRelation->rd_rel->reltablespace` into `index_create()`, so the new file lands in the same tablespace as the old; old and new index files coexist on disk from phase 2 through phase 6.
+- Recorded `btws_use_wal = XLogIsNeeded() && RelationNeedsWAL(wstate.index)` in `_bt_leafbuild()`, so WAL volume is roughly the index size on a normal `wal_level >= replica` primary.
+- Sizing recipe: ≥ 2× index size free on the index's tablespace (≈10 GB for a 5 GB index), ≥ 1× index size free on `pg_wal` above normal headroom (≈5 GB), and up to ~5 GB temp space for the build sort if `maintenance_work_mem` cannot hold it. Heap is read but not rewritten.
+- GUC reload semantics: `temp_tablespaces`, `maintenance_work_mem`, `statement_timeout`, `lock_timeout` all `PGC_USERSET`, so `SET LOCAL` before `REINDEX CONCURRENTLY` needs no restart or reload.
+- Front matter set to `verified: false` / `verified_by_agent: not yet`; visible title and link text use `(unverified)`.
+- Updated `wiki/index.md`, `wiki/v12/index.md`, and `wiki/versions.md` to link the new page and reflect coverage.
+
+## [2026-05-08] question v12 | Foreign key join optimization
+
+- Filed `wiki/v12/questions/foreign-key-join-optimization.md` with comprehensive analysis of how foreign key constraints influence query planner join optimization in PostgreSQL 12.
+- Analysis covers FK constraint collection during planning, matching join conditions to FK relationships, selectivity estimation using FK semantics (1/referenced-table-size for inner joins), removal of FK-matched clauses from restrictlists, and special handling for semi/anti joins.
+- Cited `get_relation_foreign_keys()` in `plancat.c`, `match_foreign_keys_to_quals()` in `initsplan.c`, `get_foreign_key_join_selectivity()` in `costsize.c`, and `match_eclasses_to_foreign_key_col()` in `equivclass.c`.
+- Front matter set to `verified: false` / `verified_by_agent: not yet`.
+- Updated `wiki/index.md` and `wiki/v12/index.md` to link the new page.
+
+## [2026-05-08] question v12 | NULL inequality comparison behavior
+
+- Filed `wiki/v12/questions/null-inequality-comparison-behavior.md` explaining why `SELECT * FROM users WHERE status_id <> 1` excludes rows where `status_id` is NULL.
+- Behavior grounded in PostgreSQL's NULL comparison semantics (any comparison with NULL yields NULL) and WHERE clause NULL handling (NULL treated as FALSE) in the expression evaluator.
+- Cited `EEOP_QUAL` in `execExprInterp.c` for WHERE qualification logic.
+- Front matter set to `verified: false` / `verified_by_agent: claude-opus-4-7 2026-05-08T20:00:00Z`.
+- Updated `wiki/index.md` and `wiki/v12/index.md` to link the new page.
+
+## [2026-05-08] question v12 | Foreign key join optimization
+
+- Filed `wiki/v12/questions/foreign-key-join-optimization.md` with source-grounded analysis of how foreign key constraints affect query planner join optimization in PostgreSQL 12.
+- Analysis covers selectivity estimation via `eqjoinsel()`, join ordering in `join_search()`, and runtime enforcement through triggers.
+- Foreign keys do not provide special optimization hints; planner uses column statistics only.
+- Cited `pg_constraint` catalog, `eqjoinsel()` in `selfuncs.c`, and `joinpath.c` for join planning.
+- Front matter set to `verified: false` / `verified_by_agent: not yet`.
+- Updated `wiki/index.md` and `wiki/v12/index.md` to link the new page.
+
+## [2026-05-08] question v12 | Two-table vs jsonb item attributes
+
+- Filed `wiki/v12/questions/two-table-vs-jsonb-item-attributes.md` with comprehensive pros/cons analysis of normalized `item` + `item_attributes` tables versus single `item` table with `jsonb` attributes column.
+- Analysis covers schema flexibility, data integrity, performance, indexing, and migration considerations based on PostgreSQL 12's jsonb capabilities.
+- Added section on jsonb update performance implications: full value reconstruction costs, TOAST overhead for small changes, GIN index maintenance costs, and MVCC/WAL impact.
+- Cited jsonb implementation (`jsonb.c`, `jsonb.h`), operators/functions from test suite, GIN indexing support (`jsonb_gin.c`), and `setPath()` function behavior.
+- Front matter set to `verified: false` / `verified_by_agent: not yet`.
+- Updated `wiki/index.md` and `wiki/v12/index.md` to link the new page.
+
 ## [2026-05-08] question v12 | Query planner settings inventory and non-default sampling
 
 - Filed `wiki/v12/questions/query-planner-settings-non-default-and-inventory.md` with a `pg_settings` query that flags non-default planner GUCs across the four `Query Tuning / *` categories (including the partitioned-table GUCs `enable_partitionwise_join`, `enable_partitionwise_aggregate`, `enable_partition_pruning`, and `constraint_exclusion`), plus a per-GUC inventory of every planner setting with defaults, ranges, enum options, and how each affects the planner.
