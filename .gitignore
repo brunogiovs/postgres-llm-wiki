@@ -11,3 +11,4 @@ __pycache__/
 # committed as part of the wiki content.
 raw/postgres-*/
 raw/_archive/postgres-*/
+.continue

@@ -7,4 +7,4 @@
 # Provides the `graphify` CLI consumed by scripts/source_graph and the
 # graph subcommands of scripts/source_graph_query. Installed into the
 # project venv so the host system stays untouched.
-graphifyy==0.7.10
+graphifyy==0.7.11
