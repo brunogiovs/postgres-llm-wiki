@@ -1,21 +1,27 @@
 export ANTHROPIC_BASE_URL=http://agentserver.tailda962e.ts.net:8080
+export ANTHROPIC_AUTH_TOKEN=dummy
 
-# ====================== LOCAL QWEN CONFIG ======================
-# Model
-export ANTHROPIC_MODEL=Qwen3.6-35B-A3B-UD-Q3_K_M
-export ANTHROPIC_DEFAULT_HAIKU_MODEL=Qwen3.6-35B-A3B-UD-Q3_K_M
-export ANTHROPIC_DEFAULT_SONNET_MODEL=Qwen3.6-35B-A3B-UD-Q3_K_M
-export ANTHROPIC_DEFAULT_OPUS_MODEL=Qwen3.6-35B-A3B-UD-Q3_K_M
-export CLAUDE_CODE_SUBAGENT_MODEL=Qwen3.6-35B-A3B-UD-Q3_K_M
+# Model (one name, all tiers)
+MODEL=Qwen3.6-35B-A3B   # verify this matches your server's model ID
+export ANTHROPIC_DEFAULT_HAIKU_MODEL=$MODEL
+export ANTHROPIC_DEFAULT_SONNET_MODEL=$MODEL
+export ANTHROPIC_DEFAULT_OPUS_MODEL=$MODEL
+export CLAUDE_CODE_SUBAGENT_MODEL=$MODEL
 
-
-# Context & Behavior
+# Context: both required, or the override is silently ignored
+export DISABLE_COMPACT=0
 export CLAUDE_CODE_MAX_CONTEXT_TOKENS=131072
-export DISABLE_COMPACT=1
+export CLAUDE_CODE_MAX_OUTPUT_TOKENS=8192
+
+# Local-backend compatibility
 export CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1
 export CLAUDE_CODE_DISABLE_NONSTREAMING_FALLBACK=1
+export CLAUDE_CODE_ATTRIBUTION_HEADER=0
 export CLAUDE_CODE_DISABLE_THINKING=1
 export MAX_THINKING_TOKENS=0
 
-# ====================== RUN ======================
+# Keep traffic local
+export DISABLE_TELEMETRY=1
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+
 claude

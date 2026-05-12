@@ -12,3 +12,4 @@ __pycache__/
 raw/postgres-*/
 raw/_archive/postgres-*/
 .continue
+run_claude*
