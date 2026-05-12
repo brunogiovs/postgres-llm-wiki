@@ -8,8 +8,7 @@ This repository is an LLM-maintained wiki for PostgreSQL engine internals. The a
 - Read `wiki/index.md` before modifying or answering from the wiki.
 - Read the last ~20 entries of `wiki/log.md` to understand recent activity.
 - For version-specific work, read the relevant `wiki/vNN/index.md` before editing version-local pages.
-- For any question, answer, report, or generated document, query the matching `raw/postgres-NN/` checkout only through `scripts/source_graph_query --version NN ...`.
-- When graph exploration is useful, use `scripts/source_graph_query --version NN query|path|explain ...`; if `.wiki-runtime/graph/postgres-NN/graph.json` is absent, the query wrapper must generate it through `scripts/source_graph --version NN --refresh`.
+- For any question, answer, report, or generated document, query the matching `raw/postgres-NN/` checkout directly using the Read tool, Bash (`grep`, `find`, `rg`), and the project's own shell tooling.
 
 ## MANDATORY Environment Isolation
 
@@ -29,16 +28,9 @@ For every answer, report, wiki page, diagram, or generated document, use only th
 
 - Treat `wiki/versions.md`, `wiki/index.md`, `wiki/log.md`, and version landing pages as navigation and bookkeeping context, not independent evidence for PostgreSQL behavior.
 - Do not use model memory, external websites, package documentation outside the repository, or uncited prior wiki prose as factual support for generated content.
-- Use `scripts/source_graph_query` raw subcommands for evidence gathering:
-  - `symbol` for fixed-string or regex source search.
-  - `file` for bounded raw source slices and directory listings.
-  - `log` for source checkout git history.
-  - `includes` for direct raw `#include` directives.
-  - `included-by` for raw reverse include scans.
-- Use `scripts/source_graph_query` graph subcommands only for orientation:
-  - `query` for natural-language graph lookup.
-  - `path` for exact graph paths between nodes.
-  - `explain` for graph node summaries.
+- Gather evidence directly from the `raw/postgres-NN/` checkout:
+  - Use the Read tool and Bash (`grep`, `rg`, `find`) for source search and bounded file reads.
+  - Use `git log` / `git blame` inside `raw/postgres-NN/` for source history.
 - Never answer about one PostgreSQL version using `raw/` files or `.wiki-runtime/graph/` artifacts from another version.
 - If a graph artifact conflicts with the pinned raw source, the raw source wins. Record the discrepancy under `## Open Questions` or regenerate the graph with `scripts/source_graph --version NN --refresh`.
 
@@ -49,8 +41,8 @@ All user questions, reports, and filed answers run in deep-inquiry mode unless t
 For each question:
 
 - Confirm the target PostgreSQL version and use explicit version-scoped source tools for every source operation.
-- Locate the primary source files and symbols, then inspect adjacent callers, callees, structs, macros, includes, generated headers visible in raw source, reverse include users, graph paths, relevant tests, docs, catalogs, grammar, error paths, GUC definitions, and extension/contrib boundaries through `scripts/source_graph_query`.
-- If any project-local graph/source query used for evidence returns an error or cannot produce trustworthy output, abort the current analysis before drafting. Fix and rerun the command when feasible; otherwise stop and report the exact command, target version, and error.
+- Locate the primary source files and symbols, then inspect adjacent callers, callees, structs, macros, includes, generated headers visible in raw source, reverse include users, relevant tests, docs, catalogs, grammar, error paths, GUC definitions, and extension/contrib boundaries through direct source search (Read tool, `grep`, `rg`, `find`).
+- If direct source search returns an error or cannot produce trustworthy output, abort the current analysis before drafting. Fix and rerun when feasible; otherwise stop and report the exact command, target version, and error.
 - Inspect file or symbol history when the user asks why something exists, when intent matters, or when a regression/change claim is being made.
 - Use `scripts/version_diff --from NN --to MM` only when the answer makes a cross-version claim or the user asks for a comparison.
 - Draft from a claim-to-source evidence map. Every behavioral claim needs a matching raw citation; unresolved claims go under `## Open Questions`.
@@ -142,8 +134,8 @@ Rules:
 
 ## MANDATORY Operating Mode
 
-- Trace one source slice or question at a time using `scripts/source_graph_query` and the matching raw source checkout.
-- Prefer `scripts/source_graph_query --version NN symbol ...`, `file ...`, `includes ...`, and `included-by ...` over ad hoc shell searches.
+- Trace one source slice or question at a time using the matching raw source checkout.
+- Prefer direct source search (Read tool, `grep`, `rg`, `find`) over ad hoc shell searches.
 - Do not create standalone call-chain or source-trace document families. Regenerate `.wiki-runtime/graph/postgres-NN/` when better graph navigation is needed.
 - Treat generated pages as drafts until their source references are checked.
 - Always use a unicode/ASCII tree for visual directory representations.
@@ -188,14 +180,14 @@ For version-agnostic work:
 2. Read `wiki/vNN/index.md`.
 3. Run `scripts/source_graph --version NN --refresh`.
 4. Run `scripts/source_graph_check --version NN` and use `--probe-node <symbol>` when a focused source area has a known symbol.
-5. Search relevant raw source files through `scripts/source_graph_query --version NN ...` before writing claims.
+5. Search relevant raw source files directly before writing claims.
 6. Update `wiki/vNN/index.md`, `wiki/index.md`, and `wiki/versions.md` when coverage status changes, and append to `wiki/log.md`.
 
 ### MANDATORY Answer And File
 
 1. Assume the primary version unless the user specifies another.
 2. Search `wiki/versions.md`, the relevant version landing page, and `wiki/index.md` for navigation and bookkeeping context only.
-3. Build the deep inquiry context envelope with `scripts/source_graph_query --version NN` raw and graph subcommands.
+3. Build the deep inquiry context envelope by searching the pinned `raw/postgres-NN/` checkout directly.
 4. Draft a claim-to-source evidence map. Move anything not verified into `## Open Questions`.
 5. Answer with citations to matching `raw/postgres-NN/` paths and symbols.
 6. File durable answers as question pages or fold them into existing pages. Filed question pages should include `## Context Reviewed`, `## Evidence Map`, and `## Open Questions` when gaps exist.
@@ -212,22 +204,12 @@ scripts/recent_log --limit 20
 scripts/wiki_lint
 scripts/source_graph --version 18 --dry-run
 scripts/source_graph --version 18 --refresh
-scripts/source_graph_query --version 18 symbol ExecutorRun
-scripts/source_graph_query --version 18 symbol '\bExecutorRun\b' --regex --limit 20
-scripts/source_graph_query --version 18 file src/backend/executor/execMain.c --start 1 --limit 80
-scripts/source_graph_query --version 18 log src/backend/executor/execMain.c --limit 20
-scripts/source_graph_query --version 18 includes src/backend/executor/execMain.c --format json
-scripts/source_graph_query --version 18 included-by executor/executor.h --limit 50
-scripts/source_graph_query --version 18 explain ExecutorRun
-scripts/source_graph_query --version 18 path PostgresMain ExecutorRun
 scripts/source_graph_check --version 18 --probe-node ExecutorRun
 scripts/version_diff --from 18 --to 17 --path src/backend/executor/execMain.c
 scripts/source_update --list
 scripts/source_update --version 18
 scripts/test_source_tools
 ```
-
-`scripts/source_graph_query` requires `--version NN`. Raw subcommands (`symbol`, `file`, `log`, `includes`, `included-by`) query `raw/postgres-NN/` directly. Graph subcommands (`query`, `path`, `explain`) use `.wiki-runtime/graph/postgres-NN/graph.json` and force generation through `scripts/source_graph --version NN --refresh` when the graph is absent.
 
 `scripts/source_graph` requires `--version NN` or explicit `--all`. It writes `.wiki-runtime/graph/postgres-NN/manifest.md`, `graph.json`, `GRAPH_REPORT.md`, optional visualization/export artifacts, and deferred artifact notes when `graphify` is unavailable. By default it uses Graphify's local AST-only update path and does not require an LLM backend/API key. Pass `--semantic --backend gemini|kimi|claude|openai|ollama` only when semantic extraction is explicitly desired.
 

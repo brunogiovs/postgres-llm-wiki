@@ -8,8 +8,8 @@ Build an LLM-maintained wiki for understanding PostgreSQL engine internals. Dura
 
 - Explain PostgreSQL internals through durable Markdown pages.
 - Keep every behavioral claim tied to raw source files, symbols, documentation, commits, or saved design discussions.
-- Use a per-version Graphify graph as the navigation layer, not as behavioral evidence.
-- Query raw source only through `scripts/source_graph_query --version NN ...`.
+- Use a per-version graph for visual context and navigation only.
+- Query raw source directly using the Read tool, Bash (`grep`, `rg`, `find`), and standard shell tooling.
 - Preserve uncertainty instead of inventing intent.
 
 ## Plan Synchronisation Rule
@@ -69,7 +69,6 @@ scripts/
   bootstrap_venv             # bash; creates .wiki-runtime/venv via uv + managed CPython
   recent_log                 # python; tail wiki/log.md
   source_graph               # python; generate per-version Graphify graph
-  source_graph_query         # python; raw + graph query surface
   source_graph_check         # python; validate graph manifests/JSON/refs
   source_update              # python; clone or refresh raw/postgres-NN/
   source_rebuild             # python; reclone raw/postgres-NN/ at latest tag
@@ -84,28 +83,28 @@ tests/
 
 ## Source Navigation Contract
 
-`scripts/source_graph_query` is the only source-query interface agents should use.
+Agents query raw source directly using the Read tool, Bash (`grep`, `rg`, `find`, `git grep`), and standard shell tooling.
 
-Raw subcommands read `raw/postgres-NN/` directly:
-
-```bash
-scripts/source_graph_query --version 18 symbol ExecutorRun
-scripts/source_graph_query --version 18 symbol '\bExecutorRun\b' --regex --limit 20
-scripts/source_graph_query --version 18 file src/backend/executor/execMain.c --start 1 --limit 80
-scripts/source_graph_query --version 18 log src/backend/executor/execMain.c --limit 20
-scripts/source_graph_query --version 18 includes src/backend/executor/execMain.c --format json
-scripts/source_graph_query --version 18 included-by executor/executor.h --limit 50
-```
-
-Graph subcommands query `.wiki-runtime/graph/postgres-NN/graph.json`; if the graph is absent, the wrapper forces generation through `scripts/source_graph --version NN --refresh`:
+Example searches against `raw/postgres-12/`:
 
 ```bash
-scripts/source_graph_query --version 18 explain ExecutorRun
-scripts/source_graph_query --version 18 path PostgresMain ExecutorRun
-scripts/source_graph_query --version 18 query "show the executor flow" --dfs
+# Symbol search via git grep (respects .gitignore, ignores untracked files)
+cd raw/postgres-12 && git grep -n 'ExecutorRun' -- '*.c' '*.h'
+
+# Regex symbol search
+cd raw/postgres-12 && git grep -En '\bExecutorRun\b' -- '*.c' '*.h'
+
+# Bounded file read via Read tool or head/tail/sed
+# Or: rg -n 'ExecutorRun' --glob '!.git' .  (from within raw/postgres-12/)
+
+# Git log for a source path
+cd raw/postgres-12 && git log --oneline -- src/backend/executor/execMain.c
+
+# Find all files including a header
+cd raw/postgres-12 && grep -rl '#include.*executor.h' src/ --include='*.c' --include='*.h'
 ```
 
-`scripts/source_graph` generates per-version graphs:
+`scripts/source_graph` generates per-version graph artifacts:
 
 ```bash
 scripts/source_graph --version 18 --dry-run
@@ -113,7 +112,7 @@ scripts/source_graph --version 18 --refresh
 scripts/source_graph --all
 ```
 
-Graph generation uses Graphify's local AST-only update path by default and does not require an LLM API key. Semantic extraction is opt-in with `--semantic --backend ...`.
+Graph generation uses a local AST-only update path by default and does not require an LLM API key. Semantic extraction is opt-in with `--semantic --backend ...`.
 
 `scripts/source_graph_check` validates graph manifests, pins, JSON parseability, wrong-version references, missing project references, and optional query probes:
 
@@ -158,7 +157,7 @@ Before writing or editing any wiki content the agent must:
 - Read `wiki/index.md` to orient against the current wiki shape.
 - Read the most recent ~20 entries of `wiki/log.md` for recent activity.
 - Read the relevant `wiki/vNN/index.md` before editing any version-local page.
-- Query the matching `raw/postgres-NN/` checkout only through `scripts/source_graph_query --version NN ...`. If `.wiki-runtime/graph/postgres-NN/graph.json` is absent and a graph subcommand is needed, the wrapper regenerates it via `scripts/source_graph --version NN --refresh`.
+- Query the matching `raw/postgres-NN/` checkout directly using the Read tool, Bash (`grep`, `rg`, `find`, `git grep`), and standard shell tooling.
 
 Treat `wiki/versions.md`, `wiki/index.md`, `wiki/log.md`, and version landing pages as navigation and bookkeeping context only — not independent evidence for PostgreSQL behavior. Do not use model memory, external websites, package documentation outside the repository, or uncited prior wiki prose as factual support for generated content.
 
@@ -169,7 +168,7 @@ All user questions, reports, and filed answers run in deep-inquiry mode unless t
 For each question:
 
 - Confirm the target PostgreSQL version and use explicit version-scoped source tools for every source operation.
-- Locate the primary source files and symbols, then inspect adjacent callers, callees, structs, macros, includes, generated headers visible in raw source, reverse include users, graph paths, relevant tests, docs, catalogs, grammar, error paths, GUC definitions, and extension/contrib boundaries through `scripts/source_graph_query`.
+- Locate the primary source files and symbols, then inspect adjacent callers, callees, structs, macros, includes, generated headers visible in raw source, reverse include users, relevant tests, docs, catalogs, grammar, error paths, GUC definitions, and extension/contrib boundaries through direct source search (Read tool, `grep`, `rg`, `find`, `git grep`).
 - If any source or graph query used for evidence errors out or cannot produce trustworthy output, abort the current analysis before drafting. Fix and rerun when feasible; otherwise stop and report the exact command, target version, and error.
 - Inspect file or symbol history when intent matters or when a regression/change claim is being made.
 - Use `scripts/version_diff --from NN --to MM` only when the answer makes a cross-version claim or the user asks for a comparison.
@@ -217,8 +216,8 @@ Title rule (one-line check before creating, editing, or filing any wiki page):
 
 ## Operating Mode
 
-- Trace one source slice or question at a time using `scripts/source_graph_query` and the matching raw source checkout.
-- Prefer `scripts/source_graph_query --version NN symbol|file|includes|included-by ...` over ad hoc shell searches.
+- Trace one source slice or question at a time using the matching raw source checkout.
+- Prefer direct source search (Read tool, `grep`, `rg`, `find`) over ad hoc shell searches.
 - Do not create standalone call-chain or source-trace document families. Regenerate `.wiki-runtime/graph/postgres-NN/` when better graph navigation is needed.
 - Treat generated pages as drafts until their source references are checked.
 - Always use a unicode/ASCII tree for visual directory representations.
@@ -292,7 +291,7 @@ For version-agnostic work:
 ### Answer And File
 
 1. Determine the target version.
-2. Use `scripts/source_graph_query --version NN ...` raw and graph subcommands to build a source envelope.
+2. Build a source envelope by searching the pinned `raw/postgres-NN/` checkout directly.
 3. Check relevant callers, callees, structs, macros, includes, tests, docs, catalogs, grammar, error paths, GUC definitions, and extension boundaries.
 4. Draft from a claim-to-source evidence map.
 5. Put gaps under `## Open Questions`.
@@ -589,60 +588,6 @@ Pipeline (per version):
 
 `--all` iterates versions sorted by integer descending and OR-s the per-version exit codes.
 
-### `scripts/source_graph_query`
-
-Purpose: the single source-query surface for agents.
-
-Top-level argument: `--version NN` (required). One subcommand chosen via `subparsers(required=True)`.
-
-Subcommands:
-
-- `symbol SYMBOL [--regex] [--limit N=100]` — search raw source for text or a regex.
-- `file PATH [--start N=1] [--limit N=100]` — print a slice of a raw source file, or list a directory.
-- `log PATH [--limit N=20]` — `git log --oneline` for a path inside the raw checkout.
-- `includes PATH [--format text|json]` — list direct `#include` directives (resolved).
-- `included-by TARGET [--limit N=100] [--format text|json]` — list raw `*.c`/`*.h` files that include the target.
-- `query QUESTION [--dfs] [--budget N]` — run `graphify query`.
-- `path SOURCE TARGET` — run `graphify path`.
-- `explain NODE` — run `graphify explain`.
-
-Common behaviour:
-
-1. `append_tool_log("source_graph_query", ...)`.
-2. `versions = load_versions()`; `die()` on unknown version.
-3. `root = source_checkout(args.version)`.
-
-Raw subcommands:
-
-- `symbol`:
-  - If `<root>/.git` exists and `git` is on PATH: run `git -C <root> grep -n` plus `-E` (regex) or `-F` (literal), then `--`, then the query. `returncode > 1` is a real error and is forwarded; `returncode == 1` means "no matches".
-  - Else if `rg` is on PATH: run `rg -n --hidden --glob '!.git'` plus `--fixed-strings` (when not regex), then `--`, query, `.` with `cwd=root`.
-  - Else fall back to a pure-Python rglob walk that reads each non-`.git` file and searches line-by-line. Compile the regex if `--regex`; report a clear error on `re.error`.
-  - Apply `--limit` (0 means no limit). Print one match per line; exit 1 with `no matches for '<symbol>'` on stderr when empty.
-- `file`:
-  - `safe_source_path(version, path)`. If the path is a directory, list immediate children (`name/` for sub-dirs).
-  - Else open the file with `errors="replace"` and print lines `[start, start+limit-1]`. Format: `{lineno:6d}\t{rstripped line}`. `--limit 0` means all lines.
-- `log`:
-  - Require `<root>/.git`. Run `git -C <root> log --oneline --max-count=<limit> -- <path>`. Forward stdout/stderr.
-- `includes`:
-  - Resolve each `#include` from `read_include_directives(path)` against the include search roots (see below). Each row is `{include, resolved (or null), source}`; render as `<include> -> <resolved or "unresolved">` for text or as `{"includes": rows}` JSON.
-- `included-by`:
-  - Resolve target either as `<root>/<target>` (when it exists) or via `resolve_include`. `die()` if unresolved.
-  - Iterate `raw_files(root)`:
-    - When `<root>/.git` exists: `git -C <root> ls-files '*.c' '*.h'` (preserves only tracked files; this is the test that ignores untracked noise like `wiki/noise.md`). Fallback to `rglob` on `*.c`/`*.h`.
-  - For each candidate, count include directives whose resolved path matches the target. Sort by `(-count, source)` and apply `--limit`. Render text `{source}` or JSON `{"sources": rows}`.
-
-Include resolution:
-
-- `include_search_roots(root, source=None)` — yield (in order) `source.parent` (when given), `<root>/src/include`, `<root>`. De-duplicate by resolved path.
-- `resolve_include(root, include, source=None)` — try each search root; return the first existing file whose resolved path is inside `<root>`.
-
-Graph subcommands:
-
-- `ensure_graph(version)` — return `<runtime>/graph/postgres-<version>/graph.json`. If absent, run `python scripts/source_graph --version <version> --refresh` (using `sys.executable` for the inner call) with `cwd=REPO_ROOT`. Forward stdout/stderr on failure and `die()` with `could not generate Graphify graph: <relpath>`.
-- `run_graphify(argv)` — locate the graphify CLI via `find_graphify()`; `die()` with `graphify is not installed; install package 'graphifyy' to provide the 'graphify' CLI` if missing. Pass through stdout/stderr.
-- Build the inner argv by passing the subcommand verb plus its args (`query` adds `--dfs`/`--budget`, `path` adds `source target`, `explain` adds `node`), append `--graph <ensure_graph(version)>`, then run.
-
 ### `scripts/source_graph_check`
 
 Purpose: validate every generated graph for pin alignment, JSON parseability, version-correct references, missing project paths, and (optionally) a query probe.
@@ -767,18 +712,14 @@ Purpose: run `tests/test_source_tools.py` against the project venv.
 
 ## Testing
 
-`tests/test_source_tools.py` is a `unittest` suite that copies `source_graph`, `source_graph_check`, `source_graph_query`, and `wiki_tooling.py` into a synthetic temporary repo, builds a tiny PostgreSQL-shaped tree under `raw/postgres-99/`, initialises a git repo with one commit, and writes a matching `wiki/versions.md`. It runs each test in that sandbox to keep the project tree clean.
+`tests/test_source_tools.py` is a `unittest` suite that copies `source_graph`, `source_graph_check`, and `wiki_tooling.py` into a synthetic temporary repo, builds a tiny PostgreSQL-shaped tree under `raw/postgres-99/`, initialises a git repo with one commit, and writes a matching `wiki/versions.md`. It runs each test in that sandbox to keep the project tree clean.
 
 It exercises:
 
 - explicit version enforcement (no scope, unsupported version);
-- raw source `symbol`, `file`, `log`, `includes`, and `included-by` queries;
-- regex symbol search falling back to git when ripgrep is unavailable (`PATH` is reduced to a tool-only directory);
-- `symbol` ignoring untracked files (verifying the `git ls-files` filter);
 - end-to-end graph generation using a fake `graphify` shim that mimics `update`/`extract`/`query`/`path`/`explain` and writes `graph.json`/`GRAPH_REPORT.md`/`cache/` into `graphify-out/`;
 - forced graph generation when `graph.json` is absent (a graph subcommand triggers `source_graph --refresh` automatically);
 - the deferred-manifest path when `graphify` is missing (manifest still written, return code 1);
-- `source_graph_query` reporting graph-generation failure cleanly when `graphify` is missing;
 - `source_graph_check` rejecting wrong-version references inside `graph.json`.
 
 The fake graphify shim is the canonical contract for what `source_graph` expects from the real CLI: it must (a) accept the documented argv shapes, (b) write `graph.json`, `GRAPH_REPORT.md`, and `cache/` into the directory pointed to by `GRAPHIFY_OUT` (or `<cwd>/graphify-out/` for `update`, or `<--out>/graphify-out/` for `extract`), and (c) accept `--graph <path>` for the query subcommands.
@@ -787,7 +728,7 @@ The fake graphify shim is the canonical contract for what `source_graph` expects
 
 - Supported versions are pinned in `wiki/versions.md`.
 - Each supported version has a `raw/postgres-NN/` checkout.
-- Source graph tooling is the only supported source-query path.
+- Direct source search (Read tool, `grep`, `rg`, `find`) is the primary source-query path.
 - Wiki answers cite raw source paths and symbols.
 - `scripts/test_source_tools` and `scripts/wiki_lint` pass.
 
@@ -817,10 +758,9 @@ These steps reproduce the project from a clean checkout (or after deleting `scri
    - Implement `source_rebuild` (tag selection, table editing, log append, dry-run).
    - Smoke test: `--list` against a populated `wiki/versions.md`; `--dry-run` of `source_rebuild` for an existing version.
 
-6. **Source query surface (`scripts/source_graph_query`).**
-   - Implement raw subcommands first (`symbol`, `file`, `log`, `includes`, `included-by`). Wire include resolution exactly per `include_search_roots` / `resolve_include`.
-   - Add `ensure_graph` and `run_graphify`, then graph subcommands (`query`, `path`, `explain`).
-   - Smoke test against any populated `raw/postgres-NN/` checkout.
+6. **Source query surface.**
+   - Agents use the Read tool, Bash (`grep`, `rg`, `find`, `git grep`), and standard shell tooling to query raw source directly. No wrapper script is needed for source search.
+   - Include resolution can be done with a small helper in `wiki_tooling.py` (`include_search_roots`, `resolve_include`) if wiki pages need to resolve `#include` directives.
 
 7. **Graph generation (`scripts/source_graph`).**
    - Implement the data classes, `probe_tools`, `graphify_command`, `copy_graphify_output`, `manifest_text`, `generate_graph`, `generate_version`, and the CLI.
@@ -844,7 +784,7 @@ These steps reproduce the project from a clean checkout (or after deleting `scri
     - Run `./scripts/bootstrap_venv` from a clean state.
     - Run `./scripts/test_source_tools` — expect green.
     - Run `.wiki-runtime/venv/bin/python scripts/wiki_lint` — expect zero errors against the seeded wiki.
-    - For each pinned version: `source_update`, `source_graph --refresh`, `source_graph_check`, then a sample `source_graph_query --version NN explain <symbol>`.
+    - For each pinned version: `source_update`, `source_graph --refresh`, `source_graph_check`, then a sample `git grep` search against the raw checkout.
 
 13. **Documentation.**
     - Per the "Plan Synchronisation Rule" above: every change to `scripts/` lands together with the matching edit to this plan in the same commit/PR. `README.md` and `AGENTS.md` follow. Treat any drift as a defect and fix it before merging.
