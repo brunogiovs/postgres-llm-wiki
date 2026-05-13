@@ -19,3 +19,14 @@ Append one entry after every scaffold change, version lifecycle event, ingest, t
 
 - Removed wiki references to source-tool script paths from the global index, overview, version manifest, and version landing pages.
 - Kept the source-navigation guidance focused on pinned raw checkouts and Graphify runtime artifacts.
+
+## [2026-05-13] scaffold v12 | avg_leaf_density_minimal_io_query — sampling-based density estimation
+
+- Created `wiki/v12/questions/avg_leaf_density_minimal_io_query.md` (unverified).
+- Explained why pure SQL cannot compute leaf density (no page-level read functions in standard SQL).
+- Provided ~80-line C extension using systematic sampling of leaf pages with BAS_BULKREAD strategy.
+- Compared against pgstatindex full-scan approach from `contrib/pgstattuple/pgstatindex.c`.
+- Added ASCII diagrams for 5 fragmentation scenarios (healthy, post-delete, localized fragmentation, post-VACUUM, custom fillfactor).
+- Added 3 partial index scenarios explaining why partiality does not affect leaf page density.
+- Cited source: pgstatindex.c, nbtree.h, bufpage.h, nbtpage.c.
+- Updated `wiki/v12/index.md` with question reference.
