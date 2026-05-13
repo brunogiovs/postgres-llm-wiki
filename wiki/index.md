@@ -17,6 +17,12 @@ This is the global catalog for the PostgreSQL engine wiki.
 
 
 
+### PostgreSQL 17.10
+
+- [[v17/index]] - Active version landing page. Source checkout pinned to `REL_17_STABLE` commit `54eeefaedbee0385529f3edf321bb99e49232aaa`.
+
+
+
 ### PostgreSQL 12.2
 
 - [[v12/index]] - Legacy version landing page. Source checkout pinned to `REL_12_STABLE` commit `45b88269a353ad93744772791feb6d01bc7e1e42`.

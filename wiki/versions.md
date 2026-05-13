@@ -7,6 +7,7 @@ This page indexes the PostgreSQL versions covered by the wiki.
 | Version | Status | Wiki Home | Branch | Pinned Commit | Coverage |
 |---|---|---|---|---|---|
 | 18 | primary | [[v18/index]] | `REL_18_STABLE` | `6cb307251c5c6261286c1566496920976640108e` | Behavioral claims cite the matching pinned checkout under `raw/postgres-18/`. |
+| 17 | active | [[v17/index]] | `REL_17_STABLE` | `54eeefaedbee0385529f3edf321bb99e49232aaa` | Behavioral claims cite the matching pinned checkout under `raw/postgres-17/`. |
 | 12 | legacy | [[v12/index]] | `REL_12_STABLE` | `45b88269a353ad93744772791feb6d01bc7e1e42` | Behavioral claims cite the matching pinned checkout under `raw/postgres-12/`. |
 
 ## Archived Versions
