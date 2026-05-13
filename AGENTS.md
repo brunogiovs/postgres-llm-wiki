@@ -18,21 +18,20 @@ Tooling for this project must have minimal impact on the host system. Stay scope
 - If the venv is missing, run `scripts/bootstrap_venv` to create it. That is the only script that may run with the host `python3`.
 - Add new Python dependencies to `requirements.txt` at the repo root, with a pinned version. Do not `pip install`, `pipx install`, or otherwise install Python packages globally, into user site-packages, or with `--user`. Do not install packages with `sudo`.
 - Read and write only inside this repository (`raw/`, `wiki/`, `.wiki-runtime/`, `scripts/`, `tests/`, `requirements.txt`, top-level docs). Do not touch `$HOME`, mutate global git config, or require root. Treat `raw/postgres-NN/` checkouts as read-only evidence.
-- Do not call commands that escalate privilege (`sudo`, `chown` outside the repo, `chmod` on host paths). Network access is allowed only for the explicit source-fetch operations in `scripts/source_update` and `scripts/bootstrap_venv`.
+- Do not call commands that escalate privilege (`sudo`, `chown` outside the repo, `chmod` on host paths). Network access is allowed only for `scripts/bootstrap_venv` or source-fetch work the user explicitly requests.
 - Never use the `WIKI_ALLOW_SYSTEM_PYTHON=1` bypass for normal work. It exists for the test wrapper, which copies scripts into a synthetic temp repo where the venv guard cannot resolve.
-- Generated artifacts, caches, and the venv live under `.wiki-runtime/`. Removing that directory is always a safe reset; rebuild with `scripts/bootstrap_venv` and `scripts/source_graph --version NN --refresh`.
+- Generated artifacts, caches, and the venv live under `.wiki-runtime/`. Removing that directory is always a safe reset; rebuild the venv with `scripts/bootstrap_venv`.
 
 ## MANDATORY Evidence Scope
 
-For every answer, report, wiki page, diagram, or generated document, use only the target version's pinned checkout under `raw/postgres-NN/` as factual evidence. Graphify output under `.wiki-runtime/graph/postgres-NN/` is an orientation layer for finding likely files, symbols, and paths; it is not a citation source for PostgreSQL behavior.
+For every answer, report, wiki page, diagram, or generated document, use only the target version's pinned checkout under `raw/postgres-NN/` as factual evidence.
 
 - Treat `wiki/versions.md`, `wiki/index.md`, `wiki/log.md`, and version landing pages as navigation and bookkeeping context, not independent evidence for PostgreSQL behavior.
 - Do not use model memory, external websites, package documentation outside the repository, or uncited prior wiki prose as factual support for generated content.
 - Gather evidence directly from the `raw/postgres-NN/` checkout:
   - Use the Read tool and Bash (`grep`, `rg`, `find`) for source search and bounded file reads.
   - Use `git log` / `git blame` inside `raw/postgres-NN/` for source history.
-- Never answer about one PostgreSQL version using `raw/` files or `.wiki-runtime/graph/` artifacts from another version.
-- If a graph artifact conflicts with the pinned raw source, the raw source wins. Record the discrepancy under `## Open Questions` or regenerate the graph with `scripts/source_graph --version NN --refresh`.
+- Never answer about one PostgreSQL version using `raw/` files from another version.
 
 ## MANDATORY Deep Inquiry Default
 
@@ -99,7 +98,7 @@ Whenever a wiki page proposes SQL intended to be executed against production:
 Pages carry two distinct verification fields in front matter:
 
 - `verified:` — human-verified. Only a human reviewer may set, change, or remove this field.
-- `verified_by_agent:` — agent-verified. Agents may set or update this field only after re-checking every claim against the pinned raw source through graph scripts.
+- `verified_by_agent:` — agent-verified. Agents may set or update this field only after re-checking every claim against the pinned raw source.
 
 Rules:
 
@@ -122,7 +121,7 @@ Rules:
 - Each supported version has a landing page at `wiki/vNN/index.md`.
 - Default new ingests and answers to the primary version unless the user specifies another.
 - If the user asks without naming a version, assume the primary version and state that assumption before answering.
-- Hard rule: every source operation must use an explicit version scope. Use `--version NN` for graph tools and `--from NN --to MM` for cross-version diffs.
+- Hard rule: every source operation must use an explicit version scope. Search under the matching `raw/postgres-NN/` checkout, and use `--from NN --to MM` for cross-version diffs.
 - Never answer about one PostgreSQL version using citations from another version's checkout.
 
 ## MANDATORY Wiki Structure
@@ -136,7 +135,7 @@ Rules:
 
 - Trace one source slice or question at a time using the matching raw source checkout.
 - Prefer direct source search (Read tool, `grep`, `rg`, `find`) over ad hoc shell searches.
-- Do not create standalone call-chain or source-trace document families. Regenerate `.wiki-runtime/graph/postgres-NN/` when better graph navigation is needed.
+- Do not create standalone call-chain or source-trace document families.
 - Treat generated pages as drafts until their source references are checked.
 - Always use a unicode/ASCII tree for visual directory representations.
 
@@ -147,7 +146,7 @@ Do these after every meaningful wiki change:
 - Update `wiki/index.md` whenever a page is created or substantially changed.
 - Update `wiki/versions.md` whenever a supported version is added, removed, archived, re-pinned, or has a meaningful coverage change.
 - Update the relevant `wiki/vNN/index.md` whenever version-local pages are created or substantially changed.
-- Append an entry to `wiki/log.md` after each scaffold change, ingest, lint pass, filed answer, graph refresh, or version lifecycle event.
+- Append an entry to `wiki/log.md` after each scaffold change, ingest, lint pass, filed answer, or version lifecycle event.
 
 Log entry prefix:
 
@@ -165,23 +164,13 @@ For version-agnostic work:
 
 ### MANDATORY Add A Supported Version
 
-1. Add the source checkout under `raw/postgres-NN/` using `scripts/source_update`.
+1. Add the source checkout under `raw/postgres-NN/`.
 2. Pin the checkout to an exact commit.
 3. Add the version to `wiki/versions.md`.
 4. Create `wiki/vNN/index.md`.
-5. Generate the Graphify graph under `.wiki-runtime/graph/postgres-NN/` using `scripts/source_graph --version NN --refresh`.
-6. Create `wiki/vNN/questions/` only when a filed answer needs it.
-7. Update `wiki/index.md`.
-8. Append to `wiki/log.md`.
-
-### MANDATORY Refresh Source Graph
-
-1. Read `wiki/versions.md` and select the explicit target version.
-2. Read `wiki/vNN/index.md`.
-3. Run `scripts/source_graph --version NN --refresh`.
-4. Run `scripts/source_graph_check --version NN` and use `--probe-node <symbol>` when a focused source area has a known symbol.
-5. Search relevant raw source files directly before writing claims.
-6. Update `wiki/vNN/index.md`, `wiki/index.md`, and `wiki/versions.md` when coverage status changes, and append to `wiki/log.md`.
+5. Create `wiki/vNN/questions/` only when a filed answer needs it.
+6. Update `wiki/index.md`.
+7. Append to `wiki/log.md`.
 
 ### MANDATORY Answer And File
 
@@ -202,24 +191,21 @@ Use the project-local scripts first. The examples below assume the project venv 
 ```bash
 scripts/recent_log --limit 20
 scripts/wiki_lint
-scripts/source_graph --version 18 --dry-run
-scripts/source_graph --version 18 --refresh
-scripts/source_graph_check --version 18 --probe-node ExecutorRun
 scripts/version_diff --from 18 --to 17 --path src/backend/executor/execMain.c
-scripts/source_update --list
-scripts/source_update --version 18
 scripts/test_source_tools
 ```
 
-`scripts/source_graph` requires `--version NN` or explicit `--all`. It writes `.wiki-runtime/graph/postgres-NN/manifest.md`, `graph.json`, `GRAPH_REPORT.md`, optional visualization/export artifacts, and deferred artifact notes when `graphify` is unavailable. By default it uses Graphify's local AST-only update path and does not require an LLM backend/API key. Pass `--semantic --backend gemini|kimi|claude|openai|ollama` only when semantic extraction is explicitly desired.
-
-`scripts/source_graph_check` validates graph manifests, source pins, JSON parseability, wrong-version references, missing project references, and optional query probes.
-
-`scripts/test_source_tools` builds a synthetic temporary wiki/source/graph environment and runs end-to-end checks for graph generation, raw source queries, graph query auto-generation, missing-tool handling, and graph sanity checks.
+`scripts/test_source_tools` builds a synthetic temporary wiki/source environment and runs end-to-end checks for raw source queries, missing-tool handling, and source sanity checks.
 
 ## MANDATORY Version Control
 
 - Never commit or push without asking for permission.
+
+## MANDATORY Script Changes
+
+- Keep durable project tooling under `scripts/`, with project-local runtime state under `.wiki-runtime/`.
+- When changing script contents, update any adjacent workflow examples, lint examples, or tests that depend on the changed behavior.
+- Treat top-level `run_*` files as local launcher scripts. Keep them ignored, and do not edit, cite, or use them for wiki work unless the user explicitly names one.
 
 ### MANDATORY TITLE RULE (one-line check)
 
@@ -233,6 +219,7 @@ Correct examples:
 # ExecutorRun (unverified)
 # MVCC Visibility (unverified)
 # WAL Insertion
+```
 
 ### MANDATORY verified_by_agent RULE (model name + timestamp)
 
@@ -245,3 +232,5 @@ Before creating, editing, or filing ANY wiki page:
 Correct examples:
 ```yaml
 verified_by_agent: not yet
+verified_by_agent: GPT-5 | 2026-05-13 14:30
+```
