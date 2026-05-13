@@ -2,6 +2,13 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-13] review-fix v12 | foreign-key join optimization question
+
+- Clarified that FK metadata directly affects join row-count estimation, while outer-join removal and semijoin reduction are uniqueness-driven.
+- Corrected multicolumn FK matching to state that PostgreSQL 12 retains only fully matched FKs.
+- Replaced source citations in [[v12/questions/fk-join-optimization-two-tables|Foreign-Key Join Optimization for Two-Table Joins (unverified)]] with the required `[[raw/postgres-12/...#symbol]]` form.
+- Removed the resolved `eqjoinsel` open question after checking the `calc_joinrel_size_estimate` path.
+
 ## [2026-05-13] answer v12 | foreign-key join optimization for two-table joins
 
 - Filed [[v12/questions/fk-join-optimization-two-tables|Foreign-Key Join Optimization for Two-Table Joins (unverified)]] covering `get_relation_foreign_keys`, `match_foreign_keys_to_quals`, `match_eclasses_to_foreign_key_col`, `calc_joinrel_size_estimate`, and `get_foreign_key_join_selectivity`.
