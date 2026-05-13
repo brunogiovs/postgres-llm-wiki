@@ -1,160 +1,157 @@
 # PostgreSQL Engine Wiki Agent Instructions
 
-This repository is an LLM-maintained wiki for PostgreSQL engine internals. The agent writes and maintains the wiki; raw PostgreSQL source is the factual evidence base.
+This repo is an LLM-maintained wiki for PostgreSQL internals. The pinned PostgreSQL checkout under `raw/postgres-NN/` is the evidence base.
 
-## MANDATORY Read Before Writing
+## MANDATORY Read First
 
-- Read `wiki/versions.md` first to identify supported PostgreSQL versions and the primary version.
-- Read `wiki/index.md` before modifying or answering from the wiki.
-- Read the last ~20 entries of `wiki/log.md` to understand recent activity.
-- For version-specific work, read the relevant `wiki/vNN/index.md` before editing version-local pages.
-- For any question, answer, report, or generated document, use the matching `raw/postgres-NN/` checkout as the PostgreSQL evidence base.
+- Read `wiki/versions.md` before modifying or answering from the wiki.
+- Read `wiki/index.md`.
+- Read the last ~20 entries of `wiki/log.md`.
+- For version-local work, read `wiki/vNN/index.md`.
+- Use the matching `raw/postgres-NN/` checkout as the PostgreSQL evidence base.
 
 ## MANDATORY Environment Isolation
 
-Tooling for this project must have minimal impact on the host system. Stay scoped to the repository.
+- Stay inside this repo.
+- Read/write only `raw/`, `wiki/`, `.wiki-runtime/`, `scripts/`, `tests/`, `requirements.txt`, and top-level docs.
+- Treat `raw/postgres-NN/` checkouts as read-only evidence.
+- Run Python scripts from `.wiki-runtime/venv/`: activate it or call `.wiki-runtime/venv/bin/python scripts/<name>`.
+- If the venv is missing, run `scripts/bootstrap_venv`. Only that script may use host `python3`.
+- Pin new Python deps in `requirements.txt`.
+- Do not install packages globally, with `--user`, via `pipx`, or with `sudo`.
+- Do not use `sudo`, host-path `chown`, or host-path `chmod`.
+- Use network only for `scripts/bootstrap_venv` or user-requested source fetches.
+- Do not use `WIKI_ALLOW_SYSTEM_PYTHON=1` in normal work.
+- Keep generated artifacts, caches, and the venv under `.wiki-runtime/`.
 
-- All Python scripts run from the project venv at `.wiki-runtime/venv/`. Activate it (`source .wiki-runtime/venv/bin/activate`) or invoke scripts as `.wiki-runtime/venv/bin/python scripts/<name>`. Scripts hard-fail with a clear message when run outside the venv.
-- If the venv is missing, run `scripts/bootstrap_venv` to create it. That is the only script that may run with the host `python3`.
-- Add new Python dependencies to `requirements.txt` at the repo root, with a pinned version. Do not `pip install`, `pipx install`, or otherwise install Python packages globally, into user site-packages, or with `--user`. Do not install packages with `sudo`.
-- Read and write only inside this repository (`raw/`, `wiki/`, `.wiki-runtime/`, `scripts/`, `tests/`, `requirements.txt`, top-level docs). Do not touch `$HOME`, mutate global git config, or require root. Treat `raw/postgres-NN/` checkouts as read-only evidence.
-- Do not call commands that escalate privilege (`sudo`, `chown` outside the repo, `chmod` on host paths). Network access is allowed only for `scripts/bootstrap_venv` or source-fetch work the user explicitly requests.
-- Never use the `WIKI_ALLOW_SYSTEM_PYTHON=1` bypass for normal work. It exists for the test wrapper, which copies scripts into a synthetic temp repo where the venv guard cannot resolve.
-- Generated artifacts, caches, and the venv live under `.wiki-runtime/`. Removing that directory is always a safe reset; rebuild the venv with `scripts/bootstrap_venv`.
+## MANDATORY Evidence
 
-## MANDATORY Evidence Scope
+- Use only the target version's pinned `raw/postgres-NN/` checkout as factual evidence.
+- Treat implementation source as primary evidence.
+- Same-checkout PostgreSQL docs, tests, and source history may support claims when directly relevant.
+- Treat `wiki/versions.md`, `wiki/index.md`, `wiki/log.md`, and version landing pages as navigation only.
+- Do not use model memory, external websites, external package docs, or uncited prior wiki prose as factual support.
+- If implementation source conflicts with docs or tests, source wins. Put the discrepancy under `## Open Questions`.
+- Never answer one PostgreSQL version with evidence from another version.
 
-For every answer, report, wiki page, diagram, or generated document, use only the target version's pinned checkout under `raw/postgres-NN/` as factual evidence. Implementation source is primary evidence. PostgreSQL documentation and tests from the same pinned checkout may also be used as evidence for documented or tested behavior.
+## MANDATORY Deep Inquiry
 
-- Treat `wiki/versions.md`, `wiki/index.md`, `wiki/log.md`, and version landing pages as navigation and bookkeeping context, not independent evidence for PostgreSQL behavior.
-- Do not use model memory, external websites, package documentation outside the repository, or uncited prior wiki prose as factual support for generated content.
-- In-tree PostgreSQL documentation, tests, and source history from the same pinned checkout may support claims when they directly apply.
-- If implementation source conflicts with documentation or tests, the implementation source wins. Record the discrepancy under `## Open Questions`.
-- Never answer about one PostgreSQL version using `raw/` files from another version.
-
-## MANDATORY Deep Inquiry Default
-
-All user questions, reports, and filed answers run in deep-inquiry mode unless the user explicitly asks for a quick answer.
-
-For each question:
+Deep inquiry is the default unless the user explicitly asks for a quick answer.
 
 - Confirm the target PostgreSQL version.
-- Locate the primary source files and symbols, then inspect adjacent callers, callees, structs, macros, includes, generated headers visible in raw source, reverse include users, relevant tests, docs, catalogs, grammar, error paths, GUC definitions, and extension/contrib boundaries.
-- If evidence lookup returns an error or cannot produce trustworthy output, abort the current analysis before drafting. Fix and rerun when feasible; otherwise stop and report the target version and error.
-- Inspect file or symbol history when the user asks why something exists, when intent matters, or when a regression/change claim is being made.
-- Cross-version claims or comparisons need evidence from each relevant version.
-- Draft from a claim-to-source evidence map. Every behavioral claim needs a matching raw citation; unresolved claims go under `## Open Questions`.
+- Locate primary source files and symbols.
+- Inspect adjacent callers, callees, structs, macros, includes, generated headers visible in raw source, reverse include users, tests, docs, catalogs, grammar, error paths, GUCs, and extension/contrib boundaries.
+- If evidence lookup fails or is untrustworthy, stop before drafting. Fix it, rerun it, or report the target version and error.
+- Inspect history when the user asks why, when intent matters, or when making a regression/change claim.
+- For cross-version claims, collect evidence for each relevant version.
+- Draft from a claim-to-source map. Put unresolved claims under `## Open Questions`.
+- Minimum engine answer: normal path, edge/error path, key data structures, caller/callee boundary, build/generated-header implications visible from raw source, and tests or explicit test absence.
+- For planner, WAL, crash recovery, MVCC, storage, or corruption topics, missing caller/callee or data-structure context is a verification gap.
 
-The minimum depth target for an engine-internals answer is: normal path, relevant error or edge path, key data structures, caller/callee boundary, build or generated-header implications visible from raw source, and tests or explicit test absence. For planner, WAL, crash recovery, MVCC, storage, or corruption topics, missing caller/callee or data-structure context is a verification gap that must be resolved or recorded under `## Open Questions`.
+## MANDATORY Citations
 
-## MANDATORY Citation Discipline
+- Cite every behavioral claim.
+- Use this citation shape: `[[raw/postgres-NN/src/backend/executor/execMain.c#ExecutorRun]]`.
+- Include full extensions for non-Markdown files.
+- Cite from the `raw/postgres-NN/` checkout matching the page `version:`.
+- Use one citation style for code refs, function names, and symbols.
+- Aliases are allowed: `[[raw/postgres-NN/path/file.c#symbol|file.c#symbol]]`.
+- Do not state a claim as fact unless it is backed by a source file, symbol, test file, documentation page, commit, or saved design discussion.
+- Put uncertainty under `## Open Questions`.
 
-- Cite source paths and symbols for every behavioral claim.
-- Mandatory citation shape: `[[raw/postgres-NN/src/backend/executor/execMain.c#ExecutorRun]]`.
-- For non-Markdown files you must include the full file extension (`.c`, `.py`, `.java`, etc.).
-- Cite from the `raw/postgres-NN/` checkout matching the page's `version:`.
-- Use the same citation format for all code references, function names, and symbols mentioned in the text.
-- Code references may use aliases for compact display: `[[raw/postgres-NN/path/file.c#symbol|file.c#symbol]]`.
-- If a claim is not backed by a source file, symbol, test file, documentation page, commit, or saved design discussion, do not write it as fact.
-- Put uncertainty under `## Open Questions` instead of guessing.
+## MANDATORY Writing Style
 
-## MANDATORY Tone And Readability
+- Lead with the answer.
+- Use plain language and short sentences.
+- Define PostgreSQL terms of art on first use or link to an existing page.
+- Use active voice and name concrete subjects.
+- Use lists, tables, and small code blocks for dense material.
+- Name conditions precisely. Avoid vague hedges.
+- Skip filler and setup prose.
+- Cite every example.
+- Never trade citation precision for readability.
 
-Wiki pages are reference material for engineers under time pressure. Write so a reader can land cold on the page and leave with the answer.
+## MANDATORY GUC Changes
 
-- Lead with the answer. Put the direct conclusion in the first one or two sentences of each section, then the supporting evidence and citations. Do not bury the result under setup.
-- Prefer plain language. When a PostgreSQL term of art is unavoidable (e.g. `relfrozenxid`, `XLogInsert`, `MultiXact`), define it on first use on the page or link to the page that does.
-- Short sentences over long ones. One claim per sentence. Break a multi-clause sentence into a list when it carries more than one idea.
-- Active voice and concrete subjects. "The checkpointer flushes dirty buffers" beats "Dirty buffers are flushed." Name the function, struct, or process doing the work.
-- Use lists, tables, and small code blocks to break up dense prose. A table of GUC contexts or a four-row state-transition list is easier to scan than a paragraph.
-- Make conditions explicit instead of vague. PostgreSQL behavior often genuinely depends on configuration, version, or state, so conditional phrasing is welcome — but name the condition. Prefer "when `wal_level >= replica`" over "generally," and "on a HOT update" over "tends to." If the condition itself is uncertain, move the claim under `## Open Questions`.
-- Skip filler. No "in this section we will," no "it is important to note that," no restating the page title in the first paragraph.
-- Examples earn their keep. A short SQL snippet, `EXPLAIN` fragment, or struct excerpt usually communicates faster than a paragraph describing the same thing — but every example must still be cited to the pinned `raw/postgres-NN/` source.
-- Readability never overrides citation discipline. If approachable phrasing would require dropping a citation or softening a verified claim into vagueness, keep the citation and the precision.
+- When suggesting any GUC change, state whether it needs restart, reload, or only session/transaction scope.
+- Determine the requirement from the same-version raw GUC definition or a validated `pg_settings` definition.
+- Map contexts explicitly: `postmaster` -> restart; `sighup` -> reload; `superuser`, `user`, `backend` -> session/transaction scope.
 
-## MANDATORY GUC Configuration Changes
+## MANDATORY Production SQL
 
-- Whenever a wiki page suggests changing a GUC (`postgresql.conf`, `SET`, `ALTER SYSTEM`, etc.), state whether the change requires a restart, reload, or only session/transaction scope.
-- Determine the requirement from the GUC's context in the pinned raw source (`raw/postgres-NN/src/backend/utils/misc/guc*.c` or the version's equivalent) or from a validated `pg_settings` definition in the same version. Cite the source.
-- Map context values explicitly: `postmaster` -> restart required; `sighup` -> reload; `superuser` / `user` / `backend` -> session or transaction scope, no restart or reload beyond changing defaults.
+- Verify production-bound SQL against the pinned checkout before filing.
+- If syntax, catalogs, columns, functions, or GUCs cannot be verified, move the snippet under `## Open Questions`.
+- Recommend reasonable session-scoped `statement_timeout` and `lock_timeout` values.
+- Add an inline block-comment tag after the leading verb:
 
-## MANDATORY Production SQL Snippets
+```sql
+SELECT /* wiki_capture_plan_inputs */ ...;
+UPDATE /* wiki_backfill_user_email */ users SET ...;
+```
 
-Whenever a wiki page proposes SQL intended to be executed against production:
+## MANDATORY Verification Fields
 
-- Verify syntax, referenced catalogs, columns, functions, and GUCs against the pinned `raw/postgres-NN/` checkout before filing. If a snippet cannot be verified, move it under `## Open Questions`.
-- Embed an inline block-comment tag immediately after the leading verb in every production-bound statement:
+- `verified:` is human-only. Agents must not set, change, or remove it.
+- `verified_by_agent:` records agent verification. Use `not yet` for drafts. Use the timestamp form only after re-checking every claim against pinned raw source.
+- New question pages use this exact front matter order:
 
-  ```sql
-  SELECT /* wiki_capture_plan_inputs */ ...;
-  UPDATE /* wiki_backfill_user_email */ users SET ...;
-  ```
+```yaml
+type: question
+version: NN
+pinned_commit: abc123...
+verified: false
+verified_by_agent: not yet
+```
 
-- Recommend reasonable session-scoped `statement_timeout` and `lock_timeout` values before the snippet, sized to the operation.
+- Do not set the timestamp form if any claim is unverified. Fix it, move it under `## Open Questions`, or leave `verified_by_agent: not yet`.
+- Unverified managed pages must show `(unverified)` in the visible title and in index/landing-page link text until `verified: true`.
 
-## MANDATORY Verification
+Title rule before creating, editing, or filing any wiki page:
 
-Pages carry two distinct verification fields in front matter:
+- If `verified:` is not `true`, the top-level title must end with ` (unverified)`.
+- If `verified:` is `true`, the title must not contain `(unverified)`.
 
-- `verified:` — human-verified. Only a human reviewer may set, change, or remove this field.
-- `verified_by_agent:` — agent-verified. Agents may set or update this field only after re-checking every claim against the pinned raw source.
+`verified_by_agent` must be one of:
 
-Rules:
+```yaml
+verified_by_agent: not yet
+verified_by_agent: <LLM-model-name> | YYYY-MM-DD HH:MM
+```
 
-- When creating new question pages, set `verified: false` and `verified_by_agent: not yet`.
-- Do not set `verified_by_agent:` if any claim cannot be verified. Fix the claim, move it under `## Open Questions`, or leave the field absent.
-- Unverified managed wiki documents must show `(unverified)` in the visible title and in index or landing-page link text until a human sets `verified: true`. `verified_by_agent:` does not affect this tag — only the human-set `verified:` field does.
-- For question pages under `wiki/vNN/questions/`, front matter must use exactly this order:
-
-  ```yaml
-  type: question
-  version: NN
-  pinned_commit: abc123...
-  verified: false
-  verified_by_agent: not yet
-  ```
+Use the exact current model name and timestamp when filing an agent-verified page.
 
 ## MANDATORY Version Awareness
 
 - `wiki/versions.md` is the source pin manifest.
-- Each supported version has a landing page at `wiki/vNN/index.md`.
+- Each supported version has `wiki/vNN/index.md`.
 - Default new ingests and answers to the primary version unless the user specifies another.
-- If the user asks without naming a version, assume the primary version and state that assumption before answering.
-- Hard rule: every source citation must use the matching `raw/postgres-NN/` checkout.
-- Never answer about one PostgreSQL version using citations from another version's checkout.
+- If the user omits a version, assume the primary version and state that assumption.
+- Every source citation must use the matching `raw/postgres-NN/` checkout.
+- Never use citations from another PostgreSQL version.
 
 ## MANDATORY Wiki Structure
 
 - Keep version-specific pages under `wiki/vNN/`.
-- Use Obsidian-style links, such as `[[versions]]` and `[[v18/index]]`.
-- Include the version segment for links into per-version directories.
-- A page is born when the work justifies it. Do not create empty content stubs.
-
-## MANDATORY Operating Mode
-
-- Trace one source slice or question at a time using the matching raw source checkout.
+- Use Obsidian links, e.g. `[[versions]]` and `[[v18/index]]`.
+- Include the version segment in links into per-version directories.
+- Create a page only when the work justifies it.
 - Do not create standalone call-chain or source-trace document families.
-- Treat generated pages as drafts until their source references are checked.
-- Always use a unicode/ASCII tree for visual directory representations.
+- Treat generated pages as drafts until source references are checked.
+- Use a unicode/ASCII tree for visual directory representations.
 
 ## MANDATORY Bookkeeping
 
-Do these after every meaningful wiki change:
+After each meaningful wiki change:
 
-- Update `wiki/index.md` whenever a page is created or substantially changed.
-- Update `wiki/versions.md` whenever a supported version is added, removed, archived, re-pinned, or has a meaningful coverage change.
-- Update the relevant `wiki/vNN/index.md` whenever version-local pages are created or substantially changed.
-- Append an entry to `wiki/log.md` after each scaffold change, ingest, lint pass, filed answer, or version lifecycle event.
+- Update `wiki/index.md` for created or substantially changed pages.
+- Update `wiki/versions.md` for supported-version lifecycle, repin, or meaningful coverage changes.
+- Update `wiki/vNN/index.md` for created or substantially changed version-local pages.
+- Append to `wiki/log.md` after scaffold changes, ingests, lint passes, filed answers, or version lifecycle events.
 
-Log entry prefix:
+Log heading format:
 
 ```md
 ## [YYYY-MM-DD] <kind> v<NN> | <subject>
-```
-
-For version-agnostic work:
-
-```md
 ## [YYYY-MM-DD] <kind> | <subject>
 ```
 
@@ -163,8 +160,8 @@ For version-agnostic work:
 ### MANDATORY Add A Supported Version
 
 1. Add the source checkout under `raw/postgres-NN/`.
-2. Pin the checkout to an exact commit.
-3. Add the version to `wiki/versions.md`.
+2. Pin it to an exact commit.
+3. Add it to `wiki/versions.md`.
 4. Create `wiki/vNN/index.md`.
 5. Create `wiki/vNN/questions/` only when a filed answer needs it.
 6. Update `wiki/index.md`.
@@ -173,18 +170,20 @@ For version-agnostic work:
 ### MANDATORY Answer And File
 
 1. Assume the primary version unless the user specifies another.
-2. Search `wiki/versions.md`, the relevant version landing page, and `wiki/index.md` for navigation and bookkeeping context only.
-3. Build the deep inquiry context envelope from the pinned `raw/postgres-NN/` checkout.
-4. Draft a claim-to-source evidence map. Move anything not verified into `## Open Questions`.
-5. Answer with citations to matching `raw/postgres-NN/` paths and symbols.
-6. File durable answers as question pages or fold them into existing pages. Filed question pages should include `## Context Reviewed`, `## Evidence Map`, and `## Open Questions` when gaps exist.
-7. Update indexes and log.
+2. Use `wiki/versions.md`, `wiki/index.md`, and the version landing page as navigation only.
+3. Build the deep-inquiry context envelope from the pinned checkout.
+4. Draft a claim-to-source map.
+5. Move unverified claims to `## Open Questions`.
+6. Answer with matching-version raw citations.
+7. File durable answers as question pages or fold them into existing pages.
+8. Include `## Context Reviewed`, `## Evidence Map`, and `## Open Questions` in filed question pages when gaps exist.
+9. Update indexes and log.
 
-## MANDATORY Lint The Wiki
+## MANDATORY Lint
 
-Check for broken links, orphan pages, missing source references, stale version pins, wrong-version citations, invalid verification fields, unverified title hints, and version landing pages missing links.
+Check broken links, orphan pages, missing source references, stale pins, wrong-version citations, invalid verification fields, unverified title hints, and version landing-page links.
 
-Use the project-local scripts first. The examples below assume the project venv is active (`source .wiki-runtime/venv/bin/activate`); otherwise prefix each Python script with `.wiki-runtime/venv/bin/python`.
+Use the project venv:
 
 ```bash
 scripts/recent_log --limit 20
@@ -193,38 +192,11 @@ scripts/wiki_lint
 
 ## MANDATORY Version Control
 
-- Never commit or push without asking for permission.
+- Never commit or push without permission.
 
 ## MANDATORY Script Changes
 
-- Keep durable project tooling under `scripts/`, with project-local runtime state under `.wiki-runtime/`.
-- When changing script contents, update any adjacent workflow examples, lint examples, or tests that depend on the changed behavior.
-- Treat top-level `run_*` files as local launcher scripts. Keep them ignored, and do not edit, cite, or use them for wiki work unless the user explicitly names one.
-
-### MANDATORY TITLE RULE (one-line check)
-
-Before creating, editing, or filing ANY wiki page:
-- Look at the frontmatter field `verified:`.
-- If it is **not** set to `true`, the top-level title MUST end with ` (unverified)`.
-- If it is `true`, the title MUST NOT contain `(unverified)`.
-
-Correct examples:
-```markdown
-# ExecutorRun (unverified)
-# MVCC Visibility (unverified)
-# WAL Insertion
-```
-
-### MANDATORY verified_by_agent RULE (model name + timestamp)
-
-Before creating, editing, or filing ANY wiki page:
-- `verified_by_agent` MUST be present and follow one of these **exact** formats:
-  - Draft / not yet fully verified by agent: `verified_by_agent: not yet`
-  - Agent-verified (after deep-inquiry, all claims cited, no ## Open Questions): `verified_by_agent: <LLM-model-name> | YYYY-MM-DD HH:MM`
-- Use the exact name of the model you are currently running and the current timestamp when you file the page.
-
-Correct examples:
-```yaml
-verified_by_agent: not yet
-verified_by_agent: GPT-5 | 2026-05-13 14:30
-```
+- Keep durable project tooling under `scripts/`.
+- Keep runtime state under `.wiki-runtime/`.
+- When changing script contents, update adjacent workflow examples, lint examples, or tests that depend on the change.
+- Keep top-level `run_*` files ignored. Do not edit, cite, or use them for wiki work unless the user explicitly names one.

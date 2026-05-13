@@ -10,6 +10,17 @@ Build an LLM-maintained wiki for PostgreSQL engine internals. Durable prose is b
 
 Update this plan when the repository structure, supported workflows, or user-facing tooling changes. Do not keep stale workflow steps for scripts or tools that are no longer part of `AGENTS.md`.
 
+## AGENTS.md Editing Rule
+
+When changing or adding to [AGENTS.md](AGENTS.md):
+
+- Keep language direct and compact.
+- Use mandatory commands over explanation.
+- Preserve the same enforcement level when shortening text.
+- Merge duplicate rules instead of restating them.
+- Do not add examples or background unless they prevent ambiguity.
+- Check that evidence, citation, verification, bookkeeping, environment, and version-control rules still remain enforceable.
+
 ## Core Goals
 
 - Explain PostgreSQL internals through durable Markdown pages.
