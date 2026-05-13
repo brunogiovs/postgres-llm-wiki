@@ -2,7 +2,7 @@
 
 ## Status
 
-Done. `scripts/source_context` exists, both supported versions have generated context packs under `.wiki-runtime/context/postgres-NN/`, including compiler databases, include dependency extracts, external dependency inventories, and focused callgraphs.
+Done. Supported versions can use generated context packs under `.wiki-runtime/context/postgres-NN/`, including compiler databases, include dependency extracts, external dependency inventories, and focused callgraphs.
 
 ## Goal
 
@@ -38,35 +38,19 @@ Generated context packs are the source-navigation layer for call-path discovery.
 
 ## Implementation Order
 
-1. Add `scripts/source_context`.
-2. Generate the always-cheap artifacts first: context directory, manifest skeleton, tree snapshot, build-configuration inventory, and external dependency inventory.
-3. Add best-effort compiler database generation.
-4. Add include-dependency generation, preferring the compiler database and falling back to direct compiler dependency output.
-5. Add best-effort call/reference graph generation.
-6. Run the tool for every supported version and update the matching version landing pages.
-7. Run lint and record the work in `wiki/log.md`.
+1. Define the context directory, manifest skeleton, tree snapshot, build-configuration inventory, and external dependency inventory.
+2. Add best-effort compiler database generation.
+3. Add include-dependency generation, preferring the compiler database and falling back to direct compiler dependency output.
+4. Add best-effort call/reference graph generation.
+5. Refresh artifacts for every supported version and update the matching version landing pages.
+6. Run lint and record the work in `wiki/log.md`.
 
-## Script Contract
+## Generation Rules
 
-Implement `scripts/source_context` as a project-local Python script that follows the existing maintenance script style.
-
-Required behavior:
-
-- Reuse `wiki_tooling.py` helpers: `REPO_ROOT`, `RUNTIME_ROOT`, `load_versions`, `source_checkout`, `append_tool_log`, and `die`.
-- Require an explicit scope: `--version NN` for one version or `--all` for every supported version.
-- Accept `--version NN`, `--all`, `--refresh`, `--skip-callgraphs`, and `--dry-run`.
-- Read only from `raw/postgres-NN/` and write generated output only under `.wiki-runtime/context/postgres-NN/` and `.wiki-runtime/build/postgres-NN/`.
-- Never treat optional tooling failure as a total script failure when the minimum pack can still be written.
-- Exit non-zero for missing source checkouts, unsupported versions, manifest write failures, or invalid arguments.
-
-Suggested command shapes:
-
-```bash
-scripts/source_context --version 18
-scripts/source_context --all
-scripts/source_context --version 12 --skip-callgraphs
-scripts/source_context --version 18 --refresh --dry-run
-```
+- Read only from `raw/postgres-NN/`.
+- Write generated output only under `.wiki-runtime/context/postgres-NN/` and `.wiki-runtime/build/postgres-NN/`.
+- Never treat optional tooling failure as a total failure when the minimum pack can still be written.
+- Record missing source checkouts, unsupported versions, manifest write failures, or invalid arguments as deferrals.
 
 ## Manifest Requirements
 
@@ -84,7 +68,7 @@ The manifest must record:
 - Per-artifact failures with command attempted, exit code, and short stderr summary when available.
 - Deferred or missing artifacts and the reason they are incomplete.
 
-The manifest should be stable across repeated runs on an unchanged source pin. Aside from the timestamp, re-running `scripts/source_context --version NN` should produce textually equivalent manifest content.
+The manifest should be stable across repeated refreshes on an unchanged source pin. Aside from the timestamp, refreshed manifest content should be textually equivalent.
 
 ## Artifact Requirements
 
@@ -189,10 +173,10 @@ Do not replace deferred graph artifacts with manually maintained trace pages. Re
 
 ## Version Run
 
-Run the context pack for every currently supported version:
+Refresh or verify the context pack for every currently supported version:
 
-- PostgreSQL 18 primary: `scripts/source_context --version 18`
-- PostgreSQL 12 legacy: `scripts/source_context --version 12`
+- PostgreSQL 18 primary.
+- PostgreSQL 12 legacy.
 
 Legacy versions may defer more artifacts because their build systems and compiler expectations can predate current host tooling. That is acceptable only when the deferral is explicit in the manifest and version landing page.
 
@@ -227,7 +211,7 @@ Do not commit generated context packs unless the repository policy changes.
 
 - Every supported version has either a generated `.wiki-runtime/context/postgres-NN/manifest.md` or a clearly logged deferral.
 - The context pack records source pin, regeneration timestamp, commands, tool versions, artifacts, per-artifact failures, and gaps.
-- Re-running `scripts/source_context --version NN` on an unchanged pin is idempotent: artifacts and manifest content are textually equivalent aside from the timestamp.
+- Refreshing a context pack on an unchanged pin is idempotent: artifacts and manifest content are textually equivalent aside from the timestamp.
 - Heavy generated artifacts stay under `.wiki-runtime/` and remain ignored by git (`.gitignore` covers `.wiki-runtime/build/` and `.wiki-runtime/context/`).
 - Version landing pages link to the manifest when the pack is generated, and list deferred artifacts under Open Questions when the pack is incomplete.
 - Source-navigation needs are satisfied by generated context artifacts, not standalone code-path/source-trace documents.
