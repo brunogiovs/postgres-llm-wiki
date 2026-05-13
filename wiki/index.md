@@ -27,9 +27,6 @@ This is the global catalog for the PostgreSQL engine wiki.
 
 - `scripts/recent_log` - recent wiki activity.
 - `scripts/wiki_lint` - wiki health checks.
-- `scripts/source_graph` - generate per-version Graphify source graphs under `.wiki-runtime/graph/postgres-NN/`; requires `--version NN` or explicit `--all`.
-- `scripts/source_graph_query` - query version-pinned raw source and Graphify graphs; graph subcommands force graph generation when `graph.json` is absent.
-- `scripts/source_graph_check` - validate Graphify graph manifests, pins, JSON parseability, wrong-version references, and optional query probes.
 - `scripts/test_source_tools` - end-to-end synthetic fixture tests for raw graph-script queries and Graphify wrappers.
 - `scripts/version_diff` - source path comparison across project-local PostgreSQL checkouts.
 - `scripts/llama_server` - start, stop, status, and logs for the local llama.cpp OpenAI-compatible server.

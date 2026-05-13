@@ -8,17 +8,14 @@ It is source-backed: durable claims should cite PostgreSQL source files, functio
 
 PostgreSQL 18 is the current primary version. Use [[versions]] as the main version index, then enter the PG 18 wiki through [[v18/index]].
 
-Source navigation now goes through Graphify wrapper tooling:
+Source navigation keeps Graphify graph artifacts under:
 
 - `.wiki-runtime/graph/postgres-18/`
 - `.wiki-runtime/graph/postgres-12/`
-- `scripts/source_graph`
-- `scripts/source_graph_query`
-- `scripts/source_graph_check`
 
 ## Source Navigation
 
-Use `scripts/source_graph_query --version NN ...` for raw source and graph queries. Raw subcommands read the pinned checkout under `raw/postgres-NN/`; graph subcommands query `.wiki-runtime/graph/postgres-NN/graph.json` and force graph generation when it is absent.
+Use the matching pinned checkout under `raw/postgres-NN/` for source evidence. Use Graphify artifacts under `.wiki-runtime/graph/postgres-NN/` only as navigation context.
 
 Behavioral claims still need citations to matching raw source files or symbols under `raw/postgres-NN/`.
 
@@ -31,16 +28,13 @@ Behavioral claims still need citations to matching raw source files or symbols u
 
 - `scripts/recent_log` - recent entries from `wiki/log.md`.
 - `scripts/wiki_lint` - broken links, metadata drift, source-reference checks, and orphan warnings.
-- `scripts/source_graph` - generated Graphify graph artifacts under `.wiki-runtime/graph/postgres-NN/`; requires `--version NN` or explicit `--all`.
-- `scripts/source_graph_query` - version-pinned raw source queries plus Graphify `query`, `path`, and `explain`.
-- `scripts/source_graph_check` - graph manifest, source pin, JSON, and reference sanity checks.
 - `scripts/version_diff` - path diff across two project-local source checkouts.
 - `scripts/hermes_sessions` - list and clear project-local Hermes session files and database rows.
 
 ## Operating Principles
 
 - Trace source code before summarizing behavior.
-- Query raw source only through `scripts/source_graph_query`.
+- Use the matching pinned checkout for raw source evidence.
 - Use Graphify graphs for navigation and call-path discovery, not as citations for PostgreSQL behavior.
 - Prefer narrow, source-backed question pages over broad unsourced summaries.
 - Keep version-local content under `wiki/vNN/`.

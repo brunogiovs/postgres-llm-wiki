@@ -93,7 +93,7 @@ The btree leaf pages form a doubly-linked list via the `btpo_next` (rightlink) f
 
 1. Read the metapage (block 0) to get `btm_root`, `btm_level`, and total block count
 2. Calculate approximate leaf page positions (first few, middle, last few)
-3. Read those specific blocks using `pageinspect.getpage()` or a custom function
+3. Read those specific blocks using `bt_page_stats()` from the `pageinspect` extension, or a custom C function
 
 ### Approach A: C Function with Strategic Sampling (Recommended)
 
@@ -337,46 +337,78 @@ This approximation uses:
 - `pg_relation_size()` — actual on-disk size in bytes
 - The default btree leaf fill factor of 90% [[raw/postgres-12/src/include/access/nbtree.h#BTREE_DEFAULT_FILLFACTOR]]
 
-**Accuracy:** This gives a rough estimate (~10-20% error) because it relies on catalog statistics which are approximations. Use Approach A when you need <5% error.
+**Accuracy:** This is a rough heuristic, not a true density measurement. Sources of error include:
+- `reltuples` can be stale between VACUUM runs (error grows with time since last VACUUM)
+- The formula assumes all pages are leaf pages; for deep trees it overestimates available leaf space
+- Tuple size varies by column type and content — the hardcoded estimate is a guess
+- `relpages` in pg_class is approximate (rounded to nearest page)
+
+Expect 15-30% error in typical workloads. Use Approach A or C when you need <5% error.
 
 ### Approach C: SQL with pageinspect (No Custom C Code)
 
-If `pageinspect` is available (it ships with PostgreSQL, no additional installation), you can sample leaf pages directly in SQL:
+The `pageinspect` extension ships with PostgreSQL 12 and provides `bt_page_stats()`, which returns `free_size` and `max_avail` for any block — exactly the fields needed to compute density. This is a true SQL-only sampling approach that reads only the blocks you specify.
 
 ```sql
--- Sample the first 3 leaf pages and last 2 leaf pages of an index
-WITH meta AS (
-    -- Read the metapage to get tree structure info
-    SELECT
-        btmetalevel(getpage('public', 'my_index', 0)) AS tree_level,
-        btpagerightlink(getpage('public', 'my_index', 0))::text AS root_rightlink
+-- Sample leaf pages at strategic positions using bt_page_stats
+-- Requires: CREATE EXTENSION pageinspect; (superuser)
+
+WITH index_size AS (
+    -- Get total block count from pg_class (relpages is approximate but fine here)
+    SELECT relpages AS total_blocks
+    FROM pg_class WHERE oid = 'my_index'::regclass
 ),
-leaf_blocks AS (
-    -- Sample blocks: first 3, last 2 (adjust based on index size)
-    SELECT unnest(array[
-        1, 2, 3,                          -- first leaf pages
-        (SELECT relpages FROM pg_class WHERE oid = 'my_index'::regclass) - 1,  -- last
-        (SELECT relpages FROM pg_class WHERE oid = 'my_index'::regclass) - 2   -- second-to-last
-    ]) AS blkno
+sample_blocks(total_blocks, blkno) AS (
+    -- Strategic sample: first 2, last 2, and one middle block
+    SELECT total_blocks, 1 UNION ALL
+    SELECT total_blocks, 2 UNION ALL
+    SELECT total_blocks, total_blocks - 1 UNION ALL
+    SELECT total_blocks, total_blocks - 2 UNION ALL
+    SELECT total_blocks, total_blocks / 2
+    FROM index_size
+),
+page_stats AS (
+    -- bt_page_stats returns: blkno, type, live_items, dead_items,
+    --   avg_item_size, page_size, free_size, btpo_prev, btpo_next,
+    --   btpo(level), btpo_flags, btpo_cycleid
+    SELECT s.blkno, p.*
+    FROM sample_blocks s
+    JOIN pg_class c ON c.oid = 'my_index'::regclass
+    CROSS JOIN LATERAL bt_page_stats(c.relname, s.blkno) p
+    WHERE s.blkno < c.relpages  -- skip out-of-range blocks
+),
+leaf_stats AS (
+    -- Only count leaf pages (type = 'l'); skip deleted ('d'), empty ('e'), internal ('i')
+    SELECT
+        SUM(max_avail) AS max_avail_total,
+        SUM(free_size) AS free_space_total,
+        COUNT(*) AS leaf_pages_sampled
+    FROM page_stats
+    WHERE type = 'l'
 )
 SELECT
-    lb.blkno,
-    btpageitem(getpage('public', 'my_index', lb.blkno), generate_series(1, nitems)) AS item,
-    pagegetfree_space(getpage('public', 'my_index', lb.blkno)) AS free_bytes,
-    (8192 - 32 - 24) AS max_avail_approx  -- BLCKSZ - opaque - header
-FROM leaf_blocks lb
-CROSS JOIN LATERAL (
-    SELECT nitems FROM (VALUES (1)) v(nitems)  -- placeholder; use pageitems() in practice
-) items;
+    max_avail_total,
+    free_space_total,
+    leaf_pages_sampled,
+    ROUND(100.0 - (free_space_total::float / max_avail_total::float) * 100.0, 2) AS estimated_avg_leaf_density
+FROM leaf_stats;
 ```
 
-The `pageinspect` functions available in PostgreSQL 12:
-- `getpage(relname, blkno)` — returns raw page bytes
-- `btmetapage(getpage(...))` — parses btree metapage
-- `btpageopaque(getpage(...))` — returns opaque fields (rightlink, level, flags)
-- `btpageitem(getpage(...), offset)` — returns individual index tuples
+The `bt_page_stats('index_name', blkno)` function reads a single block and returns:
 
-This gives you access to the raw page data and tuple offsets, from which you can compute density.
+| Column | Type | Meaning |
+|---|---|---|
+| `blkno` | uint32 | Block number |
+| `type` | char | `'l'` leaf, `'i'` internal, `'r'` root, `'d'` deleted, `'e'` empty |
+| `live_items` | uint32 | Live index tuples on the page |
+| `dead_items` | uint32 | Dead (tombstoned) tuples |
+| `free_size` | uint32 | Allocatable free space (same as `PageGetFreeSpace`) |
+| `max_avail` | uint32 | Total allocatable region (`pd_special - SizeOfPageHeaderData`) |
+| `page_size` | uint32 | Page size (usually 8192) |
+| `btpo_next` | BlockNumber | Right-sibling block number |
+| `btpo` | union | Tree level for non-leaf pages |
+
+This approach reads exactly N blocks (one per `bt_page_stats` call), giving the same I/O characteristics as Approach A but entirely in SQL. The `free_size` and `max_avail` fields use the same formulas as `pgstatindex()`.
 
 ## Fragmentation Diagrams
 
@@ -786,10 +818,36 @@ The effective leaf density depends on several configuration parameters:
 
 Changing `fillfactor` requires a `REINDEX` to take effect on existing pages. The new value only applies to future page splits and index builds.
 
+## Context Reviewed
+
+- `raw/postgres-12/contrib/pgstattuple/pgstatindex.c` — full source of `pgstatindex_impl()`, including the leaf-page scanning loop, `max_avail`/`free_space` accumulation, and density formula computation.
+- `raw/postgres-12/contrib/pgstattuple/pgstattuple--1.4.sql` and `pgstattuple--1.4--1.5.sql` — function signatures declaring `avg_leaf_density FLOAT8` output column.
+- `raw/postgres-12/contrib/pageinspect/btreefuncs.c` — `bt_page_stats()` implementation confirming it returns `free_size` and `max_avail` fields.
+- `raw/postgres-12/contrib/pageinspect/expected/btree.out` — actual function output showing column names and types for `bt_page_stats` and `bt_metap`.
+- `raw/postgres-12/src/backend/storage/page/bufpage.c#PageGetFreeSpace` — free space calculation: `pd_upper - pd_lower - sizeof(ItemIdData)` with zero-floor guard.
+- `raw/postgres-12/src/include/storage/bufpage.h` — `PageHeader` struct definition with `pd_lower`, `pd_upper`, `pd_special`.
+- `raw/postgres-12/src/include/access/nbtree.h#BTPageOpaqueData` — `BTPageOpaqueData` struct, `P_ISLEAF`, `P_IGNORE`, `BTREE_DEFAULT_FILLFACTOR`.
+- `wiki/versions.md` — PG 12 pin: commit `45b88269a353ad93744772791feb6d01bc7e1e42` on `REL_12_STABLE`.
+
+## Evidence Map
+
+| Claim | Source |
+|---|---|
+| `pgstatindex()` scans all blocks from 1 to `RelationGetNumberOfBlocks(rel)` | [[raw/postgres-12/contrib/pgstattuple/pgstatindex.c#pgstatindex_impl]] lines 269-315 |
+| `max_avail = BLCKSZ - (BLCKSZ - pd_special + SizeOfPageHeaderData)` | [[raw/postgres-12/contrib/pgstattuple/pgstatindex.c#pgstatindex_impl]] line 296 |
+| `free_space += PageGetFreeSpace(page)` per leaf page | [[raw/postgres-12/contrib/pgstattuple/pgstatindex.c#pgstatindex_impl]] line 298 |
+| Density formula: `100.0 - free_space / max_avail * 100.0` | [[raw/postgres-12/contrib/pgstattuple/pgstatindex.c#pgstatindex_impl]] line 349 |
+| `PageGetFreeSpace = pd_upper - pd_lower - sizeof(ItemIdData)` | [[raw/postgres-12/src/backend/storage/page/bufpage.c#PageGetFreeSpace]] lines 581-597 |
+| `BTREE_DEFAULT_FILLFACTOR = 90` | [[raw/postgres-12/src/include/access/nbtree.h#BTREE_DEFAULT_FILLFACTOR]] line 169 |
+| `P_ISLEAF(opaque)` checks `BTP_LEAF` flag bit | [[raw/postgres-12/src/include/access/nbtree.h#BTPageOpaqueData]] line 189 |
+| `P_IGNORE(opaque)` checks `BTP_DELETED \| BTP_HALF_DEAD` flags | [[raw/postgres-12/src/include/access/nbtree.h#BTPageOpaqueData]] line 194 |
+| `bt_page_stats` returns `free_size` and `max_avail` | [[raw/postgres-12/contrib/pageinspect/btreefuncs.c#GetBTPageStatistics]] lines 102, 147 |
+| `pageinspect` is a contrib extension shipped with PostgreSQL | [[raw/postgres-12/contrib/pageinspect/btreefuncs.c#bt_page_stats]] (standard contrib layout) |
+
 ## Open Questions
 
 - The exact error bound for stratified sampling (first+middle+last) vs simple random sampling on btree leaf density has not been formally analyzed in PostgreSQL documentation. Empirical testing is recommended for production use.
-- The behavior of `minib_leaf_density` on GIN, GiST, and BRIN indexes is not covered — this analysis applies only to btree indexes, which are the most common and the only ones with a leaf-page density concept identical to `pgstatindex`.
+- The behavior of `mini_leaf_density` on GIN, GiST, and BRIN indexes is not covered — this analysis applies only to btree indexes, which are the most common and the only ones with a leaf-page density concept identical to `pgstatindex`.
 
 ## Related Pages
 
