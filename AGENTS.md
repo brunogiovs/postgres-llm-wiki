@@ -103,6 +103,16 @@ verified: false
 verified_by_agent: not yet
 ```
 
+- New filed question pages use the same field order with `type: question`, and must include a `## Question` section that restates the user prompt verbatim:
+
+```yaml
+type: question
+version: NN
+pinned_commit: abc123...
+verified: false
+verified_by_agent: not yet
+```
+
 - Do not set the timestamp form if any claim is unverified. Fix it, move it under `## Open Questions`, or leave `verified_by_agent: not yet`.
 - Unverified managed pages must show `(unverified)` in the visible title and in index/landing-page link text until `verified: true`.
 
@@ -132,8 +142,13 @@ Use the exact current model name and timestamp when filing an agent-verified pag
 ## MANDATORY Wiki Structure
 
 - Keep version-specific pages under `wiki/vNN/`.
-- Use Obsidian links, e.g. `[[versions]]` and `[[v18/index]]`.
-- Include the version segment in links into per-version directories.
+- Within each `wiki/vNN/`, file pages by `type:` into a per-type subdirectory:
+  - `wiki/vNN/questions/` for `type: question` pages.
+  - `wiki/vNN/answers/` for `type: answer` pages.
+  - `wiki/vNN/concepts/` for `type: concept` pages.
+- The version landing page `wiki/vNN/index.md` stays at the version root and is the only page allowed there.
+- Use Obsidian links, e.g. `[[versions]]`, `[[v18/index]]`, `[[v12/questions/fk-join-optimization-two-tables]]`.
+- Include the version segment and the type subdirectory in links into per-version directories.
 - Create a page only when the work justifies it.
 - Do not create standalone call-chain or source-trace document families.
 - Treat generated pages as drafts until source references are checked.

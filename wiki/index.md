@@ -26,6 +26,7 @@ This is the global catalog for the PostgreSQL engine wiki.
 ### PostgreSQL 12.2
 
 - [[v12/index]] - Legacy version landing page. Source checkout pinned to `REL_12_STABLE` commit `45b88269a353ad93744772791feb6d01bc7e1e42`.
+- [[v12/questions/fk-join-optimization-two-tables|Foreign-Key Join Optimization for Two-Table Joins (unverified)]] - How the v12 planner uses foreign-key constraints when joining two tables.
 
 
 

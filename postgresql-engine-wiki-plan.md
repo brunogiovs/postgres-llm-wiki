@@ -92,7 +92,8 @@ Version | Status | Wiki Home | Branch | Pinned Commit | Coverage
 ## Page Rules
 
 - Keep version-local pages under `wiki/vNN/`.
-- Filed answer pages are pinned to a single version.
+- File pages by `type:` into a per-type subdirectory: `wiki/vNN/questions/`, `wiki/vNN/answers/`, `wiki/vNN/concepts/`. The version landing page `wiki/vNN/index.md` is the only page at the version root.
+- Filed answer and question pages are pinned to a single version.
 - Every behavioral claim needs a matching raw citation.
 - Unverified managed pages must show `(unverified)` in the visible title and index or landing-page link text.
 - Follow the tone and readability rules in [AGENTS.md](AGENTS.md): lead with the answer, use plain language, write short sentences, prefer active voice, and name conditions precisely.
@@ -101,6 +102,16 @@ New filed answer pages use front matter in this order:
 
 ```yaml
 type: answer
+version: NN
+pinned_commit: abc123...
+verified: false
+verified_by_agent: not yet
+```
+
+New filed question pages use the same field order with `type: question`, and must include a `## Question` section that restates the user prompt verbatim:
+
+```yaml
+type: question
 version: NN
 pinned_commit: abc123...
 verified: false
