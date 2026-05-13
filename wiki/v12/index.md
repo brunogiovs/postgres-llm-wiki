@@ -20,4 +20,4 @@ Source navigation is graph-first. Behavioral claims cite the matching pinned che
 
 ## Filed Questions
 
-- [[v12/questions/avg_leaf_density_minimal_io_query|avg_leaf_density with minimal I/O (unverified)]] — sampling-based leaf density estimation vs full pgstatindex scan, with fragmentation and partial index diagrams.
+- [[v12/questions/avg_leaf_density_minimal_io_query|Estimate avg_leaf_density with minimal I/O (unverified)]] — reviewed PostgreSQL 12 btree leaf-density estimation, separating exact `pgstatindex()` scans from C-level sampling and `pageinspect` SQL estimates.

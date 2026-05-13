@@ -30,3 +30,11 @@ Append one entry after every scaffold change, version lifecycle event, ingest, t
 - Added 3 partial index scenarios explaining why partiality does not affect leaf page density.
 - Cited source: pgstatindex.c, nbtree.h, bufpage.h, nbtpage.c.
 - Updated `wiki/v12/index.md` with question reference.
+
+## [2026-05-13] review v12 | avg_leaf_density_minimal_io_query — estimate avg_leaf_density
+
+- Reviewed `wiki/v12/questions/avg_leaf_density_minimal_io_query.md` against pinned PostgreSQL 12 source.
+- Replaced the incomplete C SRF and invalid pure-SQL fallback with a source-backed answer that separates exact `pgstatindex()`, C-level sampling, and `pageinspect` SQL estimation.
+- Corrected the `pageinspect` boundary: `bt_page_stats()` exposes `free_size` and `page_size` to SQL, but not its internal `max_avail` field.
+- Added production SQL timeouts and an inline-tagged sampling query.
+- Updated `wiki/v12/index.md`, `wiki/index.md`, and `wiki/versions.md`.
