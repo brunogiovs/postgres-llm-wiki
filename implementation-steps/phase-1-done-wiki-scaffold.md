@@ -41,7 +41,7 @@ wiki/
   diagrams/
 
 templates/
-  question.md
+  answer.md
 
 AGENTS.md
 ```
@@ -93,7 +93,7 @@ This page indexes the PostgreSQL versions covered by the wiki.
 
 ## Local Model Rules To Include In `AGENTS.md`
 
-- Trace one source slice or question at a time using generated source-context packs and the pinned raw source checkout.
+- Trace one source slice or request at a time using generated source-context packs and the pinned raw source checkout.
 - Prefer `rg`, `git grep`, and short source excerpts over loading entire directories.
 - Do not ingest a large source area in one pass with the 16GB local model.
 - Do not create standalone code-path or source-trace document families.

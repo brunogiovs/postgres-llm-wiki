@@ -4,7 +4,4 @@
 # scripts/bootstrap_venv). Add new dependencies here, with a pinned
 # version, before importing them from any script.
 
-# Provides the `graphify` CLI consumed by scripts/source_graph and the
-# graph subcommands of scripts/source_graph_query. Installed into the
-# project venv so the host system stays untouched.
-# graphifyy==0.7.11 (dependency removed as per cleanup)
+# No Python package dependencies are currently pinned.

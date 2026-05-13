@@ -21,8 +21,8 @@ See [[wiki/versions]] for exact pinned commits.
 
 1. Bootstrap the environment: `./bootstrap_venv`
 2. Activate the venv: `source .wiki-runtime/venv/bin/activate`
-3. Update source checkouts: `python scripts/source_update --version 18`
-4. Generate graphs: `python scripts/source_graph --version 18 --refresh`
+3. Read [AGENTS.md](AGENTS.md) before making wiki changes.
+4. Run wiki maintenance commands through the project venv.
 
 ## Project Structure
 

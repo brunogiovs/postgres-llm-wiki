@@ -93,10 +93,10 @@ UPDATE /* wiki_backfill_user_email */ users SET ...;
 
 - `verified:` is human-only. Agents must not set, change, or remove it.
 - `verified_by_agent:` records agent verification. Use `not yet` for drafts. Use the timestamp form only after re-checking every claim against pinned raw source.
-- New question pages use this exact front matter order:
+- New filed answer pages use this exact front matter order:
 
 ```yaml
-type: question
+type: answer
 version: NN
 pinned_commit: abc123...
 verified: false
@@ -163,9 +163,8 @@ Log heading format:
 2. Pin it to an exact commit.
 3. Add it to `wiki/versions.md`.
 4. Create `wiki/vNN/index.md`.
-5. Create `wiki/vNN/questions/` only when a filed answer needs it.
-6. Update `wiki/index.md`.
-7. Append to `wiki/log.md`.
+5. Update `wiki/index.md`.
+6. Append to `wiki/log.md`.
 
 ### MANDATORY Answer And File
 
@@ -175,8 +174,8 @@ Log heading format:
 4. Draft a claim-to-source map.
 5. Move unverified claims to `## Open Questions`.
 6. Answer with matching-version raw citations.
-7. File durable answers as question pages or fold them into existing pages.
-8. Include `## Context Reviewed`, `## Evidence Map`, and `## Open Questions` in filed question pages when gaps exist.
+7. File durable answers as version-local pages or fold them into existing pages.
+8. Include `## Context Reviewed`, `## Evidence Map`, and `## Open Questions` in filed pages when gaps exist.
 9. Update indexes and log.
 
 ## MANDATORY Lint

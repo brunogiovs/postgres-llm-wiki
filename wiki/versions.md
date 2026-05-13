@@ -7,7 +7,7 @@ This page indexes the PostgreSQL versions covered by the wiki.
 | Version | Status | Wiki Home | Branch | Pinned Commit | Coverage |
 |---|---|---|---|---|---|
 | 18 | primary | [[v18/index]] | `REL_18_STABLE` | `6cb307251c5c6261286c1566496920976640108e` | Graph-first source navigation under `.wiki-runtime/graph/postgres-18/`; behavioral claims cite the matching pinned checkout under `raw/postgres-18/`. |
-| 12 | legacy | [[v12/index]] | `REL_12_STABLE` | `45b88269a353ad93744772791feb6d01bc7e1e42` | AST-only Graphify graph generated under `.wiki-runtime/graph/postgres-12/`; filed operational questions cover storage, WAL, bgwriter/checkpoints, inheritance overhead including `force_generic_plan` impact, I/O timing, planning metrics and generic/custom plan visibility, plan-cache mode including generic-plan validation, REINDEX CONCURRENTLY disk-space sizing, btree `avg_leaf_density` estimation, and a query-planner GUC inventory plus a non-default-settings `pg_settings` query covering every `Query Tuning / *` category, pinned to raw PostgreSQL 12 source citations. |
+| 12 | legacy | [[v12/index]] | `REL_12_STABLE` | `45b88269a353ad93744772791feb6d01bc7e1e42` | AST-only Graphify graph generated under `.wiki-runtime/graph/postgres-12/`; behavioral claims cite the matching pinned checkout under `raw/postgres-12/`. |
 
 ## Archived Versions
 
@@ -20,7 +20,7 @@ No PostgreSQL versions have been archived yet.
 
 - `primary` - exactly one supported version; default target for new ingests and answers.
 - `active` - kept close to the primary through active-version verification.
-- `legacy` - preserved for reference and questions, but not checked by default.
+- `legacy` - preserved for reference, but not checked by default.
 - `archived` - removed from active maintenance and kept under `wiki/_archive/`.
 
 ## Source Pin Rules

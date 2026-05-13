@@ -34,7 +34,7 @@ Behavioral claims still require direct citations into the matching `raw/postgres
 4. Use `tree-L4.txt`, `compile_commands.json`, `include-deps.txt`, and `callgraphs/` to orient on source files, headers, compile context, and likely call edges.
 5. Search the matching PostgreSQL source area under `raw/postgres-NN/` with `rg` or `git grep` before making claims.
 6. If the generated context is stale or missing a needed source root, regenerate or extend `.wiki-runtime/context/postgres-NN/` with `scripts/source_context`.
-7. File durable findings only as question pages when the user asks for an answer worth preserving.
+7. File durable findings only as version-local pages when the user asks for an answer worth preserving.
 8. Update `wiki/vNN/index.md`, `wiki/index.md`, and `wiki/versions.md` only when coverage or context-pack status changes.
 9. Append a context or maintenance entry to `wiki/log.md`.
 
@@ -45,7 +45,7 @@ On the 16GB GPU setup, do not ask the model to ingest an entire source area in o
 - one generated context artifact at a time
 - one key source file at a time
 - one entry point at a time
-- one filed question at a time
+- one filed answer at a time
 
 Use generated context as source navigation, not as behavioral proof.
 
@@ -83,6 +83,6 @@ Do not create standalone code-path or source-trace pages. If a call-path view is
 - The primary version has a generated `.wiki-runtime/context/postgres-NN/manifest.md`.
 - Query-lifecycle source orientation is available through generated context artifacts rather than subsystem or code-path pages.
 - Any deferred context artifacts are recorded in the manifest and version landing page.
-- Durable answers are filed as question pages only when needed.
+- Durable answers are filed as version-local pages only when needed.
 - `wiki/log.md` records context generation or maintenance.
 - `scripts/wiki_lint` runs after any wiki-facing edits.

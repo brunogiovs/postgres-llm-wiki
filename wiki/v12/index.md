@@ -17,7 +17,3 @@ Source navigation is graph-first. Behavioral claims cite the matching pinned che
 - Graph path: `.wiki-runtime/graph/postgres-12/`
 - Status: AST-only graph generated under `.wiki-runtime/graph/postgres-12/`; generated on demand by graph query commands when `graph.json` is absent.
 - Use graph output only as navigation context; behavioral claims still need citations under `raw/postgres-12/`.
-
-## Filed Questions
-
-- [[v12/questions/avg_leaf_density_minimal_io_query|Estimate avg_leaf_density with minimal I/O (unverified)]] — reviewed PostgreSQL 12 btree leaf-density estimation, separating exact `pgstatindex()` scans from C-level sampling and `pageinspect` SQL estimates.

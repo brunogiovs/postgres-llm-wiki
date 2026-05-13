@@ -28,14 +28,12 @@ Behavioral claims still need citations to matching raw source files or symbols u
 
 - `scripts/recent_log` - recent entries from `wiki/log.md`.
 - `scripts/wiki_lint` - broken links, metadata drift, source-reference checks, and orphan warnings.
-- `scripts/version_diff` - path diff across two project-local source checkouts.
-- `scripts/hermes_sessions` - list and clear project-local Hermes session files and database rows.
 
 ## Operating Principles
 
 - Trace source code before summarizing behavior.
 - Use the matching pinned checkout for raw source evidence.
 - Use Graphify graphs for navigation and call-path discovery, not as citations for PostgreSQL behavior.
-- Prefer narrow, source-backed question pages over broad unsourced summaries.
+- Prefer narrow, source-backed filed answer pages over broad unsourced summaries.
 - Keep version-local content under `wiki/vNN/`.
 - Keep runtime dependencies and generated state under `.wiki-runtime/`.

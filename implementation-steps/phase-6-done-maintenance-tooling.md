@@ -33,7 +33,7 @@ Checks:
 - Pages without source references.
 - Pages under `wiki/vNN/` without matching `version:` and `pinned_commit:`.
 - Stale `pinned_commit:` values relative to `wiki/versions.md`.
-- Question pages citing source from the wrong version checkout.
+- Version-local pages citing source from the wrong version checkout.
 - Version landing pages missing links to existing version-local pages.
 - `wiki/versions.md` coverage notes that disagree with actual pages.
 
@@ -103,7 +103,7 @@ scripts/recent_log --limit 20
 
 ## Local Model Guidance
 
-These tools are especially important for the 16GB local model setup. They reduce context load by letting the agent ask narrow questions:
+These tools are especially important for the 16GB local model setup. They reduce context load by letting the agent ask narrow checks:
 
 - "Find this symbol."
 - "Show recent log entries."

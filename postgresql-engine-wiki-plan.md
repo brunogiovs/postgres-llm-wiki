@@ -48,7 +48,6 @@ wiki/
   log.md
   v18/index.md
   v12/index.md
-  v12/questions/
 
 requirements.txt             # Pinned Python deps for the project venv
 
@@ -93,15 +92,15 @@ Version | Status | Wiki Home | Branch | Pinned Commit | Coverage
 ## Page Rules
 
 - Keep version-local pages under `wiki/vNN/`.
-- Question pages are pinned to a single version.
+- Filed answer pages are pinned to a single version.
 - Every behavioral claim needs a matching raw citation.
 - Unverified managed pages must show `(unverified)` in the visible title and index or landing-page link text.
 - Follow the tone and readability rules in [AGENTS.md](AGENTS.md): lead with the answer, use plain language, write short sentences, prefer active voice, and name conditions precisely.
 
-New question pages use front matter in this order:
+New filed answer pages use front matter in this order:
 
 ```yaml
-type: question
+type: answer
 version: NN
 pinned_commit: abc123...
 verified: false
@@ -122,9 +121,9 @@ Treat `wiki/versions.md`, `wiki/index.md`, `wiki/log.md`, and version landing pa
 
 ## Deep Inquiry Default
 
-All user questions, reports, and filed answers run in deep-inquiry mode unless the user explicitly asks for a quick answer.
+All user requests, reports, and filed answers run in deep-inquiry mode unless the user explicitly asks for a quick answer.
 
-For each question:
+For each request:
 
 - Confirm the target PostgreSQL version.
 - Locate the primary source files and symbols.
@@ -154,7 +153,7 @@ Pages carry two verification fields:
 
 Rules:
 
-- New question pages set `verified: false` and `verified_by_agent: not yet`.
+- New filed answer pages set `verified: false` and `verified_by_agent: not yet`.
 - Do not set `verified_by_agent:` if any claim cannot be verified.
 - Unverified managed wiki documents must show `(unverified)` until a human sets `verified: true`.
 - `verified_by_agent` must be either `not yet` or `<LLM-model-name> | YYYY-MM-DD HH:MM`.
@@ -206,9 +205,8 @@ Log entry headings use one of these forms:
 2. Pin the checkout to an exact commit.
 3. Add the version to `wiki/versions.md`.
 4. Create `wiki/vNN/index.md`.
-5. Create `wiki/vNN/questions/` only when a filed answer needs it.
-6. Update `wiki/index.md`.
-7. Append to `wiki/log.md`.
+5. Update `wiki/index.md`.
+6. Append to `wiki/log.md`.
 
 ### Answer And File
 

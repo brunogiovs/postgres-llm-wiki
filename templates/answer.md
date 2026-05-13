@@ -1,12 +1,12 @@
 ---
-type: question
+type: answer
 version: NN
 pinned_commit: abc123...
 verified: false
-verified_by_agent: model-name YYYY-MM-DDTHH:MM:SSZ
+verified_by_agent: not yet
 ---
 
-# Question
+# Answer Title (unverified)
 
 ## Short Answer
 
@@ -16,5 +16,4 @@ verified_by_agent: model-name YYYY-MM-DDTHH:MM:SSZ
 
 ## Related Pages
 
-## Follow-Up Questions
-
+## Follow-Up Work

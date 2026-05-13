@@ -40,7 +40,6 @@ raw/
 wiki/
   vNN/
     index.md
-    questions/              # created only when filed answers need it
 
 .wiki-runtime/
   context/
@@ -55,11 +54,10 @@ wiki/
 3. Update `wiki/versions.md` with the version row.
 4. Create `wiki/vNN/index.md`.
 5. Generate `.wiki-runtime/context/postgres-NN/` with `scripts/source_context`.
-6. Create `wiki/vNN/questions/` only when a filed answer needs it.
-7. If this is the primary version, ensure no other version is marked `primary`.
-8. If adding an active version after pages already exist, perform an active-version verification pass.
-9. Update `wiki/index.md`.
-10. Append an `add-version` or `context` entry to `wiki/log.md`.
+6. If this is the primary version, ensure no other version is marked `primary`.
+7. If adding an active version after pages already exist, perform an active-version verification pass.
+8. Update `wiki/index.md`.
+9. Append an `add-version` or `context` entry to `wiki/log.md`.
 
 ## Project-Local Dependency Rules
 
@@ -91,7 +89,7 @@ Generated source-context pack: `.wiki-runtime/context/postgres-NN/manifest.md`
 - Generated artifacts:
 - Deferred artifacts:
 
-## Questions
+## Notes
 
 ## Open Questions
 ```
@@ -111,5 +109,5 @@ When adding an active version after source-backed pages already exist:
 - `.wiki-runtime/context/postgres-NN/manifest.md` exists or a deferral is recorded.
 - `wiki/versions.md` links to `[[vNN/index]]`.
 - `wiki/vNN/index.md` exists and records the source pin.
-- Version-local question directory exists only when durable filed answers need it.
+- Version-local filed answer pages exist only when durable filed answers need them.
 - `wiki/log.md` records the version addition.
