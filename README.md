@@ -37,3 +37,7 @@ See [[wiki/versions]] for exact pinned commits.
 - [Implementation Plan](postgresql-engine-wiki-plan.md): Detailed technical specifications and setup
 
 Agents should read [AGENTS.md](AGENTS.md) before making wiki changes.
+
+## Question in Focus
+
+follow AGENTS.md. Question: in PostgreSQL 12, produce a comprehensive  analysis  on how foreign key joins are optimized by  query planner in cases of sql that joins two tables.
