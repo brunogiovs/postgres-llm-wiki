@@ -13,13 +13,13 @@ This is the global catalog for the PostgreSQL engine wiki.
 
 ### PostgreSQL 18
 
-- [[v18/index]] - Primary version landing page. Source checkout pinned to `REL_18_STABLE` commit `6cb307251c5c6261286c1566496920976640108e`; Graphify graph artifacts live under `.wiki-runtime/graph/postgres-18/`.
+- [[v18/index]] - Primary version landing page. Source checkout pinned to `REL_18_STABLE` commit `6cb307251c5c6261286c1566496920976640108e`.
 
 
 
 ### PostgreSQL 12.2
 
-- [[v12/index]] - Legacy version landing page. Source checkout pinned to `REL_12_STABLE` commit `45b88269a353ad93744772791feb6d01bc7e1e42`; Graphify graph artifacts live under `.wiki-runtime/graph/postgres-12/`.
+- [[v12/index]] - Legacy version landing page. Source checkout pinned to `REL_12_STABLE` commit `45b88269a353ad93744772791feb6d01bc7e1e42`.
 
 
 

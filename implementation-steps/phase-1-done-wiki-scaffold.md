@@ -93,7 +93,7 @@ This page indexes the PostgreSQL versions covered by the wiki.
 
 ## Local Model Rules To Include In `AGENTS.md`
 
-- Trace one source slice or request at a time using generated source-context packs and the pinned raw source checkout.
+- Trace one source slice or request at a time using the pinned raw source checkout.
 - Prefer `rg`, `git grep`, and short source excerpts over loading entire directories.
 - Do not ingest a large source area in one pass with the 16GB local model.
 - Do not create standalone code-path or source-trace document families.
@@ -132,5 +132,5 @@ export TMPDIR="$WIKI_RUNTIME/tmp"
 - `.wiki-runtime/` exists and is reserved for project-local dependencies and generated runtime state.
 - `wiki/versions.md` is present and ready to index PostgreSQL versions.
 - `AGENTS.md` contains source citation, version awareness, bookkeeping, local-model rules, and project-local dependency rules.
-- Templates exist for durable filed-answer pages; source navigation is provided by generated context packs rather than standalone trace templates.
+- Templates exist for durable filed-answer pages; source review relies on pinned raw checkouts rather than standalone trace templates.
 - `wiki/log.md` records the scaffold creation.

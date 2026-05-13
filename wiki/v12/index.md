@@ -10,10 +10,4 @@
 
 ## Coverage
 
-Source navigation is graph-first. Behavioral claims cite the matching pinned checkout under `raw/postgres-12/`.
-
-## Graphify Source Graph
-
-- Graph path: `.wiki-runtime/graph/postgres-12/`
-- Status: AST-only graph generated under `.wiki-runtime/graph/postgres-12/`; generated on demand by graph query commands when `graph.json` is absent.
-- Use graph output only as navigation context; behavioral claims still need citations under `raw/postgres-12/`.
+Behavioral claims cite the matching pinned checkout under `raw/postgres-12/`.

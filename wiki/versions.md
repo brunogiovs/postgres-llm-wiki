@@ -6,8 +6,8 @@ This page indexes the PostgreSQL versions covered by the wiki.
 
 | Version | Status | Wiki Home | Branch | Pinned Commit | Coverage |
 |---|---|---|---|---|---|
-| 18 | primary | [[v18/index]] | `REL_18_STABLE` | `6cb307251c5c6261286c1566496920976640108e` | Graph-first source navigation under `.wiki-runtime/graph/postgres-18/`; behavioral claims cite the matching pinned checkout under `raw/postgres-18/`. |
-| 12 | legacy | [[v12/index]] | `REL_12_STABLE` | `45b88269a353ad93744772791feb6d01bc7e1e42` | AST-only Graphify graph generated under `.wiki-runtime/graph/postgres-12/`; behavioral claims cite the matching pinned checkout under `raw/postgres-12/`. |
+| 18 | primary | [[v18/index]] | `REL_18_STABLE` | `6cb307251c5c6261286c1566496920976640108e` | Behavioral claims cite the matching pinned checkout under `raw/postgres-18/`. |
+| 12 | legacy | [[v12/index]] | `REL_12_STABLE` | `45b88269a353ad93744772791feb6d01bc7e1e42` | Behavioral claims cite the matching pinned checkout under `raw/postgres-12/`. |
 
 ## Archived Versions
 
@@ -28,7 +28,7 @@ No PostgreSQL versions have been archived yet.
 - Pins must be exact commit hashes, not floating branch names.
 - Source checkouts must live under `raw/postgres-NN/`.
 - Version landing pages must live under `wiki/vNN/index.md`.
-- Generated runtime artifacts must live under `.wiki-runtime/`: Graphify source graphs under `.wiki-runtime/graph/postgres-NN/`, caches under `.wiki-runtime/cache/`, and logs under `.wiki-runtime/logs/`.
+- Generated runtime artifacts must live under `.wiki-runtime/`: caches under `.wiki-runtime/cache/` and logs under `.wiki-runtime/logs/`.
 
 ## Current Primary
 

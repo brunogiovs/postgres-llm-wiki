@@ -6,7 +6,7 @@ Done on 2026-04-30.
 
 ## Goal
 
-Add one or more PostgreSQL major versions to the wiki, each with a pinned source checkout, generated source-context pack, and version-local landing page.
+Add one or more PostgreSQL major versions to the wiki, each with a pinned source checkout and version-local landing page.
 
 ## Recommended MVP
 
@@ -41,10 +41,6 @@ wiki/
   vNN/
     index.md
 
-.wiki-runtime/
-  context/
-    postgres-NN/
-      manifest.md
 ```
 
 ## Tasks
@@ -53,11 +49,10 @@ wiki/
 2. Pin it to the chosen commit.
 3. Update `wiki/versions.md` with the version row.
 4. Create `wiki/vNN/index.md`.
-5. Generate `.wiki-runtime/context/postgres-NN/` with `scripts/source_context`.
-6. If this is the primary version, ensure no other version is marked `primary`.
-7. If adding an active version after pages already exist, perform an active-version verification pass.
-8. Update `wiki/index.md`.
-9. Append an `add-version` or `context` entry to `wiki/log.md`.
+5. If this is the primary version, ensure no other version is marked `primary`.
+6. If adding an active version after pages already exist, perform an active-version verification pass.
+7. Update `wiki/index.md`.
+8. Append an `add-version` entry to `wiki/log.md`.
 
 ## Project-Local Dependency Rules
 
@@ -81,14 +76,6 @@ wiki/
 
 ## Coverage
 
-Generated source-context pack: `.wiki-runtime/context/postgres-NN/manifest.md`
-
-## Project Context
-
-- Manifest: `.wiki-runtime/context/postgres-NN/manifest.md`
-- Generated artifacts:
-- Deferred artifacts:
-
 ## Notes
 
 ## Open Questions
@@ -106,7 +93,6 @@ When adding an active version after source-backed pages already exist:
 ## Definition Of Done
 
 - `raw/postgres-NN/` exists and is pinned.
-- `.wiki-runtime/context/postgres-NN/manifest.md` exists or a deferral is recorded.
 - `wiki/versions.md` links to `[[vNN/index]]`.
 - `wiki/vNN/index.md` exists and records the source pin.
 - Version-local filed answer pages exist only when durable filed answers need them.
