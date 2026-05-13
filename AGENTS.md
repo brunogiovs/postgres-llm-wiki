@@ -8,7 +8,7 @@ This repository is an LLM-maintained wiki for PostgreSQL engine internals. The a
 - Read `wiki/index.md` before modifying or answering from the wiki.
 - Read the last ~20 entries of `wiki/log.md` to understand recent activity.
 - For version-specific work, read the relevant `wiki/vNN/index.md` before editing version-local pages.
-- For any question, answer, report, or generated document, query the matching `raw/postgres-NN/` checkout directly using the Read tool, Bash (`grep`, `find`, `rg`), and the project's own shell tooling.
+- For any question, answer, report, or generated document, use the matching `raw/postgres-NN/` checkout as the PostgreSQL evidence base.
 
 ## MANDATORY Environment Isolation
 
@@ -24,13 +24,12 @@ Tooling for this project must have minimal impact on the host system. Stay scope
 
 ## MANDATORY Evidence Scope
 
-For every answer, report, wiki page, diagram, or generated document, use only the target version's pinned checkout under `raw/postgres-NN/` as factual evidence.
+For every answer, report, wiki page, diagram, or generated document, use only the target version's pinned checkout under `raw/postgres-NN/` as factual evidence. Implementation source is primary evidence. PostgreSQL documentation and tests from the same pinned checkout may also be used as evidence for documented or tested behavior.
 
 - Treat `wiki/versions.md`, `wiki/index.md`, `wiki/log.md`, and version landing pages as navigation and bookkeeping context, not independent evidence for PostgreSQL behavior.
 - Do not use model memory, external websites, package documentation outside the repository, or uncited prior wiki prose as factual support for generated content.
-- Gather evidence directly from the `raw/postgres-NN/` checkout:
-  - Use the Read tool and Bash (`grep`, `rg`, `find`) for source search and bounded file reads.
-  - Use `git log` / `git blame` inside `raw/postgres-NN/` for source history.
+- In-tree PostgreSQL documentation, tests, and source history from the same pinned checkout may support claims when they directly apply.
+- If implementation source conflicts with documentation or tests, the implementation source wins. Record the discrepancy under `## Open Questions`.
 - Never answer about one PostgreSQL version using `raw/` files from another version.
 
 ## MANDATORY Deep Inquiry Default
@@ -39,11 +38,11 @@ All user questions, reports, and filed answers run in deep-inquiry mode unless t
 
 For each question:
 
-- Confirm the target PostgreSQL version and use explicit version-scoped source tools for every source operation.
-- Locate the primary source files and symbols, then inspect adjacent callers, callees, structs, macros, includes, generated headers visible in raw source, reverse include users, relevant tests, docs, catalogs, grammar, error paths, GUC definitions, and extension/contrib boundaries through direct source search (Read tool, `grep`, `rg`, `find`).
-- If direct source search returns an error or cannot produce trustworthy output, abort the current analysis before drafting. Fix and rerun when feasible; otherwise stop and report the exact command, target version, and error.
+- Confirm the target PostgreSQL version.
+- Locate the primary source files and symbols, then inspect adjacent callers, callees, structs, macros, includes, generated headers visible in raw source, reverse include users, relevant tests, docs, catalogs, grammar, error paths, GUC definitions, and extension/contrib boundaries.
+- If evidence lookup returns an error or cannot produce trustworthy output, abort the current analysis before drafting. Fix and rerun when feasible; otherwise stop and report the target version and error.
 - Inspect file or symbol history when the user asks why something exists, when intent matters, or when a regression/change claim is being made.
-- Use `scripts/version_diff --from NN --to MM` only when the answer makes a cross-version claim or the user asks for a comparison.
+- Cross-version claims or comparisons need evidence from each relevant version.
 - Draft from a claim-to-source evidence map. Every behavioral claim needs a matching raw citation; unresolved claims go under `## Open Questions`.
 
 The minimum depth target for an engine-internals answer is: normal path, relevant error or edge path, key data structures, caller/callee boundary, build or generated-header implications visible from raw source, and tests or explicit test absence. For planner, WAL, crash recovery, MVCC, storage, or corruption topics, missing caller/callee or data-structure context is a verification gap that must be resolved or recorded under `## Open Questions`.
@@ -56,7 +55,7 @@ The minimum depth target for an engine-internals answer is: normal path, relevan
 - Cite from the `raw/postgres-NN/` checkout matching the page's `version:`.
 - Use the same citation format for all code references, function names, and symbols mentioned in the text.
 - Code references may use aliases for compact display: `[[raw/postgres-NN/path/file.c#symbol|file.c#symbol]]`.
-- If a claim is not backed by a source file, symbol, documentation page, commit, or saved design discussion, do not write it as fact.
+- If a claim is not backed by a source file, symbol, test file, documentation page, commit, or saved design discussion, do not write it as fact.
 - Put uncertainty under `## Open Questions` instead of guessing.
 
 ## MANDATORY Tone And Readability
@@ -121,7 +120,7 @@ Rules:
 - Each supported version has a landing page at `wiki/vNN/index.md`.
 - Default new ingests and answers to the primary version unless the user specifies another.
 - If the user asks without naming a version, assume the primary version and state that assumption before answering.
-- Hard rule: every source operation must use an explicit version scope. Search under the matching `raw/postgres-NN/` checkout, and use `--from NN --to MM` for cross-version diffs.
+- Hard rule: every source citation must use the matching `raw/postgres-NN/` checkout.
 - Never answer about one PostgreSQL version using citations from another version's checkout.
 
 ## MANDATORY Wiki Structure
@@ -134,7 +133,6 @@ Rules:
 ## MANDATORY Operating Mode
 
 - Trace one source slice or question at a time using the matching raw source checkout.
-- Prefer direct source search (Read tool, `grep`, `rg`, `find`) over ad hoc shell searches.
 - Do not create standalone call-chain or source-trace document families.
 - Treat generated pages as drafts until their source references are checked.
 - Always use a unicode/ASCII tree for visual directory representations.
@@ -176,7 +174,7 @@ For version-agnostic work:
 
 1. Assume the primary version unless the user specifies another.
 2. Search `wiki/versions.md`, the relevant version landing page, and `wiki/index.md` for navigation and bookkeeping context only.
-3. Build the deep inquiry context envelope by searching the pinned `raw/postgres-NN/` checkout directly.
+3. Build the deep inquiry context envelope from the pinned `raw/postgres-NN/` checkout.
 4. Draft a claim-to-source evidence map. Move anything not verified into `## Open Questions`.
 5. Answer with citations to matching `raw/postgres-NN/` paths and symbols.
 6. File durable answers as question pages or fold them into existing pages. Filed question pages should include `## Context Reviewed`, `## Evidence Map`, and `## Open Questions` when gaps exist.
@@ -191,11 +189,7 @@ Use the project-local scripts first. The examples below assume the project venv 
 ```bash
 scripts/recent_log --limit 20
 scripts/wiki_lint
-scripts/version_diff --from 18 --to 17 --path src/backend/executor/execMain.c
-scripts/test_source_tools
 ```
-
-`scripts/test_source_tools` builds a synthetic temporary wiki/source environment and runs end-to-end checks for raw source queries, missing-tool handling, and source sanity checks.
 
 ## MANDATORY Version Control
 
