@@ -1,5 +1,6 @@
 # Project-local runtime state and generated artifacts.
 .claude/
+.opencode/
 .obsidian/
 wiki/.obsidian
 .wiki-runtime/
