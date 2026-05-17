@@ -2,6 +2,14 @@
 
 Append one entry after every scaffold change, version lifecycle event, ingest, trace, lint pass, or filed answer.
 
+## [2026-05-17] review-fix v18 | avg_leaf_density during (auto)vacuum question
+
+- Reviewed [[v18/questions/avg-leaf-density-during-vacuum|Computing and Storing avg_leaf_density During (Auto)VACUUM of a B-Tree Index (unverified)]] against pinned `raw/postgres-18/` commit `6cb307251c5c6261286c1566496920976640108e`.
+- Narrowed the zero-extra-I/O claim to actual `btvacuumscan` executions and corrected `_bt_set_cleanup_info` storage cost to account for its early-return path.
+- Reworked the metapage recommendation to prefer the deprecated `btm_last_cleanup_num_heap_tuples` `float8` slot over a new `float4`, while calling out WAL redo and `pageinspect` implications.
+- Added explicit accuracy caveats for empty leaf pages handled by `_bt_pagedel`, plus stats reset, accessor, parallel VACUUM, and autovacuum path notes.
+- Updated `wiki/v18/index.md` and `wiki/index.md` link summaries.
+
 ## [2026-05-17] lint-fix v12 | add source references
 
 - Added the missing `## Source References` section to [[v12/questions/fk-join-optimization-two-tables|Foreign-Key Join Optimization for Two-Table Joins (unverified)]] so `scripts/wiki_lint` can validate the page.
