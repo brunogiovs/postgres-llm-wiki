@@ -158,6 +158,19 @@ Multi-column FKs traverse the same code; multiple per-column matches are require
 | Outer-join removal uses uniqueness, not FK | [[raw/postgres-12/src/backend/optimizer/plan/analyzejoins.c#join_is_removable|join_is_removable]] |
 | Semi → inner reduction uses uniqueness, not FK | [[raw/postgres-12/src/backend/optimizer/plan/analyzejoins.c#reduce_unique_semijoins|reduce_unique_semijoins]] |
 
+## Source References
+
+- [[raw/postgres-12/src/include/nodes/pathnodes.h#ForeignKeyOptInfo|pathnodes.h#ForeignKeyOptInfo]] - FK planner metadata stored on `PlannerInfo`.
+- [[raw/postgres-12/src/backend/optimizer/util/plancat.c#get_relation_foreign_keys|plancat.c#get_relation_foreign_keys]] - catalog loading and FK short-circuit rules.
+- [[raw/postgres-12/src/backend/optimizer/plan/initsplan.c#match_foreign_keys_to_quals|initsplan.c#match_foreign_keys_to_quals]] - FK-to-join-clause matching and pruning.
+- [[raw/postgres-12/src/backend/optimizer/path/equivclass.c#match_eclasses_to_foreign_key_col|equivclass.c#match_eclasses_to_foreign_key_col]] - equivalence-class matching for FK columns.
+- [[raw/postgres-12/src/backend/optimizer/path/costsize.c#calc_joinrel_size_estimate|costsize.c#calc_joinrel_size_estimate]] - join cardinality calculation site.
+- [[raw/postgres-12/src/backend/optimizer/path/costsize.c#get_foreign_key_join_selectivity|costsize.c#get_foreign_key_join_selectivity]] - FK selectivity replacement logic.
+- [[raw/postgres-12/src/backend/optimizer/plan/planmain.c#query_planner|planmain.c#query_planner]] - planner pass ordering.
+- [[raw/postgres-12/src/backend/optimizer/plan/analyzejoins.c#join_is_removable|analyzejoins.c#join_is_removable]] - uniqueness-based left-join removal.
+- [[raw/postgres-12/src/backend/optimizer/plan/analyzejoins.c#reduce_unique_semijoins|analyzejoins.c#reduce_unique_semijoins]] - uniqueness-based semijoin reduction.
+- [[raw/postgres-12/src/backend/optimizer/plan/analyzejoins.c#remove_leftjoinrel_from_query|analyzejoins.c#remove_leftjoinrel_from_query]] - join-removal cleanup that leaves FK pruning to the later FK matching pass.
+
 ## Open Questions
 
 - Whether any later v12 minor releases added FK-driven uniqueness shortcuts to `join_is_removable` / `innerrel_is_unique`. This page is pinned to commit `45b88269a353ad93744772791feb6d01bc7e1e42` (12.2) and was not checked against the full `REL_12_STABLE` history.

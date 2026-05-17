@@ -14,6 +14,7 @@ This is the global catalog for the PostgreSQL engine wiki.
 ### PostgreSQL 18
 
 - [[v18/index]] - Primary version landing page. Source checkout pinned to `REL_18_STABLE` commit `6cb307251c5c6261286c1566496920976640108e`.
+- [[v18/questions/avg-leaf-density-during-vacuum|Computing and Storing avg_leaf_density During (Auto)VACUUM of a B-Tree Index (unverified)]] - How to compute `pgstatindex`-style `avg_leaf_density` during B-tree VACUUM with minimal extra I/O and where to store it.
 
 
 

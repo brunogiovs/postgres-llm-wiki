@@ -11,3 +11,7 @@
 ## Coverage
 
 Behavioral claims cite the matching pinned checkout under `raw/postgres-18/`.
+
+## Questions
+
+- [[v18/questions/avg-leaf-density-during-vacuum|Computing and Storing avg_leaf_density During (Auto)VACUUM of a B-Tree Index (unverified)]] - Design for computing `pgstatindex`-style `avg_leaf_density` inside the existing B-tree VACUUM leaf scan and storing it with minimal extra I/O.
